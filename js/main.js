@@ -675,19 +675,6 @@ window.addEventListener('error', function(e) {
     });
 });
 
-// Service Worker registration (for PWA features)
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js')
-            .then(function(registration) {
-                console.log('SW registered: ', registration);
-            })
-            .catch(function(registrationError) {
-                console.log('SW registration failed: ', registrationError);
-            });
-    });
-}
-
 // Carousel functionality for hero section
 function initHeroCarousel() {
     const carousel = document.getElementById('hero-carousel');
