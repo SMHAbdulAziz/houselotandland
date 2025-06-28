@@ -1,0 +1,10 @@
+*.gdoc
+*.gsheet
+*.gslides
+*.zip
+*.xcf
+*.psd
+*.ai
+node_modules/
+.DS_Store
+Thumbs.db
