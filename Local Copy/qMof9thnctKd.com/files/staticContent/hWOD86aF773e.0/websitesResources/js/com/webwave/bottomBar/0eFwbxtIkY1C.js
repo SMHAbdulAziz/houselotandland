@@ -1,0 +1,2 @@
+//# sourceMappingURL=madeByBanner.js.map
+var process=process||{env:{NODE_ENV:"development"}};document.addEventListener("DOMContentLoaded",function(){webwave.provide("webwaveAdsService");webwaveAdsService=function(){return{initAdvertButton:function(){document.referrer&&document.referrer.match("gui/gui/")&&$("#ww_advertisment_hint_wrapper").css("display","flex");pageService.updateBackgroundSize()}}}()});
