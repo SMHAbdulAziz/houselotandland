@@ -7,9 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initSmoothScrolling();
     initFormHandling();
     initScrollEffects();
-    initContactForm();
-    initHeroCarousel();
     initContactFormEmailOnly();
+    initHeroCarousel();
 });
 
 // Mobile Navigation
@@ -131,24 +130,6 @@ function initFormHandling() {
             
             if (validateForm(this)) {
                 handleFormSubmission(this, 'Cash Offer Request');
-            }
-        });
-    }
-}
-
-// Contact Form Handling
-function initContactForm() {
-    const contactForm = document.getElementById('contact-form');
-    
-    if (contactForm) {
-        // Add form validation
-        addFormValidation(contactForm);
-        
-        contactForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            if (validateForm(this)) {
-                handleFormSubmission(this, 'Contact Form Submission');
             }
         });
     }
