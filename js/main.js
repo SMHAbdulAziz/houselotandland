@@ -295,7 +295,7 @@ function handleFormSubmission(form, formType) {
     };
     
     // Send to Google Apps Script Web App (Google Sheets)
-    fetch('https://script.google.com/macros/s/AKfycbyoaAe7PydSOp13TgQOOpw4DlaQgUzacAsT0st9QpMGSPyxQnZSVtriXS-io49mbbOB/exec', {
+    fetch('https://script.google.com/macros/s/AKfycbyBdPlRRf1LAzOt8_eQth6Z_72SpPNhuaNbjPmYBu767Bh5Gpm0nCS5_jVViillYynV/exec', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
