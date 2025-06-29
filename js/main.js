@@ -158,6 +158,7 @@ function initContactFormEmailOnly() {
             .then(result => {
                 if (result.result === 'success' || result.success) {
                     contactForm.reset();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                     alert('Thank you! Your message has been sent.');
                 } else {
                     alert('There was an error. Please try again.');
@@ -355,6 +356,7 @@ function handleFormSubmission(form, formType) {
 
 // Show form success state
 function showFormSuccess(form) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     const formCard = form.closest('.form-card');
     const originalContent = formCard.innerHTML;
     
