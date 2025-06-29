@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initScrollEffects();
     initContactForm();
     initHeroCarousel();
+    initContactFormEmailOnly();
 });
 
 // Mobile Navigation
@@ -149,6 +150,41 @@ function initContactForm() {
             if (validateForm(this)) {
                 handleFormSubmission(this, 'Contact Form Submission');
             }
+        });
+    }
+}
+
+// Contact Form Handling (bottom of page, just sends email)
+function initContactFormEmailOnly() {
+    const contactForm = document.getElementById('contact-form');
+    if (contactForm) {
+        contactForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(contactForm);
+            const data = {
+                name: formData.get('name'),
+                phone: formData.get('phone'),
+                email: formData.get('email'),
+                message: formData.get('message'),
+                form_type: "contact"
+            };
+            fetch('https://apps-script-proxy.harvey-searcy.workers.dev/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.result === 'success' || result.success) {
+                    contactForm.reset();
+                    alert('Thank you! Your message has been sent.');
+                } else {
+                    alert('There was an error. Please try again.');
+                }
+            })
+            .catch(error => {
+                alert('Network error. Please try again later.');
+            });
         });
     }
 }
