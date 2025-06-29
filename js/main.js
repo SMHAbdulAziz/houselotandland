@@ -294,8 +294,8 @@ function handleFormSubmission(form, formType) {
         source: 'Website'
     };
     
-    // Send to Google Apps Script Web App (Google Sheets)
-    fetch('https://script.google.com/macros/s/AKfycbw-Ut05vLDFaoIeamWqHGWjAWIJl321zX-SSiAF8KB4mtVA2y9_5dI9QQL-w9c6ctf9/exec', {
+    // Send to Cloudflare Worker Proxy (which forwards to Google Apps Script)
+    fetch('https://apps-script-proxy.harvey-searcy.workers.dev/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
