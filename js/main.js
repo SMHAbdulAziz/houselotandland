@@ -143,10 +143,10 @@ function initContactFormEmailOnly() {
             e.preventDefault();
             const formData = new FormData(contactForm);
             const data = {
-                name: formData.get('name'),
-                phone: formData.get('phone'),
-                email: formData.get('email'),
-                message: formData.get('message'),
+                name: formData.get('contact-name'),
+                phone: formData.get('contact-phone'),
+                email: formData.get('contact-email'),
+                message: formData.get('contact-message'),
                 form_type: "contact"
             };
             fetch('https://apps-script-proxy.harvey-searcy.workers.dev/', {
