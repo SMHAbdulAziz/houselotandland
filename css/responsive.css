@@ -30,24 +30,22 @@
     h3 { font-size: var(--font-size-2xl); }
     
     /* Navigation */
-    .nav-menu {
-        position: fixed;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background-color: var(--bg-white);
-        box-shadow: var(--shadow-medium);
-        padding: var(--spacing-lg);
-        transform: translateY(-100%);
-        opacity: 0;
-        visibility: hidden;
-        transition: all var(--transition-normal);
+    .navbar .container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-direction: row;
     }
-    
-    .nav-menu.active {
-        transform: translateY(0);
-        opacity: 1;
-        visibility: visible;
+    .nav-brand {
+        order: 1;
+        margin-right: auto;
+    }
+    .nav-toggle {
+        order: 3;
+        margin-left: auto;
+    }
+    .nav-menu {
+        order: 2;
     }
     
     .nav-list {

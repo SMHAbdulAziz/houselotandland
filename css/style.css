@@ -958,4 +958,10 @@ section {
     .carousel {
         height: 140px;
     }
+}
+
+@media (prefers-color-scheme: dark) {
+    .footer, .footer-section h4, .footer-section ul li a, .footer-bottom {
+        color: #111 !important;
+    }
 } 
