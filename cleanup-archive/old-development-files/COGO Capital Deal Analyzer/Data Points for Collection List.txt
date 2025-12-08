@@ -1,0 +1,98 @@
+# ✅ COGO Capital Deal Submission – Data Collection Checklist
+
+Once a deal is marked **COGO ELIGIBLE**, gather the following data to ensure the deal package is complete and ready for submission.
+
+---
+
+## 🧾 Deal & Property Information
+
+- **Property Address**: `__________________________`
+- **County & Parcel ID**: `__________________________`
+- **Property Type**: `SFR / Duplex / Triplex / Other`
+- **Year Built**: `______`
+- **Square Footage (Main House)**: `______ sq ft`
+- **Lot Size**: `______ sq ft / acres`
+- **# Bedrooms**: `__` | **# Bathrooms**: `__`
+- **Garage**: `Attached / Detached / None` — `______ sq ft`
+- **Rehab Scope Summary**:  
+  `_Brief description of renovation scope (1–3 sentences)_`
+
+- **Exit Strategy**:  
+  `MLS Listing / FSBO / Wholesale / Rental / Lease Option / Other`
+
+- **Anticipated Sale Price**: `$_____________`
+- **ARV Comps Link**: `[Upload file] or [Insert link]`
+
+---
+
+## 💸 Purchase & Loan Details
+
+- **Contract Purchase Price**: `$_____________`
+- **Earnest Money**: `$__________` → `Paid? (Y/N)`
+- **Seller Concessions**: `$__________ (if any)`
+- **Requested Loan Amount**: `$_____________`
+- **Funding Gap (to be covered with cash or note)**: `$_____________`
+- **Preferred Loan Term**: `6 / 9 / 12 months`
+- **Requested Closing Date**: `MM/DD/YYYY`
+- **Title Company**:  
+  - Name: `__________________________`  
+  - Contact: `__________________________`
+
+---
+
+## 📎 Deal Documents Checklist
+
+- [ ] Executed **Purchase Contract**
+- [ ] **Repair Budget** (Spreadsheet or PDF)
+- [ ] **Preliminary Title Report** *(optional)*
+- [ ] Interior/Exterior **Photos**
+- [ ] **Comps / ARV Justification**
+- [ ] **Insurance Binder** *(optional)*
+- [ ] **Appraisal / Inspection Report** *(if available)*
+- [ ] **Seller Contact Info**
+
+---
+
+## 👤 Borrower Information
+
+- **Investor Name(s)**: `__________________________`
+- **Email**: `__________________________`
+- **Phone**: `__________________________`
+- **Entity Name (LLC, Corp)**: `__________________________`
+- **EIN**: `__________________`
+- **Entity Formation Docs**: `[Upload]`
+- **State Formed In**: `__________`
+- **Experience Level**:  
+  `First-Time / 2–4 Deals / 5+ Deals / Full-Time Investor`
+
+- **Exit Plan Details** (optional):  
+  `_Describe how you plan to sell or refinance this property_`
+
+- **Credit Score Estimate**: `500–850+`
+- **Monthly Income (if requested)**: `$___________`
+- **Driver’s License**: `[Upload]`
+- **Proof of Funds**: `[Upload bank statement]`
+
+---
+
+## 🗂️ Notes & Internal Tags
+
+- **Lead Source**: `Wholesaler / Agent / Web / Direct / Other`
+- **Status**: `Ready / Missing Docs / On Hold`
+- **Assigned Team Member**: `________________`
+- **Notes or Red Flags**:  
+  `_Free text for internal communication_`
+
+---
+
+## 📩 Ready to Submit?
+
+Once all required fields and uploads are completed:
+→ **Click "Submit to Underwriting"**  
+→ Optionally auto-log in connected **Google Sheet**  
+→ Create deal folder in **Google Drive** (if using API integration)
+
+---
+
+*Version: COGO Deal Analyzer v1.0 – Data Collection Framework*  
+*Maintained by: House Lot & Land Sales Co. LLC*

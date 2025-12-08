@@ -1,0 +1,14 @@
+# Core dependencies
+pandas==2.0.3
+reportlab==4.0.4
+
+# GUI dependencies (optional - only needed for GUI mode)
+# Uncomment the line below if you want GUI support
+# # Minimal core dependencies for CLI mode
+# No external dependencies required for basic functionality
+
+# Optional: PDF generation
+reportlab>=3.6.0
+
+# Optional: GUI mode  
+PyQt5>=5.15.0

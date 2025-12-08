@@ -1,0 +1,198 @@
+{
+  "eligible": true,
+  "deal_id": "DEAL_20251015_005906",
+  "profit": 45880.0,
+  "broker_required": [
+    {
+      "name": "Broker Fee Agreement",
+      "description": "Signed agreement outlining broker compensation",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "COGO Capital Loan Application",
+      "description": "Completed loan application form",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Schedule of Real Estate Owned",
+      "description": "Complete list of borrower's real estate assets",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Zero Fraud Policy",
+      "description": "Signed fraud prevention acknowledgment",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Secretary of State Verification",
+      "description": "Corporate entity verification (if applicable)",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Entity Operating Agreement",
+      "description": "LLC/Corp operating docs (if applicable)",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Federal EIN Verification",
+      "description": "IRS EIN confirmation letter",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Guarantor ID",
+      "description": "Government-issued photo ID for all guarantors",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Social Security Card",
+      "description": "SS card for all guarantors",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Bank Statements",
+      "description": "Last 3 months business and personal statements",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Federal Tax Returns",
+      "description": "Last 2 years personal and business returns",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "State Tax Returns",
+      "description": "Last 2 years state returns (if applicable)",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Purchase & Sales Agreement",
+      "description": "Executed purchase contract",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "P&S Agreement Addendums",
+      "description": "All addendums to purchase agreement",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Mortgage Payoff Letter",
+      "description": "Current mortgage payoff statement (if applicable)",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Contractor's Liability Insurance",
+      "description": "Current GL insurance certificate",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Contractor's License Verification",
+      "description": "Valid contractor license verification",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Draw Schedule",
+      "description": "Detailed construction draw schedule",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Contractor Scope of Work",
+      "description": "Complete scope of work document",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "CDNA Report",
+      "description": "Comprehensive property and area analysis",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    },
+    {
+      "name": "Schedule of Real Estate Sold",
+      "description": "Recent sales history of borrower",
+      "collected": false,
+      "date_collected": null,
+      "notes": ""
+    }
+  ],
+  "lender_provided": [
+    {
+      "name": "Preliminary Title Report",
+      "description": "Title commitment/preliminary report",
+      "lender_responsibility": true
+    },
+    {
+      "name": "Hazard Insurance Binder",
+      "description": "Property insurance coverage binder",
+      "lender_responsibility": true
+    },
+    {
+      "name": "Appraisal Report",
+      "description": "Professional property appraisal",
+      "lender_responsibility": true
+    },
+    {
+      "name": "HUD Settlement Statement",
+      "description": "Closing settlement statement",
+      "lender_responsibility": true
+    },
+    {
+      "name": "Cost Worksheet",
+      "description": "Underwriter's cost analysis",
+      "lender_responsibility": true
+    },
+    {
+      "name": "Credit Report",
+      "description": "Comprehensive credit analysis",
+      "lender_responsibility": true
+    }
+  ],
+  "submission_notes": [
+    "All documents must be current (within 90 days unless specified)",
+    "Corporate borrowers require additional entity documentation",
+    "Construction projects require detailed contractor documentation",
+    "Incomplete files will delay processing and funding",
+    "Broker must verify accuracy of all collected documents"
+  ],
+  "completion_stats": {
+    "broker_collected": 0,
+    "broker_total": 21,
+    "completion_percentage": 0
+  }
+}

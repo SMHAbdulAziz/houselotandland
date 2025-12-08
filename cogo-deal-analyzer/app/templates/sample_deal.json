@@ -1,0 +1,25 @@
+{
+  "arv": 250000.00,
+  "purchase_price": 180000.00,
+  "rehab": 30000.00,
+  "property_address": "123 Main St, Anytown, USA 12345",
+  "property_type": "Single Family Residence",
+  "bedrooms": 3,
+  "bathrooms": 2,
+  "square_feet": 1850,
+  "notes": "Sample deal for testing purposes - 3BR/2BA house in good neighborhood",
+  "acquisition_date": "2024-01-15",
+  "projected_completion": "2024-04-15",
+  "exit_strategy": "mls_listing",
+  "realtor_contact": {
+    "name": "Jane Smith", 
+    "phone": "(555) 123-4567",
+    "email": "jane@realtyco.com"
+  },
+  "contractor_estimate": {
+    "kitchen_renovation": 15000,
+    "bathroom_updates": 8000,
+    "flooring": 5000,
+    "paint_interior": 2000
+  }
+}

@@ -1,0 +1,33 @@
+services:
+  # CLI Version (Default - works in all environments)
+  cogo-analyzer:
+    build: .
+    container_name: cogo-deal-analyzer
+    volumes:
+      # Mount data and reports directories for persistence
+      - ./data:/app/data
+      - ./reports:/app/reports
+    stdin_open: true
+    tty: true
+
+  # GUI Version (requires X11 forwarding on Linux/macOS)
+  # Note: GUI mode requires PyQt5 installation and X11 forwarding setup
+  # Uncomment the section below only if you need GUI functionality
+  # 
+  # cogo-analyzer-gui:
+  #   build: .
+  #   container_name: cogo-deal-analyzer-gui
+  #   volumes:
+  #     - ./data:/app/data
+  #     - ./reports:/app/reports
+  #     - /tmp/.X11-unix:/tmp/.X11-unix:rw
+  #   environment:
+  #     - DISPLAY=${DISPLAY:-:0.0}
+  #   network_mode: "host"
+  #   stdin_open: true
+  #   tty: true
+  #   command: ["python", "app/main.py"]
+
+volumes:
+  data_volume:
+  reports_volume:

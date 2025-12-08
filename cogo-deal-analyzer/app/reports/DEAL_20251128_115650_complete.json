@@ -1,0 +1,77 @@
+{
+  "input": {
+    "property_address": "5710 Worth Street, Dallas, TX 75214",
+    "arv": 650000.0,
+    "purchase_price": 364000.0,
+    "rehab": 110000.0,
+    "broker_fee_percent": 1.0
+  },
+  "calculations": {
+    "max_loan_ltv": 422500.0,
+    "max_loan_purchase": 291200.0,
+    "loan_amount": 291200.0,
+    "selling_costs": {
+      "agent_commission": 35750.0,
+      "agent_commission_rate": 0.055,
+      "title_closing": 9750.0,
+      "title_closing_rate": 0.015,
+      "misc_costs": 6500.0,
+      "misc_costs_rate": 0.01,
+      "total": 52000.0,
+      "total_rate": 0.08,
+      "exit_strategy": {
+        "key": "mls_listing",
+        "name": "MLS Listing (Traditional Sale)",
+        "description": "List with realtor on MLS, full market exposure",
+        "cogo_approved": true
+      }
+    },
+    "broker_fee": 2912.0,
+    "finance_costs": 14560.0,
+    "total_costs": 543472.0,
+    "net_profit": 106528.0,
+    "profit_margin": 16.388923076923074
+  },
+  "eligibility": {
+    "is_cogo_eligible": true,
+    "profit_threshold": 20000,
+    "profit_surplus": 86528.0
+  },
+  "analysis_date": "2025-11-28T11:56:50.506204",
+  "deal_id": "DEAL_20251128_115650",
+  "exit_strategy": {
+    "key": "mls_listing",
+    "name": "MLS Listing (Traditional Sale)",
+    "description": "List with realtor on MLS, full market exposure",
+    "cogo_approved": true
+  },
+  "additional_data": {
+    "county_parcel": "00000168217000000",
+    "property_type": "SFR",
+    "year_built": "1908",
+    "square_footage": "1,708 sqft",
+    "lot_size": "7,500 sqft",
+    "bedrooms": "3",
+    "bathrooms": "2",
+    "garage_details": "none",
+    "rehab_scope": "",
+    "earnest_money": "",
+    "seller_concessions": "",
+    "loan_term": "6 months",
+    "closing_date": "",
+    "title_company": "",
+    "arv_comps": "",
+    "borrower_name": "Terrance Phillips",
+    "borrower_phone": "",
+    "borrower_email": "",
+    "borrower_address": "",
+    "entity_name": "",
+    "experience": "",
+    "guarantor_name": "",
+    "guarantor_phone": "",
+    "guarantor_email": "",
+    "guarantor_address": "",
+    "guarantor_relationship": "",
+    "collection_date": "2025-11-28T13:53:25.850852"
+  }
+}
