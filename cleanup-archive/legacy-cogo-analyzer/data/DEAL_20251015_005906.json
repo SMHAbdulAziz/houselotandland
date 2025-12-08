@@ -1,0 +1,40 @@
+{
+  "input": {
+    "arv": 260000.0,
+    "purchase_price": 180000.0,
+    "rehab": 18700.0
+  },
+  "calculations": {
+    "max_loan_ltv": 169000.0,
+    "max_loan_purchase": 144000.0,
+    "loan_amount": 144000.0,
+    "selling_costs": {
+      "agent_commission": 0,
+      "agent_commission_rate": 0.0,
+      "title_closing": 2600.0,
+      "title_closing_rate": 0.01,
+      "misc_costs": 1300.0,
+      "misc_costs_rate": 0.005,
+      "total": 3900.0,
+      "total_rate": 0.015,
+      "exit_strategy": {
+        "key": "wholesale",
+        "name": "Wholesale to Investor",
+        "description": "Quick sale to investor/flipper at discount",
+        "cogo_approved": true
+      }
+    },
+    "broker_fee": 4320.0,
+    "finance_costs": 7200.0,
+    "total_costs": 214120.0,
+    "net_profit": 45880.0,
+    "profit_margin": 17.646153846153847
+  },
+  "eligibility": {
+    "is_cogo_eligible": true,
+    "profit_threshold": 20000,
+    "profit_surplus": 25880.0
+  },
+  "analysis_date": "2025-10-15T00:59:06.710679",
+  "deal_id": "DEAL_20251015_005906"
+}

@@ -1,0 +1,48 @@
+{
+  "input": {
+    "property_address": "1030 Oxbow Lane, Dallas, TX 75241",
+    "arv": 286000.0,
+    "purchase_price": 225000.0,
+    "rehab": 15000.0,
+    "broker_fee_percent": 1.5
+  },
+  "calculations": {
+    "max_loan_ltv": 185900.0,
+    "max_loan_purchase": 180000.0,
+    "loan_amount": 180000.0,
+    "selling_costs": {
+      "agent_commission": 0,
+      "agent_commission_rate": 0.0,
+      "title_closing": 2860.0,
+      "title_closing_rate": 0.01,
+      "misc_costs": 1430.0,
+      "misc_costs_rate": 0.005,
+      "total": 4290.0,
+      "total_rate": 0.015,
+      "exit_strategy": {
+        "key": "wholesale",
+        "name": "Wholesale to Investor",
+        "description": "Quick sale to investor/flipper at discount",
+        "cogo_approved": true
+      }
+    },
+    "broker_fee": 2700.0,
+    "finance_costs": 9000.0,
+    "total_costs": 255990.0,
+    "net_profit": 30010.0,
+    "profit_margin": 10.493006993006993
+  },
+  "eligibility": {
+    "is_cogo_eligible": true,
+    "profit_threshold": 20000,
+    "profit_surplus": 10010.0
+  },
+  "analysis_date": "2025-10-16T04:56:13.420709",
+  "deal_id": "DEAL_20251016_045613",
+  "exit_strategy": {
+    "key": "wholesale",
+    "name": "Wholesale to Investor",
+    "description": "Quick sale to investor/flipper at discount",
+    "cogo_approved": true
+  }
+}

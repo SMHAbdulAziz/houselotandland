@@ -1,0 +1,46 @@
+{
+  "input": {
+    "arv": 260000.0,
+    "purchase_price": 175000.0,
+    "rehab": 13000.0
+  },
+  "calculations": {
+    "max_loan_ltv": 169000.0,
+    "max_loan_purchase": 140000.0,
+    "loan_amount": 140000.0,
+    "selling_costs": {
+      "agent_commission": 14300.0,
+      "agent_commission_rate": 0.055,
+      "title_closing": 3900.0,
+      "title_closing_rate": 0.015,
+      "misc_costs": 2600.0,
+      "misc_costs_rate": 0.01,
+      "total": 20800.0,
+      "total_rate": 0.08,
+      "exit_strategy": {
+        "key": "mls_listing",
+        "name": "MLS Listing (Traditional Sale)",
+        "description": "List with realtor on MLS, full market exposure",
+        "cogo_approved": true
+      }
+    },
+    "broker_fee": 4200.0,
+    "finance_costs": 7000.0,
+    "total_costs": 220000.0,
+    "net_profit": 40000.0,
+    "profit_margin": 15.384615384615385
+  },
+  "eligibility": {
+    "is_cogo_eligible": true,
+    "profit_threshold": 20000,
+    "profit_surplus": 20000.0
+  },
+  "analysis_date": "2025-10-15T08:32:42.123777",
+  "deal_id": "DEAL_20251015_083242",
+  "exit_strategy": {
+    "key": "mls_listing",
+    "name": "MLS Listing (Traditional Sale)",
+    "description": "List with realtor on MLS, full market exposure",
+    "cogo_approved": true
+  }
+}

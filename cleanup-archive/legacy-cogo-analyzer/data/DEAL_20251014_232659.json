@@ -1,0 +1,25 @@
+{
+  "input": {
+    "arv": 250000.0,
+    "purchase_price": 180000.0,
+    "rehab": 30000.0
+  },
+  "calculations": {
+    "max_loan_ltv": 162500.0,
+    "max_loan_purchase": 144000.0,
+    "loan_amount": 144000.0,
+    "selling_cost": 20000.0,
+    "broker_fee": 4320.0,
+    "finance_costs": 7200.0,
+    "total_costs": 241520.0,
+    "net_profit": 8480.0,
+    "profit_margin": 3.392
+  },
+  "eligibility": {
+    "is_cogo_eligible": false,
+    "profit_threshold": 20000,
+    "profit_surplus": -11520.0
+  },
+  "analysis_date": "2025-10-14T23:26:59.786290",
+  "deal_id": "DEAL_20251014_232659"
+}

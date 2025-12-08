@@ -1,0 +1,1 @@
+# Simple test without external dependencies

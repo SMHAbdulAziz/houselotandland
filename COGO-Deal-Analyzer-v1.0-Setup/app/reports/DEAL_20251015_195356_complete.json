@@ -1,0 +1,65 @@
+{
+  "input": {
+    "property_address": "1030 Oxbow Lane, Dallas, TX 75241",
+    "arv": 286000.0,
+    "purchase_price": 225000.0,
+    "rehab": 15000.0
+  },
+  "calculations": {
+    "max_loan_ltv": 185900.0,
+    "max_loan_purchase": 180000.0,
+    "loan_amount": 180000.0,
+    "selling_costs": {
+      "agent_commission": 0,
+      "agent_commission_rate": 0.0,
+      "title_closing": 2860.0,
+      "title_closing_rate": 0.01,
+      "misc_costs": 1430.0,
+      "misc_costs_rate": 0.005,
+      "total": 4290.0,
+      "total_rate": 0.015,
+      "exit_strategy": {
+        "key": "wholesale",
+        "name": "Wholesale to Investor",
+        "description": "Quick sale to investor/flipper at discount",
+        "cogo_approved": true
+      }
+    },
+    "broker_fee": 5400.0,
+    "finance_costs": 9000.0,
+    "total_costs": 258690.0,
+    "net_profit": 27310.0,
+    "profit_margin": 9.548951048951048
+  },
+  "eligibility": {
+    "is_cogo_eligible": true,
+    "profit_threshold": 20000,
+    "profit_surplus": 7310.0
+  },
+  "analysis_date": "2025-10-15T19:53:56.065862",
+  "deal_id": "DEAL_20251015_195356",
+  "exit_strategy": {
+    "key": "wholesale",
+    "name": "Wholesale to Investor",
+    "description": "Quick sale to investor/flipper at discount",
+    "cogo_approved": true
+  },
+  "additional_data": {
+    "county_parcel": "00000647623000000",
+    "property_type": "SFR",
+    "year_built": "1957",
+    "square_footage": "1861",
+    "lot_size": "9252",
+    "bedrooms": "3",
+    "bathrooms": "2",
+    "garage_details": "attached 2-car",
+    "rehab_scope": "needs remodeling: fresh paint; floor restoration; bathroom updates",
+    "earnest_money": "5000",
+    "seller_concessions": "0",
+    "loan_term": "12 months",
+    "closing_date": "11/01/2025",
+    "title_company": "Right Way Title Company",
+    "arv_comps": "https://www.zillow.com/homedetails/1030-Oxbow-Ln-Dallas-TX-75241/26824302_zpid/",
+    "collection_date": "2025-10-15T19:58:51.882810"
+  }
+}
