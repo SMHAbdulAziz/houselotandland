@@ -78,7 +78,7 @@ function commonTerms(v, kind) {
   const two = v.two_tract;
   return sec("Common Terms", [
     `These Common Terms are part of the Agreement above. If the two conflict, the Agreement controls.`,
-    p("1. Parties.", `Seller: ${f((v.seller_names || []).join(", "))} (each a "Seller"; if more than one, all of them together). Buyer: House Lot &amp; Land Sales Co. LLC, a Texas limited liability company, and its assigns ("Buyer").`, true),
+    p("1. Parties.", `Seller: ${f((v.seller_names || []).join(", "))} (each a "Seller"; if more than one, all of them together). Buyer: House Lot &amp; Land Sales Co. LLC, a Texas-based limited liability company, and its assigns ("Buyer").`, true),
     p("2. Property.", `The land, improvements and fixtures at ${f(v.property_address)}, ${f(v.county)} County, Texas, legally described as ${f(v.legal_description || "shown in the title commitment")}, including all of Seller's rights in it (the "Property"). Reference no. ${f(v.ref)}.`),
     p("3. Disclosure under Texas Occupations Code §1101.0045.", `Buyer is entering into this Agreement to acquire an equitable interest in the Property. Buyer intends to market that interest and may assign this Agreement to another buyer before closing instead of taking title itself. Buyer is not acting as Seller's real estate broker or agent and does not represent Seller. Seller should get independent advice before signing.`),
     p("4. Assignment.", `Buyer may assign this Agreement, in whole or in part, without Seller's consent. Any assignee takes all of Buyer's rights and duties. Buyer stays responsible to Seller until closing. Seller's net proceeds do not change because of an assignment.`),
