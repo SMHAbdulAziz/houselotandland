@@ -6,7 +6,7 @@
   "assets": {
     "directory": "./",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/offer/*", "/find"]
+    "run_worker_first": ["/api/*", "/offer/*", "/find", "/sign/*", "/doc/*"]
   },
   "d1_databases": [
     {

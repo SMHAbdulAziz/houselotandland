@@ -6,6 +6,7 @@
 
 import { handleOfferPage, handleOfferApi } from "./offer.js";
 import { handleFindPage, handleFindApi } from "./find.js";
+import { handleSignPage, handleSignApi, handleDocPage } from "./sign.js";
 
 const REF_ALPHABET ="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const MAX_LEN = { name: 120, phone: 40, email: 160, property_address: 300, property_type: 60, property_condition: 60, timeline: 60, details: 3000 };
@@ -15,11 +16,17 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/find" || url.pathname === "/find/") return handleFindPage(request);
+    let sm = url.pathname.match(/^\/sign\/([^/]+)\/?$/);
+    if (sm && request.method === "GET") return handleSignPage(request, env, sm[1]);
+    sm = url.pathname.match(/^\/api\/sign\/([^/]+)$/);
+    if (sm) return handleSignApi(request, env, sm[1]);
+    sm = url.pathname.match(/^\/doc\/([^/]+)\/?$/);
+    if (sm && request.method === "GET") return handleDocPage(request, env, sm[1]);
     if (url.pathname === "/api/find") return handleFindApi(request, env);
 
     let m = url.pathname.match(/^\/offer\/([^/]+)\/?$/);
     if (m && request.method === "GET") return handleOfferPage(request, env, m[1], ctx);
-    m = url.pathname.match(/^\/api\/offer\/([^/]+)\/(choose|callback)$/);
+    m = url.pathname.match(/^\/api\/offer\/([^/]+)\/(choose|callback|owners)$/);
     if (m) return handleOfferApi(request, env, m[1], m[2]);
 
     if (url.pathname === "/api/lead") {

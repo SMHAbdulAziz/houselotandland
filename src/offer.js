@@ -3,6 +3,8 @@
 // The seller opens a private link, sees the options and picks one (or asks for a call).
 // Picks are recorded in "offers" + "offer_events"; the desk and Claude's hourly task read them back.
 
+import { ownersSection, OWNERS_CSS, saveOwners } from "./owners.js";
+
 const TOKEN_RE = /^[A-Za-z0-9_-]{20,64}$/;
 
 const T = {
@@ -111,6 +113,13 @@ export async function handleOfferApi(request, env, token, action) {
     await logEvent(env, request, token, "chosen", key);
     return json({ ok: true, key });
   }
+  if (action === "owners") {
+    const data = saveOwners(body);
+    if (!data || data.error) return json({ ok: false, message: "Please answer the first question and give your name." }, 400);
+    await env.DB.prepare("UPDATE offers SET ownership = ?, ownership_at = ?, events_at = ?, updated_at = ? WHERE token = ?").bind(JSON.stringify(data), now, now, now, token).run();
+    await logEvent(env, request, token, "ownership", data.who);
+    return json({ ok: true });
+  }
   if (action === "callback") {
     const phone = clean(body.phone, 40), time = clean(body.time, 120), note = clean(body.note, 1000);
     if (phone.replace(/\D/g, "").length < 10) return json({ ok: false, message: "Please enter a 10-digit phone number." }, 400);
@@ -157,6 +166,8 @@ function body(lang, p, row, token) {
   <p class="intro">${esc(t.intro(p.property || "", p.company || "House Lot & Land Sales Co. LLC"))}</p>
   <div class="status" id="status" role="status" aria-live="polite">${chosen ? esc(t.change) : ""}</div>
   <section class="opts">${cards}</section>
+  <style>${OWNERS_CSS}</style>
+  ${ownersSection(lang, token, !!chosen, !!row.ownership)}
   ${pick(p.landNote, lang) ? `<p class="note">${esc(pick(p.landNote, lang))}</p>` : ""}
   <section class="talk">
     <h3>${t.callTitle}</h3>
@@ -189,7 +200,7 @@ function body(lang, p, row, token) {
             if(on && !bd){ bd=document.createElement("span"); bd.className="badge"; bd.textContent=msgs.chosen; head.appendChild(bd); }
             if(!on && bd) bd.remove();
           });
-          st.textContent=msgs.thanks.replace("__", title); st.className="status ok";
+          st.textContent=msgs.thanks.replace("__", title); st.className="status ok"; if(window.hllShowOwners) window.hllShowOwners();
         }).catch(function(e){ st.textContent=e.message||msgs.err; st.className="status err"; })
         .then(function(){ document.querySelectorAll(".choose").forEach(function(x){x.disabled=false;}); });
       });
