@@ -40,4 +40,5 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
 - Wholesaler disclosure (Texas Occupations Code §1101.0045) stays on offer pages and in every agreement.
 - Buyer entity wording: "House Lot & Land Sales Co. LLC, a Texas-based limited liability company".
 - Spanish: site text lives in `js/i18n.js`; offer, find and sign pages carry their own EN/ES strings.
+- Email addresses are Gmail plus-aliases of houselotandland@gmail.com, one per source: `+website` (site contact), `+esign` (signing pages), `+letters` (printed letters), `+alerts` (Claude's automated summaries). Keep new sources tagged the same way.
 - Commit as Harvey; Claude adds the Co-Authored-By trailer.
