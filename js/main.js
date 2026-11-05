@@ -147,9 +147,11 @@ function initContactFormEmailOnly() {
                 phone: formData.get('contact-phone'),
                 email: formData.get('contact-email'),
                 message: formData.get('contact-message'),
+                website: formData.get('website') || '',
+                lang: (navigator.language || '').toLowerCase().startsWith('es') ? 'es' : 'en',
                 form_type: "contact"
             };
-            fetch('https://apps-script-proxy.harvey-searcy.workers.dev/', {
+            fetch('/api/lead', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -309,11 +311,15 @@ function handleFormSubmission(form, formType) {
         timeline: formData.get('timeline'),
         'property-details': formData.get('property-details'),
         consent: formData.get('consent'),
+        consent_text: (form.querySelector('#consent-text') || {}).textContent ? form.querySelector('#consent-text').textContent.replace(/\s+/g, ' ').trim() : '',
+        website: formData.get('website') || '',
+        lang: (navigator.language || '').toLowerCase().startsWith('es') ? 'es' : 'en',
+        form_type: 'offer',
         source: 'Website'
     };
     
     // Send to Cloudflare Worker Proxy (which forwards to Google Apps Script)
-    fetch('https://apps-script-proxy.harvey-searcy.workers.dev/', {
+    fetch('/api/lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

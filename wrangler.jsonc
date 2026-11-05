@@ -1,0 +1,19 @@
+{
+  // House Lot & Land Sales Co. LLC website (deployed by Cloudflare Workers Builds on every push to main).
+  "name": "houselotandland",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hll-leads",
+      "database_id": "41cd2c24-fb52-41ae-95b9-748ee75b2d31"
+    }
+  ],
+  "observability": { "enabled": true }
+}

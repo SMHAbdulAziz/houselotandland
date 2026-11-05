@@ -139,6 +139,8 @@
                             </div>
                         </div>
                         <form id="offer-form" class="offer-form">
+                            <div style="position:absolute;left:-9999px" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+
                             <div class="form-group">
                                 <label for="name">Full Name *</label>
                                 <input type="text" id="name" name="name" placeholder="Enter your full name" required>
@@ -196,7 +198,7 @@
                                 <label class="checkbox-label">
                                     <input type="checkbox" id="consent" name="consent" required>
                                     <span class="checkmark"></span>
-                                    I agree to be contacted about my property and understand this is a no-obligation offer.
+                                    <span id="consent-text">I agree that House Lot &amp; Land Sales Co. LLC and its AI assistant may call or text me at the number above about my property, including by automated technology and an artificial or AI voice. Consent is not required to get an offer. Message and data rates may apply; reply STOP to opt out. This is a no-obligation offer request.</span>
                                 </label>
                             </div>
                             <button type="submit" class="btn btn-primary btn-full">
@@ -429,6 +431,8 @@
                 <div class="contact-form">
                     <h3>Send Us a Message</h3>
                     <form id="contact-form" class="contact-form-fields">
+                    <div style="position:absolute;left:-9999px" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+
                         <div class="form-group">
                             <input type="text" id="contact-name" name="contact-name" placeholder="Your Name" required>
                         </div>
