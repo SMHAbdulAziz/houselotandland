@@ -5,6 +5,7 @@
 //                   Claude's hourly task reads new rows and adds them to the Wholesale Deal Desk.
 
 import { handleOfferPage, handleOfferApi } from "./offer.js";
+import { handleFindPage, handleFindApi } from "./find.js";
 
 const REF_ALPHABET ="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const MAX_LEN = { name: 120, phone: 40, email: 160, property_address: 300, property_type: 60, property_condition: 60, timeline: 60, details: 3000 };
@@ -12,6 +13,9 @@ const MAX_LEN = { name: 120, phone: 40, email: 160, property_address: 300, prope
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    if (url.pathname === "/find" || url.pathname === "/find/") return handleFindPage(request);
+    if (url.pathname === "/api/find") return handleFindApi(request, env);
 
     let m = url.pathname.match(/^\/offer\/([^/]+)\/?$/);
     if (m && request.method === "GET") return handleOfferPage(request, env, m[1], ctx);

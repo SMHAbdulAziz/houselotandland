@@ -965,3 +965,19 @@ section {
         color: #111 !important;
     }
 } 
+/* English / Español switch */
+.nav-contact { display: flex; align-items: center; gap: 12px; }
+.nav-contact .phone-link span { white-space: nowrap; }
+.lang-toggle {
+    font: 600 14px/1 var(--font-primary);
+    color: #fff;
+    background: var(--primary-color);
+    border: 0;
+    border-radius: 999px;
+    padding: 9px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.lang-toggle:hover { background: var(--primary-dark); }
+.nav-list { gap: clamp(0.5rem, 1.6vw, 3rem); }
+.nav-link { white-space: nowrap; }

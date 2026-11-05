@@ -1,3 +1,7 @@
+// Translation helper (js/i18n.js); falls back to English if that script isn't loaded.
+const T_ = (s) => (window.hllT ? window.hllT(s) : s);
+const LANG_ = () => (window.hllLang ? window.hllLang() : 'en');
+
 // Main JavaScript for House Lot & Land Sales Co. LLC Website
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -148,7 +152,7 @@ function initContactFormEmailOnly() {
                 email: formData.get('contact-email'),
                 message: formData.get('contact-message'),
                 website: formData.get('website') || '',
-                lang: (navigator.language || '').toLowerCase().startsWith('es') ? 'es' : 'en',
+                lang: LANG_(),
                 form_type: "contact"
             };
             fetch('/api/lead', {
@@ -161,13 +165,13 @@ function initContactFormEmailOnly() {
                 if (result.result === 'success' || result.success) {
                     contactForm.reset();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
-                    alert('Thank you! Your message has been sent.');
+                    alert(T_('Thank you! Your message has been sent.'));
                 } else {
-                    alert('There was an error. Please try again.');
+                    alert(T_('There was an error. Please try again.'));
                 }
             })
             .catch(error => {
-                alert('Network error. Please try again later.');
+                alert(T_('Network error. Please try again later.'));
             });
         });
     }
@@ -205,7 +209,7 @@ function validateField(field) {
     // Required field validation
     if (field.hasAttribute('required') && !value) {
         isValid = false;
-        errorMessage = 'This field is required';
+        errorMessage = T_('This field is required');
     }
     
     // Email validation
@@ -213,7 +217,7 @@ function validateField(field) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(value)) {
             isValid = false;
-            errorMessage = 'Please enter a valid email address';
+            errorMessage = T_('Please enter a valid email address');
         }
     }
     
@@ -222,7 +226,7 @@ function validateField(field) {
         const phoneRegex = /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/;
         if (!phoneRegex.test(value.replace(/\D/g, ''))) {
             isValid = false;
-            errorMessage = 'Please enter a valid phone number';
+            errorMessage = T_('Please enter a valid phone number');
         }
     }
     
@@ -289,7 +293,7 @@ function handleFormSubmission(form, formType) {
     const originalText = submitButton.textContent;
     
     // Show loading state
-    submitButton.textContent = 'Sending...';
+    submitButton.textContent = T_('Sending...');
     submitButton.disabled = true;
     
     // Track form submission
@@ -313,7 +317,7 @@ function handleFormSubmission(form, formType) {
         consent: formData.get('consent'),
         consent_text: (form.querySelector('#consent-text') || {}).textContent ? form.querySelector('#consent-text').textContent.replace(/\s+/g, ' ').trim() : '',
         website: formData.get('website') || '',
-        lang: (navigator.language || '').toLowerCase().startsWith('es') ? 'es' : 'en',
+        lang: LANG_(),
         form_type: 'offer',
         source: 'Website'
     };
@@ -327,7 +331,7 @@ function handleFormSubmission(form, formType) {
     .then(response => response.json())
     .then(result => {
         if (result.result === 'success' || result.success) {
-            showFormSuccess(form);
+            showFormSuccess(form, result.ref);
             trackEvent('form_success', {
                 form_id: form.id,
                 form_type: formType
@@ -337,7 +341,7 @@ function handleFormSubmission(form, formType) {
                 resetFormToOriginal(form, submitButton, originalText);
             }, 8000);
         } else {
-            showNotification(result.message || 'There was an error. Please try again.', 'error');
+            showNotification(result.message || T_('There was an error. Please try again.'), 'error');
             submitButton.textContent = originalText;
             submitButton.disabled = false;
             trackEvent('form_error', {
@@ -349,7 +353,7 @@ function handleFormSubmission(form, formType) {
     })
     .catch(error => {
         console.error('Form submission error:', error);
-        showNotification('Network error. Please call us at 214-702-1519 or try again later.', 'error');
+        showNotification(T_('Network error. Please call us at 214-702-1519 or try again later.'), 'error');
         submitButton.textContent = originalText;
         submitButton.disabled = false;
         trackEvent('form_error', {
@@ -361,21 +365,24 @@ function handleFormSubmission(form, formType) {
 }
 
 // Show form success state
-function showFormSuccess(form) {
+function showFormSuccess(form, ref) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     const formCard = form.closest('.form-card');
     const originalContent = formCard.innerHTML;
+    const esc = (v) => String(v || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     
     formCard.innerHTML = `
         <div class="form-success">
             <i class="fas fa-check-circle"></i>
-            <h3>Thank You!</h3>
-            <p>We've received your information and will contact you within 24 hours with your cash offer.</p>
-            <p><strong>What happens next?</strong></p>
+            <h3>${T_('Thank You!')}</h3>
+            <p>${T_("We've received your information and will contact you within 24 hours with your cash offer.")}</p>
+            ${ref ? `<p>${T_('Your reference number:')} <strong>${esc(ref)}</strong></p>` : ''}
+            <p><strong>${T_('What happens next?')}</strong></p>
             <ul style="text-align: left; margin-top: 1rem;">
-                <li>We'll review your property details</li>
-                <li>You'll receive a fair cash offer within 24 hours</li>
-                <li>No obligation - you decide if the offer works for you</li>
+                <li>${T_("You'll get a confirmation by email (and by text, if you agreed to texts) shortly.")}</li>
+                <li>${T_("We'll review your property details")}</li>
+                <li>${T_("You'll receive your offer options within 24 hours")}</li>
+                <li>${T_('No obligation - you decide if the offer works for you')}</li>
             </ul>
         </div>
     `;

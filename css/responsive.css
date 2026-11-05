@@ -68,8 +68,12 @@
         gap: var(--spacing-md);
     }
     
-    .nav-contact {
+    .nav-contact .phone-link {
         display: none;
+    }
+    .nav-contact {
+        margin-left: auto;
+        margin-right: 12px;
     }
     
     .nav-toggle {
