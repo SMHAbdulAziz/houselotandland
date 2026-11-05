@@ -4,12 +4,19 @@
 // POST /api/lead  — saves a website form submission to the D1 database "hll-leads".
 //                   Claude's hourly task reads new rows and adds them to the Wholesale Deal Desk.
 
-const REF_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+import { handleOfferPage, handleOfferApi } from "./offer.js";
+
+const REF_ALPHABET ="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const MAX_LEN = { name: 120, phone: 40, email: 160, property_address: 300, property_type: 60, property_condition: 60, timeline: 60, details: 3000 };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    let m = url.pathname.match(/^\/offer\/([^/]+)\/?$/);
+    if (m && request.method === "GET") return handleOfferPage(request, env, m[1], ctx);
+    m = url.pathname.match(/^\/api\/offer\/([^/]+)\/(choose|callback)$/);
+    if (m) return handleOfferApi(request, env, m[1], m[2]);
 
     if (url.pathname === "/api/lead") {
       if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(request) });
