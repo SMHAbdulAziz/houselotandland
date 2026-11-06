@@ -179,10 +179,26 @@ async function orderPage(env, token, url) {
   } else if (r.service === "contracts") {
     body += await builderSection(env, r, token);
   } else if (r.service === "curb") {
-    const p = CURB[r.item];
-    body += `<h2>${esc(r.label)}</h2><p>Status: <b>${esc(curbStatus(r))}</b>${r.appointment_at ? ` · Scheduled for <b>${esc(fmtWhen(r.appointment_at))}</b>` : ""}</p>
-      <ul>${(p ? p.items : []).map((x) => `<li>${esc(x)}</li>`).join("")}${(r.extra.addOns || []).map((a) => `<li>${esc(CURB_ADDONS[a] ? CURB_ADDONS[a].label : a)}</li>`).join("")}</ul>
-      <p class="muted">Property: ${esc(r.property_address)}. We'll confirm your appointment by email${r.consent ? " or text" : ""}. Questions: 214-702-1519.</p>`;
+    const p = CURB[r.item], a = r.answers || {}, nm = esc(first(r.name));
+    const reach = r.consent ? "call or text you" : "email you";
+    const isPaid = !!r.paid_at || r.amount_paid != null;
+    const paidLine = isPaid ? `Your payment of <b>${money(r.amount_paid ?? r.amount)}</b> was received${r.paid_at ? ` on ${esc(fmtDay(r.paid_at.slice(0, 10)))}` : ""}.` : "";
+    const msg = ({
+      requested: `Thanks, ${nm}. We received your booking request. We'll ${reach} within one business day to confirm your date and time. ${isPaid ? paidLine : "Once your date is confirmed, we'll send a secure link to pay."}`,
+      paid: `Thanks, ${nm}. ${paidLine} We'll ${reach} within one business day to confirm your date and time.`,
+      scheduled: `You're all set, ${nm}. Your crew is scheduled for <b>${esc(fmtWhen(r.appointment_at))}</b>. ${isPaid ? paidLine : ""}`,
+      in_progress: `Your crew is on the job today. We'll send before-and-after photos when they finish.`,
+      completed: `Your job is complete. If anything was missed, call 214-702-1519 and we'll come back and make it right.`,
+      cancelled: `This booking was cancelled. Questions? Call 214-702-1519.`,
+    })[r.status] || `Status: ${esc(curbStatus(r))}`;
+    const dates = [a.date1, a.date2].filter(Boolean).map(fmtDay).join(" or ");
+    const row = (k, v) => (v ? `<div><span>${k}</span><b>${v}</b></div>` : "");
+    body += `<p><b>Status: ${esc(curbStatus(r))}</b></p><p>${msg}</p>
+      <div class="kv">${row("Property", esc(r.property_address))}${r.appointment_at ? row("Scheduled", esc(fmtWhen(r.appointment_at))) : row("Requested dates", esc(dates))}
+      ${row("Time window", esc(a.window))}${row("Access", esc(a.access))}${row("Total", money(r.amount))}${row("Paid", isPaid ? money(r.amount_paid ?? r.amount) : "Not yet")}</div>
+      <h3>What's included</h3>
+      <ul>${(p ? p.items : []).map((x) => `<li>${esc(x)}</li>`).join("")}${(r.extra.addOns || []).map((x) => `<li>${esc(CURB_ADDONS[x] ? CURB_ADDONS[x].label : x)}</li>`).join("")}</ul>
+      <p class="muted">Bookmark this page: it's your private link to this booking. Questions? Call 214-702-1519.</p>`;
   } else if (r.service === "watch") {
     const q = r.extra.estimate || {};
     body += `<h2>Your quote request</h2><p>Thanks, ${esc(first(r.name))}. Harvey will review your portfolio and send a formal quote within one business day.</p>
@@ -192,8 +208,8 @@ async function orderPage(env, token, url) {
   } else {
     body += `<p>Status: ${esc(r.status)}</p>`;
   }
-  body += `<p class="disc">${esc(DISCLAIMER)}</p>`;
-  return html(page(`Order ${r.ref}`, body));
+  if (r.service === "homestead" || r.service === "contracts") body += `<p class="disc">${esc(DISCLAIMER)}</p>`;
+  return html(page(r.service === "curb" ? `Booking ${r.ref}` : r.service === "watch" ? `Quote request ${r.ref}` : `Order ${r.ref}`, body));
 }
 
 async function checkoutLink(env, r) {
@@ -315,12 +331,13 @@ async function approved(env) {
   const r = await env.DB.prepare("SELECT value FROM settings WHERE key = 'legal_templates_approved'").first();
   return !!(r && r.value === "true");
 }
-function curbStatus(r) { return ({ requested: "Request received", paid: "Paid, scheduling", scheduled: "Scheduled", in_progress: "In progress", completed: "Completed", cancelled: "Cancelled", test: "Test" })[r.status] || r.status; }
+function curbStatus(r) { return ({ requested: "Request received", paid: "Paid, confirming your date", scheduled: "Scheduled", in_progress: "In progress", completed: "Completed", cancelled: "Cancelled", test: "Test" })[r.status] || r.status; }
 function fmtWhen(s) { const d = new Date(s); return isNaN(d) ? s : d.toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }); }
+function fmtDay(s) { const d = new Date(String(s).slice(0, 10) + "T12:00:00Z"); return isNaN(d) ? String(s) : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }); }
 const first = (n) => String(n || "").trim().split(/\s+/)[0] || "there";
 function parse(s) { try { return s ? JSON.parse(s) : null; } catch { return null; } }
 function clean(v, max = 500) { return v == null ? "" : String(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, max); }
-function cleanObj(o) { const out = {}; for (const [k, v] of Object.entries(o).slice(0, 60)) if (/^[a-z_]{1,40}$/.test(k)) out[k] = clean(v, 3000); return out; }
+function cleanObj(o) { const out = {}; for (const [k, v] of Object.entries(o).slice(0, 60)) if (/^[a-z][a-z0-9_]{0,39}$/.test(k)) out[k] = clean(v, 3000); return out; }
 function makeRef() { const b = crypto.getRandomValues(new Uint8Array(5)); return "SV-" + Array.from(b, (x) => REF_ALPHABET[x % REF_ALPHABET.length]).join(""); }
 function makeToken() { const b = crypto.getRandomValues(new Uint8Array(18)); return btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
 async function sha256(s) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return Array.from(new Uint8Array(b), (x) => x.toString(16).padStart(2, "0")).join(""); }
