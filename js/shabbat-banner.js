@@ -78,11 +78,13 @@ function clear() {
 function render() {
   clear();
   const st = shabbatStatus(), t = T[lang()], L = lang();
+  // Spanish times end in "p.m." already, so don't add a second period.
+  const when = fmtTime(st.opensAt, L), dot = when.endsWith(".") ? "" : ".";
   footer(t);
   if (st.closed) {
     bar = document.createElement("div");
     bar.className = "shb-bar"; bar.setAttribute("role", "status");
-    bar.innerHTML = `<div class="shb-in"><div class="shb-txt"><b>${t.closedTitle}.</b> ${t.closedBody} <b>${fmtTime(st.opensAt, L)}</b>.<small>${t.access}</small></div>
+    bar.innerHTML = `<div class="shb-in"><div class="shb-txt"><b>${t.closedTitle}.</b> ${t.closedBody} <b>${when}</b>${dot}<small>${t.access}</small></div>
       <div class="shb-cd" data-cd><span>${t.opensIn}</span><i></i></div></div>`;
     document.body.append(bar); document.body.classList.add("shb-pad");
     if (mode === "site") {
@@ -90,7 +92,7 @@ function render() {
         if (f.closest(".shb-card")) return;
         const c = document.createElement("div");
         c.className = "shb-card";
-        c.innerHTML = `<h3>${t.formTitle}</h3><p>${t.formBody} <b>${fmtTime(st.opensAt, L)}</b>.</p><div class="shb-cd" data-cd><span>${t.opensIn}</span><i></i></div>`;
+        c.innerHTML = `<h3>${t.formTitle}</h3><p>${t.formBody} <b>${when}</b>${dot}</p><div class="shb-cd" data-cd><span>${t.opensIn}</span><i></i></div>`;
         f.before(c); f.hidden = true; hidden.push(f);
       });
       document.querySelectorAll("#payNowWrap").forEach((el) => { el.hidden = true; });

@@ -11,7 +11,7 @@ import { handleFindPage, handleFindApi } from "./find.js";
 import { handleSignPage, handleSignApi, handleDocPage } from "./sign.js";
 import { handleLoanApi } from "./loan.js";
 import { handleServiceApi, handleOrderPage } from "./services.js";
-import { shabbatStatus, closedMessage } from "../js/shabbat.js";
+import { shabbatStatus, closedMessage, TZ } from "../js/shabbat.js";
 
 // New-business actions refused from sunset Friday to sunset Saturday (Shabbat). Viewing orders, documents,
 // offer pages and "Find my offer" stays open, and Stripe webhooks are still recorded.
@@ -64,6 +64,7 @@ async function route(request, env, ctx, url) {
     if (url.pathname === "/api/service" || url.pathname === "/api/service/status" || url.pathname === "/api/stripe/webhook" || url.pathname.startsWith("/api/order/")) return handleServiceApi(request, env, url);
     if (url.pathname.startsWith("/order/")) return handleOrderPage(request, env, url);
     if (url.pathname === "/api/health") return json({ ok: true }, 200, request);
+    if (url.pathname === "/api/hours") return hours();
 
     return env.ASSETS.fetch(request);
 }
@@ -153,4 +154,23 @@ function cors(request) {
 }
 function json(obj, status, request) {
   return new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json; charset=utf-8", ...cors(request) } });
+}
+
+// GET /api/hours: open/closed for Shabbat, for the AI phone line (ElevenLabs tool "check_business_hours").
+// say_en / say_es are read to the caller word for word when closed.
+function hours() {
+  const st = shabbatStatus();
+  const spoken = (t, lang) => {
+    const loc = lang === "es" ? "es-US" : "en-US";
+    const day = t.toLocaleDateString(loc, { weekday: "long", month: "long", day: "numeric", timeZone: TZ });
+    const time = t.toLocaleTimeString(loc, { hour: "numeric", minute: "2-digit", timeZone: TZ });
+    return lang === "es" ? `el ${day} a las ${time}` : `${day} at ${time}`;
+  };
+  const body = { closed: st.closed, opens_at: st.opensAt.toISOString(), closes_at: st.closesAt.toISOString(),
+    opens_text: spoken(st.opensAt, "en"), closes_text: spoken(st.closesAt, "en") };
+  if (st.closed) {
+    body.say_en = `Thank you for calling House Lot and Land Sales Company. We are closed for Shabbat, from sunset Friday to sunset Saturday, and we don't conduct any business during that time. We open again ${spoken(st.opensAt, "en")}, Central time. Please call back then. Please refer to the Terms of Use on our website, house lot and land dot org, for more information regarding this policy. Thank you, and goodbye.`;
+    body.say_es = `Gracias por llamar a House Lot and Land Sales Company. Estamos cerrados por el Shabat, desde la puesta del sol del viernes hasta la puesta del sol del sábado, y no realizamos ningún negocio durante ese tiempo. Abrimos de nuevo ${spoken(st.opensAt, "es")}, hora central. Por favor llame de nuevo entonces. Para más información sobre esta política, consulte los Términos de uso en nuestro sitio web, house lot and land punto org. Gracias, y hasta luego.`;
+  }
+  return new Response(JSON.stringify(body), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 }
