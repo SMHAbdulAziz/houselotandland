@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apply for Investor Funding | House Lot & Land Sales Co. LLC</title>
+  <meta name="description" content="Apply for fix-and-flip, bridge, rental, construction and commercial investor funding. See an instant fix-and-flip estimate, then House Lot & Land matches your deal with private lenders.">
+  <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { background: #f3f5f9; }
+    [hidden] { display: none !important; }
+    .mini { display: none; margin-top: 16px; padding: .8rem 1rem; border-radius: 8px; background: #eff6ff; color: #1e3a8a; font-size: .95rem; }
+    .mini b { font-variant-numeric: tabular-nums; }
+    .ap-hero { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #fff; padding: calc(80px + 3rem) 1rem 3rem; text-align: center; }
+    .ap-hero h1 { color: #fff; font-size: clamp(1.9rem, 4vw, 2.8rem); margin-bottom: .75rem; }
+    .ap-hero p { max-width: 720px; margin: 0 auto; color: rgba(255,255,255,.92); font-size: 1.1rem; }
+    .ap-wrap { max-width: 1180px; margin: -1.5rem auto 4rem; padding: 0 16px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+    .ap-card { background: #fff; border-radius: 14px; box-shadow: 0 6px 24px rgba(15,23,42,.08); padding: 28px; }
+    .ap-card + .ap-card { margin-top: 20px; }
+    .ap-card h2 { font-size: 1.35rem; margin: 0 0 .25rem; color: #0f172a; display: flex; align-items: center; gap: .6rem; }
+    .ap-card h2 .n { width: 30px; height: 30px; border-radius: 50%; background: #2563eb; color: #fff; font: 600 .95rem Inter, sans-serif; display: inline-grid; place-items: center; flex: none; }
+    .ap-card .sub { color: #64748b; margin: 0 0 1.25rem; font-size: .95rem; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .full { grid-column: 1 / -1; }
+    label.f { display: grid; gap: 6px; font-weight: 500; color: #1e293b; font-size: .92rem; }
+    label.f small { color: #64748b; font-weight: 400; }
+    .f input, .f select, .f textarea { width: 100%; padding: .7rem .8rem; border: 1px solid #cbd5e1; border-radius: 8px; font: 400 1rem Inter, sans-serif; background: #fff; color: #0f172a; }
+    .f textarea { min-height: 88px; resize: vertical; }
+    .f input:focus, .f select:focus, .f textarea:focus { outline: 2px solid #93c5fd; border-color: #2563eb; }
+    .req::after { content: " *"; color: #dc2626; }
+    .money { position: relative; }
+    .money input { padding-left: 1.6rem; }
+    .money::before { content: "$"; position: absolute; left: .75rem; bottom: .72rem; color: #64748b; }
+    details.more { margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+    details.more summary { cursor: pointer; color: #2563eb; font-weight: 500; }
+    details.more .grid { margin-top: 14px; }
+    .check { display: flex; gap: .7rem; align-items: flex-start; font-size: .93rem; color: #1e293b; line-height: 1.5; }
+    .check input { margin-top: .25rem; width: 18px; height: 18px; flex: none; }
+    .check + .check { margin-top: 12px; }
+    .warn { display: none; margin-top: 10px; padding: .75rem 1rem; border-radius: 8px; background: #fef2f2; color: #991b1b; font-size: .92rem; }
+    .warn.show { display: block; }
+    .note { background: #f1f5f9; border-radius: 8px; padding: .8rem 1rem; color: #334155; font-size: .9rem; margin-top: 14px; }
+    .submit { width: 100%; margin-top: 18px; padding: 1rem; font: 600 1.05rem Inter, sans-serif; border: 0; border-radius: 10px; background: #2563eb; color: #fff; cursor: pointer; }
+    .submit:hover { background: #1d4ed8; }
+    .submit[disabled] { opacity: .6; cursor: wait; }
+    .msg { margin-top: 12px; font-size: .95rem; }
+    .msg.err { color: #b91c1c; }
+    /* Estimate */
+    .est { position: sticky; top: 100px; }
+    .est h3 { font-size: 1.15rem; margin: 0 0 .2rem; color: #0f172a; }
+    .est .sub { margin-bottom: 1rem; }
+    .est dl { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; margin: 0; font-size: .93rem; }
+    .est dt { color: #475569; }
+    .est dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; color: #0f172a; }
+    .est .big { font-size: 1.6rem; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
+    .est .row { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 0; border-bottom: 1px solid #e2e8f0; }
+    .est .row:last-of-type { border-bottom: 0; }
+    .pill { display: inline-block; padding: .35rem .75rem; border-radius: 999px; font-size: .85rem; font-weight: 600; margin-top: 12px; }
+    .pill.ok { background: #dcfce7; color: #166534; }
+    .pill.no { background: #fee2e2; color: #991b1b; }
+    .pill.na { background: #f1f5f9; color: #475569; }
+    .est .fine { font-size: .8rem; color: #64748b; margin-top: 14px; line-height: 1.5; }
+    .done { text-align: center; padding: 44px 28px; }
+    .done .ico { width: 64px; height: 64px; border-radius: 50%; background: #dcfce7; color: #166534; display: grid; place-items: center; font-size: 1.8rem; margin: 0 auto 1rem; }
+    .done .ref { font: 600 1.4rem Inter, sans-serif; letter-spacing: .06em; color: #1d4ed8; }
+    .disc { max-width: 1180px; margin: 0 auto 3rem; padding: 0 16px; font-size: .85rem; color: #475569; line-height: 1.6; }
+    @media (max-width: 960px) { .ap-wrap { grid-template-columns: 1fr; } .est { position: static; } .mini.on { display: block; } }
+    @media (max-width: 600px) { .grid, .grid.three { grid-template-columns: 1fr; } .ap-card { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <nav class="navbar">
+      <div class="container">
+        <div class="nav-brand"><div class="logo-crop"><img src="images/Menu-Logo.png" alt="House Lot & Land Sales Co. LLC" class="logo"></div></div>
+        <div class="nav-menu" id="nav-menu">
+          <ul class="nav-list">
+            <li class="nav-item"><a href="index.html#home" class="nav-link">Home</a></li>
+            <li class="nav-item"><a href="funding.html" class="nav-link">Investor Funding</a></li>
+            <li class="nav-item"><a href="apply.html" class="nav-link">Apply</a></li>
+            <li class="nav-item"><a href="index.html#contact" class="nav-link">Contact</a></li>
+          </ul>
+        </div>
+        <div class="nav-contact"><a href="tel:214-702-1519" class="phone-link"><i class="fas fa-phone"></i><span>214-702-1519</span></a></div>
+        <div class="nav-toggle" id="nav-toggle"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+      </div>
+    </nav>
+  </header>
+
+  <section class="ap-hero">
+    <h1>Apply for Investor Funding</h1>
+    <p>Tell us about your deal. For fix-and-flip deals you'll see an estimate as you type, and we'll review your file and match it with a private lender, usually within one business day.</p>
+  </section>
+
+  <div class="ap-wrap">
+    <main>
+      <form id="apForm" novalidate>
+        <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;height:0;width:0;opacity:0">
+
+        <section class="ap-card" aria-labelledby="h1s">
+          <h2 id="h1s"><span class="n">1</span>The deal</h2>
+          <p class="sub">The numbers drive your estimate. Best guesses are fine; we'll confirm them with you.</p>
+          <div class="grid">
+            <label class="f full"><span class="req">Loan type</span>
+              <select name="loan_type" id="loan_type">
+                <option value="fix_flip">Fix and flip</option>
+                <option value="bridge">Bridge (short term, light or no rehab)</option>
+                <option value="rental">Long-term rental (DSCR)</option>
+                <option value="construction">New construction</option>
+                <option value="commercial">Commercial / 5+ units</option>
+              </select>
+            </label>
+            <label class="f"><span class="req">Purchase price</span><span class="money"><input name="purchase_price" inputmode="decimal" placeholder="180,000" data-money></span></label>
+            <label class="f"><span>After-repair value (ARV)</span><span class="money"><input name="arv" inputmode="decimal" placeholder="250,000" data-money></span></label>
+            <label class="f"><span>Rehab budget</span><span class="money"><input name="rehab" inputmode="decimal" placeholder="30,000" data-money></span></label>
+            <label class="f"><span>Exit strategy</span>
+              <select name="exit_strategy" id="exit_strategy">
+                <option value="mls_listing">Sell on the MLS with an agent</option>
+                <option value="direct_sale">Sell directly (FSBO / off-market)</option>
+                <option value="wholesale">Wholesale to another investor</option>
+                <option value="auction">Auction</option>
+                <option value="lease_option">Lease option / rent-to-own</option>
+                <option value="refinance">Refinance and keep as a rental</option>
+              </select>
+            </label>
+            <label class="f" id="rentWrap" hidden><span>Expected monthly rent</span><span class="money"><input name="monthly_rent" inputmode="decimal" placeholder="1,850" data-money></span></label>
+            <label class="f"><span>Loan term you need</span>
+              <select name="loan_term"><option>6 months</option><option>9 months</option><option selected>12 months</option><option>18 months</option><option>24 months</option><option>30 years (rental)</option></select>
+            </label>
+            <label class="f"><span>Cash you have for this deal</span><span class="money"><input name="cash_available" inputmode="decimal" placeholder="40,000" data-money></span></label>
+            <label class="f"><span>Under contract?</span>
+              <select name="under_contract"><option value="yes">Yes</option><option value="no">Not yet</option><option value="own">I already own it</option></select>
+            </label>
+            <label class="f"><span>Target closing date</span><input type="date" name="closing_date"></label>
+            <label class="f full"><span>Rehab scope</span><textarea name="rehab_scope" placeholder="Kitchen, two baths, flooring, paint, roof…"></textarea></label>
+          </div>
+          <div class="mini" id="mini" aria-live="polite"></div>
+          <details class="more">
+            <summary>More deal details (optional)</summary>
+            <div class="grid">
+              <label class="f"><span>Earnest money</span><span class="money"><input name="earnest_money" inputmode="decimal" data-money></span></label>
+              <label class="f"><span>Seller concessions</span><span class="money"><input name="seller_concessions" inputmode="decimal" data-money></span></label>
+              <label class="f"><span>Loan amount you're hoping for</span><span class="money"><input name="loan_requested" inputmode="decimal" data-money></span></label>
+              <label class="f"><span>Existing mortgage payoff (if you own it)</span><span class="money"><input name="payoff" inputmode="decimal" data-money></span></label>
+              <label class="f full"><span>Title company</span><input name="title_company" placeholder="Company, contact, phone"></label>
+              <label class="f full"><span>ARV comps</span><textarea name="arv_comps" placeholder="Addresses or links to sold comps that support your ARV"></textarea></label>
+            </div>
+          </details>
+        </section>
+
+        <section class="ap-card" aria-labelledby="h2s">
+          <h2 id="h2s"><span class="n">2</span>The property</h2>
+          <p class="sub">Investment property only. We don't arrange loans on a home you'll live in.</p>
+          <div class="grid">
+            <label class="f full"><span class="req">Street address</span><input name="property_street" autocomplete="off" placeholder="123 Main St"></label>
+            <label class="f"><span class="req">City</span><input name="property_city"></label>
+            <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px">
+              <label class="f"><span class="req">State</span><select name="property_state" id="property_state"></select></label>
+              <label class="f"><span>ZIP</span><input name="property_zip" inputmode="numeric" maxlength="10"></label>
+            </div>
+            <div class="warn full" id="stateWarn" role="alert"></div>
+            <label class="f"><span>Property type</span>
+              <select name="property_type"><option>Single family</option><option>Duplex</option><option>Triplex</option><option>Fourplex</option><option>Condo / townhome</option><option>5+ units</option><option>Mixed use</option><option>Lot / land</option><option>Other</option></select>
+            </label>
+            <label class="f"><span>Who will live there?</span>
+              <select name="occupancy" id="occupancy"><option value="vacant">Vacant now, will be resold</option><option value="tenant">Tenant / rental</option><option value="seller">Seller still living there</option><option value="owner">Me or my family</option></select>
+            </label>
+            <div class="warn full" id="occWarn" role="alert">We can only arrange business-purpose loans on investment property, not on a home you or your family will live in.</div>
+          </div>
+          <details class="more">
+            <summary>Size and features (optional)</summary>
+            <div class="grid three">
+              <label class="f"><span>Beds</span><input name="beds" inputmode="numeric"></label>
+              <label class="f"><span>Baths</span><input name="baths" inputmode="decimal"></label>
+              <label class="f"><span>Units</span><input name="units" inputmode="numeric"></label>
+              <label class="f"><span>Square feet</span><input name="sqft" inputmode="numeric"></label>
+              <label class="f"><span>Year built</span><input name="year_built" inputmode="numeric"></label>
+              <label class="f"><span>Lot size</span><input name="lot_size" placeholder="7,500 sq ft"></label>
+              <label class="f"><span>Garage</span><input name="garage" placeholder="Attached 2-car"></label>
+              <label class="f" style="grid-column:span 2"><span>County / parcel number</span><input name="county_parcel"></label>
+            </div>
+          </details>
+        </section>
+
+        <section class="ap-card" aria-labelledby="h3s">
+          <h2 id="h3s"><span class="n">3</span>About you</h2>
+          <p class="sub">Lenders look at experience and who will guarantee the loan.</p>
+          <div class="grid">
+            <label class="f"><span class="req">Full legal name</span><input name="borrower_name" autocomplete="name"></label>
+            <label class="f"><span class="req">Phone</span><input name="borrower_phone" type="tel" autocomplete="tel" placeholder="(214) 555-0100"></label>
+            <label class="f"><span class="req">Email</span><input name="borrower_email" type="email" autocomplete="email"></label>
+            <label class="f"><span>Mailing address</span><input name="borrower_address" autocomplete="street-address"></label>
+            <label class="f"><span>Borrowing entity</span><input name="entity_name" placeholder="ABC Holdings LLC (or leave blank)"></label>
+            <label class="f"><span>Entity type</span>
+              <select name="entity_type"><option value="">Choose…</option><option>LLC</option><option>Corporation</option><option>Partnership</option><option>Trust</option><option>Individual (no entity yet)</option></select>
+            </label>
+            <label class="f"><span>Flips completed (last 3 years)</span><input name="flips_done" inputmode="numeric" placeholder="0"></label>
+            <label class="f"><span>Rentals owned</span><input name="rentals_owned" inputmode="numeric" placeholder="0"></label>
+            <label class="f"><span>Estimated credit score</span>
+              <select name="credit_range"><option value="">Choose…</option><option>760+</option><option>720-759</option><option>680-719</option><option>640-679</option><option>600-639</option><option>Under 600</option><option>Not sure</option></select>
+            </label>
+            <label class="f"><span>How did you hear about us?</span><input name="heard_from"></label>
+            <label class="f full"><span>Experience</span><textarea name="experience" placeholder="e.g. 5 years investing, 12 flips completed in Dallas County"></textarea></label>
+          </div>
+          <details class="more">
+            <summary>Guarantor (if someone else will guarantee the loan)</summary>
+            <div class="grid">
+              <label class="f"><span>Guarantor name</span><input name="guarantor_name"></label>
+              <label class="f"><span>Relationship</span><input name="guarantor_relationship" placeholder="Business partner, spouse…"></label>
+              <label class="f"><span>Phone</span><input name="guarantor_phone" type="tel"></label>
+              <label class="f"><span>Email</span><input name="guarantor_email" type="email"></label>
+              <label class="f full"><span>Mailing address</span><input name="guarantor_address"></label>
+            </div>
+          </details>
+          <label class="f full" style="margin-top:16px"><span>Anything else we should know?</span><textarea name="notes"></textarea></label>
+          <p class="note"><i class="fas fa-lock"></i> Please don't enter Social Security numbers, ID numbers or bank account numbers here. If your deal moves forward, we'll send you a secure way to share documents.</p>
+        </section>
+
+        <section class="ap-card" aria-labelledby="h4s">
+          <h2 id="h4s"><span class="n">4</span>Confirm and submit</h2>
+          <label class="check"><input type="checkbox" name="business_purpose" id="bp" required>
+            <span><strong>Business purpose.</strong> This loan is for a business purpose: buying, renovating, refinancing or holding investment property. No borrower or guarantor, and no family member of theirs, will live in the property.</span></label>
+          <label class="check"><input type="checkbox" name="consent" id="consent">
+            <span id="consentText">I agree that House Lot &amp; Land Sales Co. LLC may call or text me at the phone number above about this loan request, including by automated means. Message and data rates may apply. Reply STOP to opt out. Consent is not required to apply.</span></label>
+          <button class="submit" id="submitBtn" type="submit">Submit application</button>
+          <div class="msg" id="msg" role="status" aria-live="polite"></div>
+          <p class="note">Submitting this is not a loan application to a lender and not a commitment to lend. House Lot &amp; Land Sales Co. LLC is a private money broker, not a lender. Every loan is subject to the lender's underwriting, appraisal and approval.</p>
+        </section>
+      </form>
+
+      <section class="ap-card done" id="done" hidden>
+        <div class="ico"><i class="fas fa-check"></i></div>
+        <h2 style="justify-content:center">Application received</h2>
+        <p>Your reference number is</p>
+        <p class="ref" id="doneRef"></p>
+        <p style="color:#475569;max-width:520px;margin:1rem auto 0">We'll email you a copy shortly. Harvey will review your deal and reach out within one business day about next steps and the documents the lender will need. Questions: <a href="tel:214-702-1519">214-702-1519</a> or <a href="mailto:houselotandland+funding@gmail.com">houselotandland+funding@gmail.com</a>.</p>
+      </section>
+    </main>
+
+    <aside class="ap-card est" aria-labelledby="estH" aria-live="polite">
+      <h3 id="estH">Your fix-and-flip estimate</h3>
+      <p class="sub" id="estSub">Enter a purchase price and ARV to see it.</p>
+      <div id="estBody" hidden>
+        <div class="row"><span>Estimated loan</span><span class="big" id="eLoan">$0</span></div>
+        <div class="row"><span>Estimated profit</span><span class="big" id="eProfit">$0</span></div>
+        <dl style="margin-top:12px">
+          <dt>Loan limit used</dt><dd id="eLimit"></dd>
+          <dt>Cash for purchase and rehab</dt><dd id="eCash"></dd>
+          <dt>Selling costs (<span id="eSellRate"></span>)</dt><dd id="eSell"></dd>
+          <dt>Finance costs (5%)</dt><dd id="eFin"></dd>
+          <dt>Broker fee (<span id="eFeeRate"></span>)</dt><dd id="eFee"></dd>
+          <dt>Profit margin</dt><dd id="eMargin"></dd>
+        </dl>
+        <span class="pill" id="ePill"></span>
+      </div>
+      <p class="fine">Estimate only. The loan amount is the lower of 65% of ARV or 80% of the purchase price. Most of our lenders look for at least $20,000 in projected profit. The lender sets the actual terms after underwriting and appraisal.</p>
+    </aside>
+  </div>
+
+  <div class="disc">
+    <strong>Disclosure.</strong> House Lot &amp; Land Sales Co. LLC acts as a private money broker and is not a direct lender. We arrange business-purpose loans on non-owner-occupied investment property only. All loan offers are subject to lender underwriting, approval and terms, which vary by property, location, borrower qualifications and project scope. Our brokering services are not available for property in Utah, Idaho, Minnesota, Arizona, Massachusetts, New York, South Dakota or North Dakota. This is not a commitment to lend and is not financial or legal advice.
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom"><p>&copy; 2026 House Lot &amp; Land Sales Co. LLC · <a href="tel:214-702-1519">214-702-1519</a> · <a href="mailto:houselotandland+funding@gmail.com">houselotandland+funding@gmail.com</a></p></div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script type="module">
+    import { analyzeFlip, EXCLUDED_STATES } from "./js/loan-analyzer.js";
+    const STATES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"District of Columbia",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
+    const $ = (id) => document.getElementById(id);
+    const form = $("apForm");
+    const st = $("property_state");
+    st.innerHTML = Object.entries(STATES).map(([k, v]) => `<option value="${k}"${k === "TX" ? " selected" : ""}>${v}</option>`).join("");
+
+    const usd = (n) => (n < 0 ? "-$" : "$") + Math.abs(Math.round(n)).toLocaleString("en-US");
+    const val = (n) => form.elements[n].value;
+
+    // Money fields: format with commas as the visitor types.
+    form.querySelectorAll("[data-money]").forEach((el) => el.addEventListener("input", () => {
+      const raw = el.value.replace(/[^\d.]/g, ""); if (!raw) { el.value = ""; return; }
+      const [i, d] = raw.split("."); el.value = Number(i || 0).toLocaleString("en-US") + (d !== undefined ? "." + d.slice(0, 2) : "");
+    }));
+
+    function update() {
+      const type = val("loan_type");
+      $("rentWrap").hidden = !(type === "rental" || val("exit_strategy") === "refinance");
+      const flip = type === "fix_flip" || type === "bridge";
+      const a = flip ? analyzeFlip({ arv: val("arv"), purchase_price: val("purchase_price"), rehab: val("rehab"), exit_strategy: val("exit_strategy") }) : null;
+      $("estH").textContent = flip ? "Your fix-and-flip estimate" : "Your estimate";
+      if (!a) {
+        $("estBody").hidden = true;
+        $("mini").classList.remove("on");
+        $("estSub").textContent = flip ? "Enter a purchase price and ARV to see it." : "For this loan type we size the loan with the lender directly. Submit your deal and we'll follow up with options.";
+        return;
+      }
+      $("estBody").hidden = false; $("estSub").textContent = a.exitStrategyName;
+      $("eLoan").textContent = usd(a.loanAmount);
+      $("eProfit").textContent = usd(a.netProfit);
+      $("eProfit").style.color = a.netProfit < 0 ? "#b91c1c" : "";
+      $("eLimit").textContent = a.loanLimitedBy === "purchase" ? "80% of purchase" : "65% of ARV";
+      $("eCash").textContent = usd(a.cashToClose);
+      $("eSellRate").textContent = a.selling.rate.toFixed(1) + "%"; $("eSell").textContent = usd(a.selling.total);
+      $("eFin").textContent = usd(a.financeCosts);
+      $("eFeeRate").textContent = a.brokerFeePct.toFixed(1) + "%"; $("eFee").textContent = usd(a.brokerFee);
+      $("eMargin").textContent = a.profitMargin.toFixed(1) + "%";
+      const p = $("ePill");
+      p.className = "pill " + (a.eligible ? "ok" : "no");
+      p.textContent = a.eligible ? "Meets the $20,000 profit guideline" : "Below the $20,000 profit guideline";
+      $("mini").innerHTML = `Estimated loan <b>${usd(a.loanAmount)}</b> · estimated profit <b>${usd(a.netProfit)}</b>. Full breakdown at the end of the form.`;
+      $("mini").classList.add("on");
+    }
+    function checkState() {
+      const s = st.value, w = $("stateWarn");
+      const blocked = EXCLUDED_STATES.includes(s);
+      w.textContent = blocked ? `We're not able to broker loans for property in ${STATES[s]}. Call 214-702-1519 if you have a deal in another state.` : "";
+      w.classList.toggle("show", blocked);
+      return !blocked;
+    }
+    function checkOcc() { const own = val("occupancy") === "owner"; $("occWarn").classList.toggle("show", own); return !own; }
+    form.addEventListener("input", update); form.addEventListener("change", update);
+    st.addEventListener("change", checkState); $("occupancy").addEventListener("change", checkOcc);
+    update();
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = $("msg"); msg.className = "msg"; msg.textContent = "";
+      const need = [["borrower_name", "your name"], ["borrower_phone", "your phone"], ["borrower_email", "your email"], ["property_street", "the street address"], ["property_city", "the city"], ["purchase_price", "the purchase price"]];
+      const miss = need.filter(([n]) => !val(n).trim());
+      if (miss.length) { msg.className = "msg err"; msg.textContent = "Please add " + miss.map((m) => m[1]).join(", ") + "."; form.elements[miss[0][0]].focus(); return; }
+      if (!checkState() || !checkOcc()) { msg.className = "msg err"; msg.textContent = "Please review the note under the property section."; return; }
+      if (!$("bp").checked) { msg.className = "msg err"; msg.textContent = "Please confirm the business-purpose statement."; $("bp").focus(); return; }
+      const data = Object.fromEntries(new FormData(form));
+      data.business_purpose = $("bp").checked; data.consent = $("consent").checked;
+      if (data.consent) data.consent_text = $("consentText").textContent.trim();
+      const btn = $("submitBtn"); btn.disabled = true; btn.textContent = "Sending…";
+      try {
+        const r = await fetch("/api/loan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.success) throw new Error(j.message || "Something went wrong. Please try again or call 214-702-1519.");
+        form.hidden = true; $("doneRef").textContent = j.ref; $("done").hidden = false;
+        window.scrollTo({ top: $("done").offsetTop - 110, behavior: "smooth" });
+      } catch (err) {
+        msg.className = "msg err"; msg.textContent = err.message;
+        btn.disabled = false; btn.textContent = "Submit application";
+      }
+    });
+  </script>
+</body>
+</html>

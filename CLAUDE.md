@@ -19,6 +19,7 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
 | `offer_events` | View/choose/callback/ownership log | site |
 | `find_attempts` | Rate limit for `/find` | site |
 | `envelopes`, `signers`, `sign_audit` | E-sign: locked document + hash, per-signer links, audit trail | Deal Desk (create), site (sign) |
+| `loan_apps` | Private money loan applications from `/apply.html` (schema in `src/loan_apps.sql`): applicant data JSON, fix-and-flip analysis, desk status/checklist/notes | `POST /api/loan` (create), Deal Desk Funding panel (work) |
 | `settings` | `agreements_approved` ('true' only after attorney sign-off) | Claude, on Harvey's word |
 
 `events_at` > `synced_at` means "something changed the Deal Desk hasn't picked up yet".
@@ -30,6 +31,7 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
   syncs offer choices, ownership answers and signatures, emails Harvey a summary.
 - **AI phone line**: ElevenLabs agents behind Bandwidth +1 337-604-0230; 214-702-1519 (Google Voice) and 214-608-8032 (Android) forward there.
 - **Texting**: House Lot & Land Messaging Bridge (msg.houselotandland.org, queue-only; Harvey releases texts).
+- **Private money brokering**: `apply.html` + `js/loan-analyzer.js` (JS port of Harvey's COGO Deal Analyzer: loan = min(65% ARV, 80% purchase); profit = ARV − purchase − rehab − selling costs by exit strategy − broker fee − 5% finance; eligible at $20K). The same math is copied into the Deal Desk Funding panel; change both together. Applications are business-purpose, non-owner-occupied only; never collect SSNs, ID or account numbers on the site. Not offered in UT, ID, MN, AZ, MA, NY, SD, ND.
 - **Agreement text**: claude.ai doc "Seller Agreement Templates (Draft for Attorney Review)". `src/agreements.js` must match it word for word.
 
 ## Rules

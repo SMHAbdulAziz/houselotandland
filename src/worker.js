@@ -3,10 +3,12 @@
 //
 // POST /api/lead  — saves a website form submission to the D1 database "hll-leads".
 //                   Claude's hourly task reads new rows and adds them to the Wholesale Deal Desk.
+// POST /api/loan  — private money loan application (src/loan.js), table loan_apps.
 
 import { handleOfferPage, handleOfferApi } from "./offer.js";
 import { handleFindPage, handleFindApi } from "./find.js";
 import { handleSignPage, handleSignApi, handleDocPage } from "./sign.js";
+import { handleLoanApi } from "./loan.js";
 
 const REF_ALPHABET ="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const MAX_LEN = { name: 120, phone: 40, email: 160, property_address: 300, property_type: 60, property_condition: 60, timeline: 60, details: 3000 };
@@ -34,6 +36,7 @@ export default {
       if (request.method !== "POST") return json({ success: false, message: "Method not allowed" }, 405, request);
       return handleLead(request, env);
     }
+    if (url.pathname === "/api/loan") return handleLoanApi(request, env);
     if (url.pathname === "/api/health") return json({ ok: true }, 200, request);
 
     return env.ASSETS.fetch(request);
