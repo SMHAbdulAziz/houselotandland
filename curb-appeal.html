@@ -180,12 +180,21 @@
     $("pkgs").addEventListener("click", (e) => { const c = e.target.closest(".pkg"); if (c) { pick = c.dataset.pkg; sync(); } });
     $("pkgs").addEventListener("keydown", (e) => { const c = e.target.closest(".pkg"); if (c && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pick = c.dataset.pkg; sync(); } });
     f.addEventListener("change", sync); sync();
+    // Earliest bookable date: two days after today (Central time). The server checks this too.
+    const minDay = (() => { const t = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" }); const d = new Date(t + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 2); return d.toISOString().slice(0, 10); })();
+    const minLabel = new Date(minDay + "T12:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+    ["date1", "date2"].forEach((n) => { f.elements[n].min = minDay; });
+    const hint = document.createElement("p"); hint.className = "fine"; hint.style.cssText = "margin:4px 0 0;font-size:.85rem;color:#64748b;grid-column:1/-1";
+    hint.textContent = "Earliest available date: " + minLabel + ". We need at least two days to schedule a crew.";
+    f.elements.date2.closest("label").after(hint);
     const st = await status(); if (!st.payments) $("payNowWrap").hidden = true;
     f.addEventListener("submit", (e) => {
       e.preventDefault();
       const a = Object.fromEntries(new FormData(f));
       const need = ["property_address", "date1", "name", "phone", "email"].filter((k) => !String(a[k] || "").trim());
       if (need.length) { $("cMsg").className = "msg err"; $("cMsg").textContent = "Please complete the required fields."; f.elements[need[0]].focus(); return; }
+      const early = ["date1", "date2"].find((k) => a[k] && a[k] < minDay);
+      if (early) { $("cMsg").className = "msg err"; $("cMsg").textContent = "Please choose dates on or after " + minLabel + ". We need at least two days to schedule a crew."; f.elements[early].focus(); return; }
       const answers = {}; ["lot", "occupied", "date1", "date2", "window", "access", "notes", "role"].forEach((k) => answers[k] = a[k] || "");
       submit({ service: "curb", package: pick, addOns: addOns(), website: a.website, name: a.name, email: a.email, phone: a.phone, property_address: a.property_address, answers,
         payNow: a.pay === "now", consent: $("consent").checked, consent_text: $("consentText").textContent.trim() }, { btn: $("cBtn"), msg: $("cMsg"), form: f, done: $("done") });

@@ -82,6 +82,10 @@ async function createOrder(request, env, url) {
   } else if (service === "curb") {
     if (!CURB[b.package]) return json({ success: false, message: "Choose a package." }, 400, request);
     if (!property) return json({ success: false, message: "Please add the property address." }, 400, request);
+    const earliest = earliestCurbDate();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(answers.date1 || "")) return json({ success: false, message: "Please choose your first choice date." }, 400, request);
+    for (const d of [answers.date1, answers.date2].filter(Boolean))
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d < earliest) return json({ success: false, message: `Please choose dates on or after ${fmtDay(earliest)}. We need at least two days to schedule a crew.` }, 400, request);
     const addOns = (Array.isArray(b.addOns) ? b.addOns : []).filter((x) => CURB_ADDONS[x]);
     item = b.package; label = `Curb Appeal ${CURB[b.package].name} package`; amount = curbTotal(b.package, addOns); extra.addOns = addOns;
     status = "requested";
@@ -334,6 +338,13 @@ async function approved(env) {
 function curbStatus(r) { return ({ requested: "Request received", paid: "Paid, confirming your date", scheduled: "Scheduled", in_progress: "In progress", completed: "Completed", cancelled: "Cancelled", test: "Test" })[r.status] || r.status; }
 function fmtWhen(s) { const d = new Date(s); return isNaN(d) ? s : d.toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }); }
 function fmtDay(s) { const d = new Date(String(s).slice(0, 10) + "T12:00:00Z"); return isNaN(d) ? String(s) : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }); }
+// Curb bookings need two days' lead time, counted in North Texas (Central) time.
+const CURB_LEAD_DAYS = 2;
+function earliestCurbDate(now = new Date()) {
+  const today = now.toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+  const d = new Date(today + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + CURB_LEAD_DAYS);
+  return d.toISOString().slice(0, 10);
+}
 const first = (n) => String(n || "").trim().split(/\s+/)[0] || "there";
 function parse(s) { try { return s ? JSON.parse(s) : null; } catch { return null; } }
 function clean(v, max = 500) { return v == null ? "" : String(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, max); }
