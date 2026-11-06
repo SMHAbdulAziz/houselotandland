@@ -18,6 +18,6 @@
   // Back office (/office) is behind Cloudflare Access. Fill these in from Zero Trust > Access > Applications;
   // they are not secrets. Until both are set, /office shows "locked". OFFICE_EMAILS (comma list) optionally narrows who
   // the Access policy already allows; leave it empty to rely on the Access policy alone.
-  "vars": { "ACCESS_TEAM_DOMAIN": "", "ACCESS_AUD": "", "OFFICE_EMAILS": "" },
+  "vars": { "ACCESS_TEAM_DOMAIN": "houselotandland.cloudflareaccess.com", "ACCESS_AUD": "6ca563b888772f8fa15d4a8c6ca7bd530b21e3c93ed472d56920a0987fc2c368", "OFFICE_EMAILS": "" },
   "observability": { "enabled": true }
 }
