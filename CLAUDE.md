@@ -41,7 +41,8 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
 - **Shabbat, without exception:** closed for all new business from sunset Friday to sunset Saturday (Dallas sunset, `js/shabbat.js`, shared by browser and Worker).
   The Worker refuses new-business POSTs (`NEW_BUSINESS` in `src/worker.js`: lead, loan, service orders, offer choices, signatures, new subscription documents) with 503 and the reopening time;
   `js/shabbat-banner.js` (on every page) shows the notice and countdown and hides forms. Paid customers keep access to order pages, documents, offer pages and Find my offer.
-  No Curb Appeal work dates on Saturdays. The hourly scheduled task stops during Shabbat (STEP 0). Terms of Use: `terms.html` (section 2). Any new form or endpoint must follow this.
+  No Curb Appeal work dates on Saturdays. The hourly scheduled task stops during Shabbat (STEP 0). Terms of Use: `terms.html` (section 2, English and Spanish). Any new form or endpoint must follow this.
+  `GET /api/hours` gives open/closed plus the spoken closed notice; the AI phone line's tool `check_business_hours` calls it on every call. The power-washing bid scan skips Saturdays.
 - Consent first: never call or text anyone without recorded consent; texts only through the bridge.
 - Offers and agreements are never sent without Harvey's click on the desk.
 - Real agreements stay locked (`settings.agreements_approved = 'false'`) until Harvey confirms attorney approval. Test envelopes (`test = 1`) always work.
