@@ -336,6 +336,13 @@
     function checkOcc() { const own = val("occupancy") === "owner"; $("occWarn").classList.toggle("show", own); return !own; }
     form.addEventListener("input", update); form.addEventListener("change", update);
     st.addEventListener("change", checkState); $("occupancy").addEventListener("change", checkOcc);
+    // Prefill from the funding page calculator: apply.html?type=fix_flip&pp=364000&arv=650000&rehab=110000
+    (() => {
+      const q = new URLSearchParams(location.search), fmt = (v) => { const n = parseFloat(String(v).replace(/[^\d.]/g, "")); return isFinite(n) && n > 0 ? Math.round(n).toLocaleString("en-US") : ""; };
+      if (q.get("type") && form.elements.loan_type.querySelector(`option[value="${CSS.escape(q.get("type"))}"]`)) form.elements.loan_type.value = q.get("type");
+      [["pp", "purchase_price"], ["arv", "arv"], ["rehab", "rehab"]].forEach(([k, n]) => { if (q.get(k)) form.elements[n].value = fmt(q.get(k)); });
+      if (q.get("exit") && form.elements.exit_strategy.querySelector(`option[value="${CSS.escape(q.get("exit"))}"]`)) form.elements.exit_strategy.value = q.get("exit");
+    })();
     update();
 
     form.addEventListener("submit", async (e) => {

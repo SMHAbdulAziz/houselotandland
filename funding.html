@@ -3,299 +3,433 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Private Money Brokering Services | House Lot & Land Sales Co. LLC</title>
-  <meta name="description" content="Professional private money brokering services for real estate investors and wholesalers. Secure funding for your next deal with House Lot & Land Sales Co. LLC.">
-  <meta name="keywords" content="private money, hard money, real estate funding, investment loans, fix and flip loans">
-  
-  <!-- Favicon -->
+  <title>Investor Funding: Fix & Flip, Rental, Bridge & Construction Loans | House Lot & Land Sales Co. LLC</title>
+  <meta name="description" content="Private money for real estate investors: fix-and-flip, bridge, long-term rental (DSCR), construction and commercial loans. Run your numbers, apply online, and get matched with a private lender. 1% broker fee on your first 3 loans.">
+  <meta name="keywords" content="private money, hard money, fix and flip loans, DSCR rental loans, bridge loans, construction loans, real estate investor funding, Dallas">
   <link rel="icon" type="image/x-icon" href="images/favicon.ico">
-  
-  <!-- CSS Files -->
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/responsive.css">
-  
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
-  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
   <style>
-    /* Page-specific styling */
-    body {
-      background: linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(29, 78, 216) 100%);
+    :root { --navy: #0b1730; --navy-2: #13254a; --blue: #2563eb; --blue-d: #1d4ed8; --gold: #f59e0b; --ink: #0f172a; --body: #334155; --muted: #64748b; --line: #e2e8f0; --soft: #f1f5f9; --ok: #166534; --ok-bg: #dcfce7; --bad: #b91c1c; }
+    body { background: #fff; }
+    [hidden] { display: none !important; }
+    .fx p { color: var(--body); }
+    .fx-wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+    .fx-eyebrow { font: 600 .8rem Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--blue); margin-bottom: .6rem; }
+    .fx h2 { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem, 3.2vw, 2.5rem); color: var(--ink); margin: 0 0 .75rem; line-height: 1.15; }
+    .fx .lead { font-size: 1.1rem; max-width: 720px; color: var(--body); }
+    .fx-sec { padding: 80px 0; }
+    .fx-sec.alt { background: var(--soft); }
+    .btn-gold { display: inline-flex; align-items: center; gap: .55rem; padding: .95rem 1.6rem; border-radius: 10px; background: var(--gold); color: #1f2937; font: 700 1rem Inter, sans-serif; text-decoration: none; border: 0; cursor: pointer; transition: transform .15s, background .15s; }
+    .btn-gold:hover { background: #fbbf24; color: #1f2937; transform: translateY(-1px); }
+    .btn-ghost { display: inline-flex; align-items: center; gap: .55rem; padding: .95rem 1.4rem; border-radius: 10px; border: 1.5px solid rgba(255,255,255,.55); color: #fff; font: 600 1rem Inter, sans-serif; text-decoration: none; }
+    .btn-ghost:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+    /* Hero */
+    .fx-hero { position: relative; overflow: hidden; color: #fff; padding: calc(80px + 64px) 0 72px;
+      background: radial-gradient(1100px 500px at 85% -10%, rgba(37,99,235,.55), transparent 60%), linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 100%); }
+    .fx-hero::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 44px 44px; mask-image: linear-gradient(180deg, #000 0%, transparent 85%); pointer-events: none; }
+    .fx-hero .grid { position: relative; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 48px; align-items: center; }
+    .fx-hero .tag { display: inline-flex; gap: .5rem; align-items: center; padding: .4rem .85rem; border-radius: 999px; background: rgba(245,158,11,.15); color: #fcd34d; font: 600 .85rem Inter, sans-serif; margin-bottom: 1.2rem; }
+    .fx-hero h1 { color: #fff; font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 4.6vw, 3.6rem); line-height: 1.08; margin: 0 0 1.1rem; }
+    .fx-hero h1 em { font-style: normal; color: var(--gold); }
+    .fx-hero .sub { color: rgba(255,255,255,.86); font-size: 1.15rem; max-width: 560px; margin-bottom: 1.8rem; }
+    .fx-hero .ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+    .fx-hero .ticks { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 1.6rem; color: rgba(255,255,255,.8); font-size: .93rem; }
+    .fx-hero .ticks i { color: #4ade80; margin-right: .35rem; }
+
+    /* Calculator card */
+    .calc { background: #fff; color: var(--ink); border-radius: 16px; padding: 26px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.45); }
+    .calc h3 { font-family: 'Playfair Display', serif; font-size: 1.35rem; margin: 0 0 .2rem; color: var(--ink); }
+    .calc .hint { font-size: .88rem; color: var(--muted); margin: 0 0 1rem; }
+    .calc label { display: grid; gap: 5px; font: 500 .85rem Inter, sans-serif; color: var(--body); }
+    .calc .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .calc .money { position: relative; }
+    .calc .money::before { content: "$"; position: absolute; left: .7rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: .95rem; }
+    .calc input { width: 100%; padding: .65rem .6rem .65rem 1.45rem; border: 1px solid #cbd5e1; border-radius: 8px; font: 500 .98rem Inter, sans-serif; color: var(--ink); }
+    .calc input:focus { outline: 2px solid #93c5fd; border-color: var(--blue); }
+    .calc .out { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 8px; }
+    .calc .out div { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: .95rem; color: var(--body); }
+    .calc .out b { font-variant-numeric: tabular-nums; color: var(--ink); }
+    .calc .out .big b { font-size: 1.45rem; }
+    .calc .verdict { margin-top: 12px; padding: .55rem .85rem; border-radius: 8px; font: 600 .9rem Inter, sans-serif; }
+    .calc .verdict.ok { background: var(--ok-bg); color: var(--ok); }
+    .calc .verdict.no { background: #fee2e2; color: var(--bad); }
+    .calc .go { width: 100%; justify-content: center; margin-top: 14px; }
+    .calc .fine { font-size: .76rem; color: var(--muted); margin: 10px 0 0; line-height: 1.45; }
+
+    /* Stat strip */
+    .stats { background: #fff; border-bottom: 1px solid var(--line); }
+    .stats .grid { display: grid; grid-template-columns: repeat(5, 1fr); }
+    .stat { padding: 26px 18px; text-align: center; border-right: 1px solid var(--line); }
+    .stat:last-child { border-right: 0; }
+    .stat .v { font: 700 1.7rem Inter, sans-serif; color: var(--ink); letter-spacing: -.01em; }
+    .stat .l { font-size: .88rem; color: var(--muted); margin-top: 2px; }
+
+    /* Programs */
+    .progs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-top: 36px; }
+    .prog { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 24px; display: flex; flex-direction: column; transition: box-shadow .2s, transform .2s; }
+    .prog:hover { box-shadow: 0 18px 40px -18px rgba(15,23,42,.25); transform: translateY(-2px); }
+    .prog .ic { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; background: #eff6ff; color: var(--blue); font-size: 1.15rem; margin-bottom: 14px; }
+    .prog h3 { font: 700 1.15rem Inter, sans-serif; color: var(--ink); margin: 0 0 .25rem; }
+    .prog .for { font-size: .9rem; color: var(--muted); margin: 0 0 14px; }
+    .prog ul { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 7px; }
+    .prog li { display: flex; gap: .55rem; font-size: .93rem; color: var(--body); line-height: 1.4; }
+    .prog li i { color: var(--blue); font-size: .8rem; margin-top: .3rem; }
+    .prog .rate { margin-top: auto; padding-top: 14px; border-top: 1px dashed var(--line); display: flex; justify-content: space-between; align-items: baseline; font-size: .88rem; color: var(--muted); }
+    .prog .rate b { font: 700 1.15rem Inter, sans-serif; color: var(--ink); }
+    .prog.feature { border: 2px solid var(--blue); position: relative; }
+    .prog.feature::after { content: "Most requested"; position: absolute; top: -12px; left: 22px; background: var(--blue); color: #fff; font: 600 .75rem Inter, sans-serif; padding: .25rem .6rem; border-radius: 999px; }
+    .note-sm { font-size: .85rem; color: var(--muted); margin-top: 18px; }
+
+    /* Steps */
+    .steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; margin-top: 40px; counter-reset: s; }
+    .step { position: relative; padding-top: 58px; }
+    .step::before { counter-increment: s; content: counter(s); position: absolute; top: 0; left: 0; width: 42px; height: 42px; border-radius: 50%; background: var(--blue); color: #fff; display: grid; place-items: center; font: 700 1.05rem Inter, sans-serif; box-shadow: 0 0 0 6px #dbeafe; }
+    .step::after { content: ""; position: absolute; top: 21px; left: 58px; right: -12px; height: 2px; background: linear-gradient(90deg, #bfdbfe, transparent); }
+    .step:last-child::after { display: none; }
+    .step h3 { font: 700 1.05rem Inter, sans-serif; color: var(--ink); margin: 0 0 .4rem; }
+    .step p { font-size: .95rem; margin: 0; }
+    .step .when { display: inline-block; margin-top: .6rem; font: 600 .78rem Inter, sans-serif; color: var(--blue); background: #eff6ff; padding: .2rem .55rem; border-radius: 6px; }
+
+    /* Fit + docs */
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 36px; }
+    .panel { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 28px; }
+    .panel h3 { font: 700 1.2rem Inter, sans-serif; color: var(--ink); margin: 0 0 1rem; display: flex; gap: .6rem; align-items: center; }
+    .panel h3 i { color: var(--blue); }
+    .checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+    .checks li { display: flex; gap: .7rem; color: var(--body); font-size: .97rem; line-height: 1.45; }
+    .checks li i { color: #16a34a; margin-top: .25rem; }
+    .checks li.x i { color: var(--bad); }
+    .docs h4 { font: 600 .82rem Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 1.1rem 0 .5rem; }
+    .docs h4:first-of-type { margin-top: 0; }
+    .docs .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .docs .chips span { background: var(--soft); border: 1px solid var(--line); border-radius: 999px; padding: .3rem .7rem; font-size: .86rem; color: var(--body); }
+    .secure { margin-top: 18px; padding: .8rem 1rem; border-radius: 10px; background: #eff6ff; color: #1e3a8a; font-size: .9rem; display: flex; gap: .6rem; }
+
+    /* Why */
+    .why { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; }
+    .feats { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 28px; }
+    .feat i { color: var(--blue); font-size: 1.25rem; margin-bottom: .5rem; }
+    .feat h3 { font: 700 1rem Inter, sans-serif; color: var(--ink); margin: 0 0 .3rem; }
+    .feat p { font-size: .93rem; margin: 0; }
+    .offer { background: linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 100%); border-radius: 18px; padding: 36px; color: #fff; position: relative; overflow: hidden; }
+    .offer::after { content: ""; position: absolute; width: 260px; height: 260px; right: -80px; top: -80px; border-radius: 50%; background: radial-gradient(circle, rgba(245,158,11,.35), transparent 70%); }
+    .offer .k { font: 600 .8rem Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #fcd34d; }
+    .offer .big { font: 700 4.2rem Inter, sans-serif; line-height: 1; margin: .5rem 0 .3rem; color: #fff; }
+    .offer .big small { font-size: 1.3rem; font-weight: 600; color: rgba(255,255,255,.8); margin-left: .3rem; }
+    .offer p { color: rgba(255,255,255,.85); margin: .4rem 0 1.4rem; }
+    .offer .eg { background: rgba(255,255,255,.08); border-radius: 10px; padding: .85rem 1rem; font-size: .92rem; color: rgba(255,255,255,.9); margin-bottom: 1.4rem; }
+
+    /* FAQ */
+    .faq { max-width: 860px; margin: 32px auto 0; display: grid; gap: 10px; }
+    .faq details { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 0 20px; }
+    .faq summary { cursor: pointer; list-style: none; padding: 18px 0; font: 600 1.02rem Inter, sans-serif; color: var(--ink); display: flex; justify-content: space-between; gap: 16px; }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary::after { content: "+"; font-size: 1.4rem; line-height: 1; color: var(--blue); }
+    .faq details[open] summary::after { content: "−"; }
+    .faq details p { margin: 0 0 18px; font-size: .97rem; line-height: 1.6; }
+
+    /* CTA band */
+    .band { background: linear-gradient(135deg, var(--blue) 0%, var(--blue-d) 100%); color: #fff; padding: 64px 0; text-align: center; }
+    .band h2 { color: #fff !important; }
+    .band p { color: rgba(255,255,255,.9) !important; font-size: 1.1rem; max-width: 640px; margin: 0 auto 1.6rem; }
+    .band .ctas { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+    .band .contact { margin-top: 1.4rem; font-size: .95rem; color: rgba(255,255,255,.85); }
+    .band .contact a { color: #fff; font-weight: 600; }
+    .disc { padding: 36px 0 48px; font-size: .84rem; line-height: 1.65; color: var(--muted); }
+    .disc strong { color: var(--body); }
+    .footer p, .footer-bottom p { color: #cbd5e1 !important; }
+
+    @media (max-width: 1000px) {
+      .fx-hero .grid, .why { grid-template-columns: 1fr; }
+      .progs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .step::after { display: none; }
+      .stats .grid { grid-template-columns: repeat(3, 1fr); }
+      .stat:nth-child(3) { border-right: 0; }
+      .stat:nth-child(n+4) { border-top: 1px solid var(--line); }
     }
-    .pm-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem 1rem;
-      margin-top: 80px;
-    }
-    .pm-hero {
-      text-align: center;
-      padding: 3rem 1rem;
-      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-      color: white;
-      border-radius: 8px;
-      margin-bottom: 3rem;
-    }
-    .pm-hero h1 {
-      margin-bottom: 1rem;
-      color: white;
-    }
-    .pm-hero p {
-      color: white;
-    }
-    .pm-section {
-      margin-bottom: 3rem;
-      padding: 2rem;
-      background: #f8fafc;
-      border-radius: 8px;
-    }
-    .pm-section h2 {
-      margin-top: 0;
-      color: #1f2937;
-      border-bottom: 2px solid #2563eb;
-      padding-bottom: 0.5rem;
-    }
-    .pm-section h3 {
-      color: #1f2937;
-    }
-    .pm-section p {
-      color: #6b7280;
-    }
-    .pm-steps {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.5rem;
-      margin-top: 1.5rem;
-    }
-    .pm-step {
-      background: white;
-      padding: 1.5rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .pm-step h3 {
-      color: #1f2937;
-    }
-    .pm-step p {
-      color: #6b7280;
-    }
-    .pm-step-number {
-      display: inline-block;
-      width: 40px;
-      height: 40px;
-      background: #2563eb;
-      color: white;
-      border-radius: 50%;
-      text-align: center;
-      line-height: 40px;
-      font-weight: bold;
-      margin-bottom: 1rem;
-    }
-    .pm-benefits {
-      list-style: none;
-      padding: 0;
-    }
-    .pm-benefits li {
-      padding: 0.75rem 0;
-      padding-left: 2rem;
-      position: relative;
-      color: #1f2937;
-    }
-    .pm-benefits li:before {
-      content: "✓";
-      position: absolute;
-      left: 0;
-      color: #2563eb;
-      font-weight: bold;
-      font-size: 1.2rem;
-    }
-    .pm-cta {
-      background: white;
-      padding: 2rem;
-      border-radius: 8px;
-      text-align: center;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    .pm-cta h2 {
-      color: #2563eb;
-      margin-top: 0;
-    }
-    .pm-cta > p {
-      color: #6b7280;
-    }
-    .pm-contact-info {
-      margin: 1.5rem 0;
-    }
-    .pm-contact-info p {
-      margin: 0.5rem 0;
-      font-size: 1.1rem;
-      color: #1f2937;
-    }
-    .pm-contact-info a {
-      color: #2563eb;
-    }
-    .pm-disclaimer {
-      background: #fff3cd;
-      border-left: 4px solid #ffc107;
-      padding: 1.5rem;
-      margin-top: 2rem;
-      border-radius: 4px;
-    }
-    .pm-disclaimer h3 {
-      margin-top: 0;
-      color: #856404;
-    }
-    .pm-disclaimer p {
-      color: #856404;
-      margin-bottom: 0;
-      font-size: 0.9rem;
-      line-height: 1.6;
-    }
-    @media (max-width: 768px) {
-      .pm-hero {
-        padding: 2rem 1rem;
-      }
-      .pm-section {
-        padding: 1.5rem;
-      }
+    @media (max-width: 680px) {
+      .fx-sec { padding: 56px 0; }
+      .progs, .steps, .two, .feats { grid-template-columns: 1fr; }
+      .stats .grid { grid-template-columns: 1fr 1fr; }
+      .stat { border-right: 0 !important; border-top: 1px solid var(--line); }
+      .stat:nth-child(odd) { border-right: 1px solid var(--line) !important; }
+      .stat:nth-child(-n+2) { border-top: 0; }
+      .stat:last-child { grid-column: 1 / -1; border-right: 0 !important; }
+      .calc .row3 { grid-template-columns: 1fr; }
+      .offer .big { font-size: 3.2rem; }
+      .stat { padding: 20px 10px; }
+      .stat .v { font-size: 1.3rem; }
     }
   </style>
 </head>
-<body>
-
-  <!-- Header -->
+<body class="fx">
   <header class="header">
     <nav class="navbar">
       <div class="container">
-        <div class="nav-brand">
-          <div class="logo-crop">
-            <img src="images/Menu-Logo.png" alt="House Lot & Land Sales Co. LLC" class="logo">
-          </div>
-        </div>
-        
+        <div class="nav-brand"><div class="logo-crop"><img src="images/Menu-Logo.png" alt="House Lot & Land Sales Co. LLC" class="logo"></div></div>
         <div class="nav-menu" id="nav-menu">
           <ul class="nav-list">
-            <li class="nav-item">
-              <a href="index.html#home" class="nav-link">Home</a>
-            </li>
-            <li class="nav-item">
-              <a href="index.html#services" class="nav-link">Services</a>
-            </li>
-            <li class="nav-item">
-              <a href="funding.html" class="nav-link">Investor Funding</a>
-            </li>
-            <li class="nav-item">
-              <a href="index.html#how-it-works" class="nav-link">How It Works</a>
-            </li>
-            <li class="nav-item">
-              <a href="index.html#faq" class="nav-link">FAQ</a>
-            </li>
-            <li class="nav-item">
-              <a href="index.html#contact" class="nav-link">Contact</a>
-            </li>
+            <li class="nav-item"><a href="index.html#home" class="nav-link">Home</a></li>
+            <li class="nav-item"><a href="index.html#services" class="nav-link">Services</a></li>
+            <li class="nav-item"><a href="funding.html" class="nav-link active">Investor Funding</a></li>
+            <li class="nav-item"><a href="#programs" class="nav-link">Loan Programs</a></li>
+            <li class="nav-item"><a href="#faq" class="nav-link">FAQ</a></li>
+            <li class="nav-item"><a href="apply.html" class="nav-link">Apply</a></li>
           </ul>
         </div>
-        
-        <div class="nav-contact">
-          <a href="tel:214-702-1519" class="phone-link">
-            <i class="fas fa-phone"></i>
-            <span>214-702-1519</span>
-          </a>
-        </div>
-        
-        <div class="nav-toggle" id="nav-toggle">
-          <span class="bar"></span>
-          <span class="bar"></span>
-          <span class="bar"></span>
-        </div>
+        <div class="nav-contact"><a href="tel:214-702-1519" class="phone-link"><i class="fas fa-phone"></i><span>214-702-1519</span></a></div>
+        <div class="nav-toggle" id="nav-toggle"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
       </div>
     </nav>
   </header>
 
-  <div class="pm-container">
-    
-    <section class="pm-hero">
-      <h1>Need Funding for Your Next Real Estate Deal?</h1>
-      <p>Professional private money brokering services for investors and wholesalers nationwide. Get funded fast with House Lot & Land Sales Co. LLC.</p>
-      <a href="apply.html" style="display:inline-block;margin-top:1.5rem;padding:.9rem 2.2rem;background:#f59e0b;color:#1f2937;text-decoration:none;border-radius:8px;font-weight:700">Apply for Funding</a>
-    </section>
+  <main>
+    <!-- Hero + calculator -->
+    <section class="fx-hero">
+      <div class="fx-wrap grid">
+        <div>
+          <span class="tag"><i class="fas fa-bolt"></i> 1% broker fee on your first 3 loans</span>
+          <h1>Funding for your next deal, <em>without the runaround.</em></h1>
+          <p class="sub">Fix-and-flip, bridge, rental, construction and commercial loans for real estate investors. Run your numbers, apply in about 10 minutes, and we'll match your deal with a private lender that fits it.</p>
+          <div class="ctas">
+            <a href="apply.html" class="btn-gold"><i class="fas fa-file-signature"></i> Apply for funding</a>
+            <a href="tel:214-702-1519" class="btn-ghost"><i class="fas fa-phone"></i> 214-702-1519</a>
+          </div>
+          <div class="ticks">
+            <span><i class="fas fa-check"></i>Business-purpose investment loans</span>
+            <span><i class="fas fa-check"></i>Review within 1 business day</span>
+            <span><i class="fas fa-check"></i>DFW based, 42 states served</span>
+          </div>
+        </div>
 
-    <section class="pm-section">
-      <h2>How Our Private Money Brokering Works</h2>
-      <div class="pm-steps">
-        <div class="pm-step">
-          <div class="pm-step-number">1</div>
-          <h3>Submit Your Deal</h3>
-          <p>Provide property details, repair estimates, and your exit strategy through our online application. Fix-and-flip deals get an instant estimate.</p>
-        </div>
-        <div class="pm-step">
-          <div class="pm-step-number">2</div>
-          <h3>We Structure & Review</h3>
-          <p>Our team reviews your submission and helps structure the application for maximum approval likelihood.</p>
-        </div>
-        <div class="pm-step">
-          <div class="pm-step-number">3</div>
-          <h3>Get Matched & Close</h3>
-          <p>We connect you with vetted private lenders and help you close your deal with confidence.</p>
+        <div class="calc" aria-labelledby="calcH">
+          <h3 id="calcH">Run your flip numbers</h3>
+          <p class="hint">See the loan our lenders typically start from and your projected profit.</p>
+          <div class="row3">
+            <label>Purchase price<span class="money"><input id="cPP" inputmode="decimal" placeholder="180,000" data-money></span></label>
+            <label>Rehab<span class="money"><input id="cRehab" inputmode="decimal" placeholder="30,000" data-money></span></label>
+            <label>ARV<span class="money"><input id="cArv" inputmode="decimal" placeholder="250,000" data-money></span></label>
+          </div>
+          <div class="out" id="cOut" hidden aria-live="polite">
+            <div class="big"><span>Estimated loan</span><b id="cLoan"></b></div>
+            <div class="big"><span>Projected profit</span><b id="cProfit"></b></div>
+            <div><span>Your cash for purchase + rehab</span><b id="cCash"></b></div>
+            <div><span id="cOverL">Profit above $20,000 minimum</span><b id="cOver"></b></div>
+          </div>
+          <div class="verdict" id="cVerdict" hidden></div>
+          <a class="btn-gold go" id="cGo" href="apply.html"><i class="fas fa-arrow-right"></i> Continue to the application</a>
+          <p class="fine">Assumes an MLS sale (8% selling costs), 5% finance costs and a 1% broker fee. Loan shown is the lower of 65% of ARV or 80% of purchase; some programs go higher. Estimate only, not a loan offer.</p>
         </div>
       </div>
     </section>
 
-    <section class="pm-section">
-      <h2>Why Choose House Lot & Land?</h2>
-      <ul class="pm-benefits">
-        <li><strong>Special Introductory Rate:</strong> Just 1% broker fee for your first 3 loans</li>
-        <li><strong>DFW Based, Nationwide Service:</strong> Operating from Dallas–Fort Worth, serving investors across the USA</li>
-        <li><strong>Transparent Process:</strong> No hidden fees, no unnecessary paperwork</li>
-        <li><strong>Creative Deal Structuring:</strong> Tailored solutions for wholesalers, fix-and-flippers, and buy-and-hold investors</li>
-        <li><strong>Vetted Lender Network:</strong> Access to reliable private money sources</li>
-        <li><strong>Fast Turnaround:</strong> Get funding decisions quickly to keep your deals moving</li>
-      </ul>
-    </section>
-
-    <section class="pm-section">
-      <h2>Loan Terms & Eligibility</h2>
-      <ul class="pm-benefits">
-        <li>Funding available for residential investment properties</li>
-        <li>Fix-and-flip, rental properties, and wholesale assignments eligible</li>
-        <li>All loans facilitated through licensed private lenders</li>
-        <li>Must provide: property information, scope of work/repair estimate, and exit strategy</li>
-        <li>Credit and experience requirements vary by lender and deal type</li>
-        <li><strong>Services NOT available in:</strong> UT, ID, MN, AZ, MA, NY, SD, ND</li>
-      </ul>
-    </section>
-
-    <section class="pm-cta">
-      <h2>Ready to Fund Your Next Deal?</h2>
-      <p>Let's get started today. Reach out to discuss your project or submit your deal for review.</p>
-      
-      <div class="pm-contact-info">
-        <p><strong>📞 Phone:</strong> <a href="tel:214-702-1519">214-702-1519</a></p>
-        <p><strong>✉️ Email:</strong> <a href="mailto:houselotandland+funding@gmail.com">houselotandland+funding@gmail.com</a></p>
-        <p><strong>🌐 Website:</strong> <a href="https://www.houselotandland.org" target="_blank">www.HouseLotAndLand.org</a></p>
+    <!-- Stats -->
+    <section class="stats" aria-label="Program highlights">
+      <div class="fx-wrap grid">
+        <div class="stat"><div class="v">Up to 90%</div><div class="l">of purchase price</div></div>
+        <div class="stat"><div class="v">Up to 100%</div><div class="l">of rehab costs</div></div>
+        <div class="stat"><div class="v">$75K–$5M</div><div class="l">loan sizes</div></div>
+        <div class="stat"><div class="v">12–24 mo</div><div class="l">short-term terms, 30-yr rentals</div></div>
+        <div class="stat"><div class="v">1%</div><div class="l">broker fee, first 3 loans</div></div>
       </div>
-
-      <p style="margin-top: 2rem; color: #1f2937;">
-        <strong>Submit Your Deal:</strong><br>
-        <a href="apply.html" style="display: inline-block; margin-top: 1rem; padding: 0.75rem 2rem; background: #2563eb; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Apply for Funding</a>
-      </p>
     </section>
 
-    <div class="pm-disclaimer">
-      <h3>Important Disclosure</h3>
-      <p>
-        House Lot & Land Sales Co. LLC acts as a private money broker and is NOT a direct lender. We facilitate connections between borrowers and private lenders. All loan offers are subject to lender underwriting, approval, and terms. Loan availability, rates, and terms may vary based on property type, location, borrower qualifications, and project scope. Our brokering services are not available in the following states: Utah (UT), Idaho (ID), Minnesota (MN), Arizona (AZ), Massachusetts (MA), New York (NY), South Dakota (SD), and North Dakota (ND). This is not a commitment to lend. All information provided is for informational purposes only and does not constitute financial or legal advice. Consult with qualified professionals regarding your specific situation.
-      </p>
+    <!-- Programs -->
+    <section class="fx-sec" id="programs">
+      <div class="fx-wrap">
+        <div class="fx-eyebrow">Loan programs</div>
+        <h2>The right loan for the way you invest</h2>
+        <p class="lead">These are typical guidelines from our lending partners. We'll tell you which program fits your deal and what the lender is likely to offer before you commit to anything.</p>
+        <div class="progs">
+          <article class="prog feature">
+            <div class="ic"><i class="fas fa-hammer"></i></div>
+            <h3>Fix &amp; Flip / Bridge</h3>
+            <p class="for">Buy, renovate and resell, or bridge to a refinance.</p>
+            <ul>
+              <li><i class="fas fa-circle"></i>Up to 90% of purchase and 100% of rehab</li>
+              <li><i class="fas fa-circle"></i>Up to 75% of after-repair value; max 90% loan-to-cost</li>
+              <li><i class="fas fa-circle"></i>12–24 month terms</li>
+              <li><i class="fas fa-circle"></i>No minimum credit score</li>
+            </ul>
+            <div class="rate"><span>Rates from</span><b>9.49%</b></div>
+          </article>
+          <article class="prog">
+            <div class="ic"><i class="fas fa-building"></i></div>
+            <h3>Bridge Jumbo</h3>
+            <p class="for">Larger flips and higher-value properties.</p>
+            <ul>
+              <li><i class="fas fa-circle"></i>Up to 90% of purchase and 100% of rehab</li>
+              <li><i class="fas fa-circle"></i>Up to 75% of ARV; loans up to $2M</li>
+              <li><i class="fas fa-circle"></i>12–24 month terms</li>
+              <li><i class="fas fa-circle"></i>Credit score 650+</li>
+            </ul>
+            <div class="rate"><span>Rates from</span><b>10.25%</b></div>
+          </article>
+          <article class="prog">
+            <div class="ic"><i class="fas fa-key"></i></div>
+            <h3>Long-Term Rental (DSCR)</h3>
+            <p class="for">Buy and hold, or refinance a stabilized rental.</p>
+            <ul>
+              <li><i class="fas fa-circle"></i>Up to 80% loan-to-value</li>
+              <li><i class="fas fa-circle"></i>Loans $125K–$2M; property value $160K+</li>
+              <li><i class="fas fa-circle"></i>No experience required</li>
+              <li><i class="fas fa-circle"></i>Points from 2.00%; credit score 660+</li>
+            </ul>
+            <div class="rate"><span>Rates from</span><b>6.625%</b></div>
+          </article>
+          <article class="prog">
+            <div class="ic"><i class="fas fa-trowel-bricks"></i></div>
+            <h3>New Construction</h3>
+            <p class="for">Ground-up builds: SFR, 2–4 units, 5+ units, mixed use.</p>
+            <ul>
+              <li><i class="fas fa-circle"></i>Up to 85% of completed value (ARV)</li>
+              <li><i class="fas fa-circle"></i>Loans up to $2M; completed value $150K+</li>
+              <li><i class="fas fa-circle"></i>12–24 month terms</li>
+              <li><i class="fas fa-circle"></i>Credit score 650+</li>
+            </ul>
+            <div class="rate"><span>Rates from</span><b>10.25%</b></div>
+          </article>
+          <article class="prog">
+            <div class="ic"><i class="fas fa-city"></i></div>
+            <h3>Short-Term Commercial</h3>
+            <p class="for">Apartments, multifamily and residential-style mixed use.</p>
+            <ul>
+              <li><i class="fas fa-circle"></i>Loans $250K–$3M</li>
+              <li><i class="fas fa-circle"></i>Up to 70% loan-to-value; rehab allowed</li>
+              <li><i class="fas fa-circle"></i>12–24 month terms</li>
+              <li><i class="fas fa-circle"></i>Credit score 680+</li>
+            </ul>
+            <div class="rate"><span>Rates</span><b>Quoted per deal</b></div>
+          </article>
+          <article class="prog">
+            <div class="ic"><i class="fas fa-warehouse"></i></div>
+            <h3>Long-Term Commercial</h3>
+            <p class="for">Stabilized income property you plan to keep.</p>
+            <ul>
+              <li><i class="fas fa-circle"></i>Loans $75K–$5M; up to 75% loan-to-value</li>
+              <li><i class="fas fa-circle"></i>Self storage, multifamily, office, retail, warehouse, automotive</li>
+              <li><i class="fas fa-circle"></i>30-year fully amortized</li>
+              <li><i class="fas fa-circle"></i>Credit score 650+</li>
+            </ul>
+            <div class="rate"><span>Rates from</span><b>10.99%</b></div>
+          </article>
+        </div>
+        <p class="note-sm">Guidelines, rates and terms change often and vary by lender, property, location and borrower. The lender sets final terms after underwriting and appraisal.</p>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="fx-sec alt" id="how">
+      <div class="fx-wrap">
+        <div class="fx-eyebrow">How it works</div>
+        <h2>From application to closing table</h2>
+        <p class="lead">We do the legwork of packaging your deal so lenders see a clean, complete file. That's what gets deals approved faster.</p>
+        <div class="steps">
+          <div class="step"><h3>Apply online</h3><p>Tell us about the property, your numbers and your experience. Fix-and-flip deals get an instant estimate.</p><span class="when">About 10 minutes</span></div>
+          <div class="step"><h3>We review and structure</h3><p>Harvey reviews your deal, checks the numbers and calls you to talk through the best program and structure.</p><span class="when">Within 1 business day</span></div>
+          <div class="step"><h3>Match and term sheet</h3><p>We collect your documents, submit a complete package to the right lender and get you their terms.</p><span class="when">Pace depends on your documents</span></div>
+          <div class="step"><h3>Appraisal and close</h3><p>The lender orders the appraisal and title work. You close, and rehab draws are released on schedule.</p><span class="when">Lender's timeline</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fit + documents -->
+    <section class="fx-sec" id="fit">
+      <div class="fx-wrap">
+        <div class="fx-eyebrow">Before you apply</div>
+        <h2>Is your deal a fit?</h2>
+        <div class="two">
+          <div class="panel">
+            <h3><i class="fas fa-clipboard-check"></i> What lenders look for</h3>
+            <ul class="checks">
+              <li><i class="fas fa-check-circle"></i><span><strong>Investment property.</strong> Business-purpose loans only. No borrower or family member can live in the property.</span></li>
+              <li><i class="fas fa-check-circle"></i><span><strong>A real profit margin.</strong> Most flip lenders want at least $20,000 in projected profit after all costs.</span></li>
+              <li><i class="fas fa-check-circle"></i><span><strong>Support for your ARV.</strong> Recent sold comps near the property, and a rehab budget that matches your scope.</span></li>
+              <li><i class="fas fa-check-circle"></i><span><strong>Cash to close.</strong> Your down payment, closing costs and a reserve. The calculator above shows the first part.</span></li>
+              <li><i class="fas fa-check-circle"></i><span><strong>Credit and experience.</strong> Requirements vary: some flip programs have no minimum score, and rental loans need no prior experience.</span></li>
+              <li class="x"><i class="fas fa-times-circle"></i><span><strong>Not available</strong> for property in Utah, Idaho, Minnesota, Arizona, Massachusetts, New York, South Dakota or North Dakota.</span></li>
+            </ul>
+          </div>
+          <div class="panel docs">
+            <h3><i class="fas fa-folder-open"></i> What you'll need</h3>
+            <h4>The deal</h4>
+            <div class="chips"><span>Purchase contract &amp; addendums</span><span>Scope of work</span><span>Draw schedule</span><span>Contractor license &amp; insurance</span><span>Payoff letter (if refinancing)</span></div>
+            <h4>You and your entity</h4>
+            <div class="chips"><span>Loan application</span><span>Schedule of real estate owned &amp; sold</span><span>Operating agreement</span><span>EIN letter</span><span>Secretary of State verification</span></div>
+            <h4>Financials</h4>
+            <div class="chips"><span>3 months of bank statements</span><span>2 years of tax returns</span><span>Photo ID for each guarantor</span></div>
+            <p class="secure"><i class="fas fa-lock"></i><span>Don't send documents yet. Apply first; if your deal moves forward, we'll send you a secure way to share them. The lender orders the appraisal, title and credit report.</span></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Why us -->
+    <section class="fx-sec alt">
+      <div class="fx-wrap why">
+        <div>
+          <div class="fx-eyebrow">Why House Lot &amp; Land</div>
+          <h2>A broker who invests too</h2>
+          <p class="lead">We buy and wholesale property in Dallas–Fort Worth ourselves, so we know what lenders need and what a deal has to look like to close.</p>
+          <div class="feats">
+            <div class="feat"><i class="fas fa-network-wired"></i><h3>Vetted lender network</h3><p>Private lenders matched to your property type, state, credit and experience.</p></div>
+            <div class="feat"><i class="fas fa-calculator"></i><h3>We check your numbers first</h3><p>You'll know whether a deal works before you pay for an appraisal.</p></div>
+            <div class="feat"><i class="fas fa-layer-group"></i><h3>Creative structuring</h3><p>Help for wholesalers, flippers and buy-and-hold investors, including rehab draws and refinance exits.</p></div>
+            <div class="feat"><i class="fas fa-eye"></i><h3>Clear, upfront fees</h3><p>Our broker fee is agreed in writing before we submit your file. No surprises at closing.</p></div>
+          </div>
+        </div>
+        <aside class="offer" aria-label="Introductory broker fee">
+          <div class="k">Introductory rate</div>
+          <div class="big">1%<small>broker fee</small></div>
+          <p>on each of your first 3 funded loans with us.</p>
+          <div class="eg">Example: on a $291,200 loan, our fee is <strong>$2,912</strong>.</div>
+          <a href="apply.html" class="btn-gold"><i class="fas fa-file-signature"></i> Start your application</a>
+        </aside>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="fx-sec" id="faq">
+      <div class="fx-wrap">
+        <div class="fx-eyebrow" style="text-align:center">Questions</div>
+        <h2 style="text-align:center">Investor funding FAQ</h2>
+        <div class="faq">
+          <details><summary>Are you the lender?</summary><p>No. House Lot &amp; Land Sales Co. LLC is a private money broker. We review and package your deal and connect you with private lenders. The lender underwrites, approves and funds the loan and sets its final terms.</p></details>
+          <details><summary>What does it cost?</summary><p>Our broker fee is a percentage of the loan amount, paid at closing, and is agreed in writing before we submit your file. It's 1% on your first 3 funded loans. Lenders charge their own interest, points and fees, which we'll walk you through with their term sheet.</p></details>
+          <details><summary>Does applying affect my credit?</summary><p>Applying with us does not pull your credit. If you go forward with a lender, they will run a credit report as part of underwriting.</p></details>
+          <details><summary>How fast can I close?</summary><p>We review every application within one business day. After that, timing depends mostly on how quickly your documents come in and the lender's appraisal and title work. A complete file is the fastest path.</p></details>
+          <details><summary>Do I need experience?</summary><p>Not always. Long-term rental loans require no prior experience, and some fix-and-flip programs have no minimum credit score. Experience can improve your leverage and rate, so tell us about any deals you've done.</p></details>
+          <details><summary>Can I use these loans for a home I'll live in?</summary><p>No. These are business-purpose loans for investment property only. Neither you, a guarantor, nor any family member can live in the property.</p></details>
+          <details><summary>How is the estimate on this page calculated?</summary><p>The loan is the lower of 65% of after-repair value or 80% of the purchase price, a conservative starting point. Profit is ARV minus the purchase price, rehab, selling costs (8% for an agent sale), 5% finance costs and our broker fee. Some programs lend more; the lender decides after underwriting.</p></details>
+          <details><summary>Which states do you serve?</summary><p>We broker loans nationwide except for property in Utah, Idaho, Minnesota, Arizona, Massachusetts, New York, South Dakota and North Dakota.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="fx-wrap">
+        <h2>Ready to fund your next deal?</h2>
+        <p>Apply in about 10 minutes. We'll review your deal and get back to you within one business day.</p>
+        <div class="ctas">
+          <a href="apply.html" class="btn-gold"><i class="fas fa-file-signature"></i> Apply for funding</a>
+          <a href="tel:214-702-1519" class="btn-ghost"><i class="fas fa-phone"></i> Call 214-702-1519</a>
+        </div>
+        <div class="contact">Or email <a href="mailto:houselotandland+funding@gmail.com">houselotandland+funding@gmail.com</a></div>
+      </div>
+    </section>
+
+    <div class="fx-wrap disc">
+      <strong>Important disclosure.</strong> House Lot &amp; Land Sales Co. LLC acts as a private money broker and is not a direct lender. We arrange business-purpose loans on non-owner-occupied investment property only and facilitate connections between borrowers and private lenders. All loan offers are subject to lender underwriting, appraisal, approval and terms. Program guidelines, rates and terms shown are typical of our lending partners, change without notice and vary based on property type, location, borrower qualifications and project scope. Estimates on this page are for illustration only and are not a loan offer or commitment to lend. Our brokering services are not available for property in Utah, Idaho, Minnesota, Arizona, Massachusetts, New York, South Dakota or North Dakota. Nothing on this page is financial or legal advice; consult qualified professionals about your situation.
     </div>
+  </main>
 
-  </div>
-
-  <!-- Footer -->
   <footer class="footer">
     <div class="container">
       <div class="footer-content">
@@ -303,17 +437,15 @@
           <img src="images/logo.png" alt="House Lot & Land Sales Co. LLC" class="footer-logo">
           <p>Professional real estate solutions for property owners and investors.</p>
         </div>
-        
         <div class="footer-section">
           <h4>Quick Links</h4>
           <ul>
             <li><a href="index.html#home">Home</a></li>
             <li><a href="index.html#services">Services</a></li>
             <li><a href="funding.html">Investor Funding</a></li>
-            <li><a href="index.html#faq">FAQ</a></li>
+            <li><a href="apply.html">Apply for Funding</a></li>
           </ul>
         </div>
-        
         <div class="footer-section">
           <h4>Contact Info</h4>
           <ul>
@@ -321,24 +453,38 @@
             <li><i class="fas fa-envelope"></i> houselotandland+funding@gmail.com</li>
           </ul>
         </div>
-        
-        <div class="footer-section">
-          <h4>Follow Us</h4>
-          <div class="social-links">
-            <a href="#" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
-            <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
-          </div>
-        </div>
       </div>
-      
-      <div class="footer-bottom">
-        <p>&copy; 2024 House Lot & Land Sales Co. LLC. All rights reserved.</p>
-      </div>
+      <div class="footer-bottom"><p>&copy; 2026 House Lot &amp; Land Sales Co. LLC. All rights reserved.</p></div>
     </div>
   </footer>
 
-  <!-- JavaScript -->
   <script src="js/main.js"></script>
+  <script type="module">
+    import { analyzeFlip } from "./js/loan-analyzer.js";
+    const $ = (id) => document.getElementById(id);
+    const usd = (n) => (n < 0 ? "-$" : "$") + Math.abs(Math.round(n)).toLocaleString("en-US");
+    const raw = (el) => el.value.replace(/[^\d.]/g, "");
+    document.querySelectorAll("[data-money]").forEach((el) => el.addEventListener("input", () => {
+      const r = raw(el); if (!r) { el.value = ""; } else { const [i, d] = r.split("."); el.value = Number(i || 0).toLocaleString("en-US") + (d !== undefined ? "." + d.slice(0, 2) : ""); }
+      calc();
+    }));
+    function calc() {
+      const pp = raw($("cPP")), arv = raw($("cArv")), rehab = raw($("cRehab"));
+      const q = new URLSearchParams({ type: "fix_flip" }); if (pp) q.set("pp", pp); if (arv) q.set("arv", arv); if (rehab) q.set("rehab", rehab);
+      $("cGo").href = "apply.html?" + q.toString();
+      const a = analyzeFlip({ purchase_price: pp, arv, rehab, exit_strategy: "mls_listing" });
+      $("cOut").hidden = !a; $("cVerdict").hidden = !a;
+      if (!a) return;
+      $("cLoan").textContent = usd(a.loanAmount);
+      $("cProfit").textContent = usd(a.netProfit); $("cProfit").style.color = a.netProfit < 0 ? "#b91c1c" : "";
+      $("cCash").textContent = usd(a.cashToClose);
+      $("cOverL").textContent = a.eligible ? "Profit above $20,000 minimum" : "Profit short of $20,000 minimum";
+      $("cOver").textContent = a.eligible ? "+" + usd(a.profitSurplus) : usd(-a.profitSurplus);
+      $("cOver").style.color = a.eligible ? "#166534" : "#b91c1c";
+      const v = $("cVerdict"); v.className = "verdict " + (a.eligible ? "ok" : "no");
+      v.innerHTML = a.eligible ? '<i class="fas fa-check-circle"></i> Meets the $20,000 profit guideline' : '<i class="fas fa-exclamation-circle"></i> Below the $20,000 profit guideline most lenders use';
+    }
+    calc();
+  </script>
 </body>
 </html>
