@@ -11,6 +11,13 @@ import { handleFindPage, handleFindApi } from "./find.js";
 import { handleSignPage, handleSignApi, handleDocPage } from "./sign.js";
 import { handleLoanApi } from "./loan.js";
 import { handleServiceApi, handleOrderPage } from "./services.js";
+import { shabbatStatus, closedMessage } from "../js/shabbat.js";
+
+// New-business actions refused from sunset Friday to sunset Saturday (Shabbat). Viewing orders, documents,
+// offer pages and "Find my offer" stays open, and Stripe webhooks are still recorded.
+const NEW_BUSINESS = /^\/api\/(lead|loan|service|offer\/[^/]+\/(choose|callback|owners)|sign\/[^/]+|order\/[^/]+\/doc)$/;
+// Customer pages rendered by this Worker get the Shabbat notice (mode=access: nothing is hidden).
+const NOTICE_PAGES = /^\/(offer\/[^/]+|sign\/[^/]+|order\/[^/]+|find)\/?$/;
 
 const REF_ALPHABET ="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const MAX_LEN = { name: 120, phone: 40, email: 160, property_address: 300, property_type: 60, property_condition: 60, timeline: 60, details: 3000 };
@@ -18,7 +25,22 @@ const MAX_LEN = { name: 120, phone: 40, email: 160, property_address: 300, prope
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (request.method === "POST" && NEW_BUSINESS.test(url.pathname)) {
+      const st = shabbatStatus();
+      if (st.closed) {
+        const h = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "retry-after": String(Math.max(60, Math.ceil((st.opensAt - Date.now()) / 1000))), ...cors(request) };
+        return new Response(JSON.stringify({ success: false, ok: false, closed: true, opensAt: st.opensAt.toISOString(), message: closedMessage(st) }), { status: 503, headers: h });
+      }
+    }
+    const res = await route(request, env, ctx, url);
+    if (request.method === "GET" && NOTICE_PAGES.test(url.pathname) && (res.headers.get("content-type") || "").includes("text/html")) {
+      return new HTMLRewriter().on("body", { element(el) { el.append('<script type="module" src="/js/shabbat-banner.js?mode=access"></script>', { html: true }); } }).transform(res);
+    }
+    return res;
+  },
+};
 
+async function route(request, env, ctx, url) {
     if (url.pathname === "/find" || url.pathname === "/find/") return handleFindPage(request);
     let sm = url.pathname.match(/^\/sign\/([^/]+)\/?$/);
     if (sm && request.method === "GET") return handleSignPage(request, env, sm[1]);
@@ -44,8 +66,7 @@ export default {
     if (url.pathname === "/api/health") return json({ ok: true }, 200, request);
 
     return env.ASSETS.fetch(request);
-  },
-};
+}
 
 async function handleLead(request, env) {
   let body;

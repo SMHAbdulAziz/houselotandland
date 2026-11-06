@@ -12,6 +12,7 @@
 
 import { HOMESTEAD, CURB, CURB_ADDONS, CONTRACT_PLANS, DOCS, watchQuote, curbTotal, homesteadTotal, WATCH } from "../js/services-catalog.js";
 import { homesteadDocs, contractDoc, printable, esc, DISCLAIMER } from "./legaldocs.js";
+import { shabbatStatus, isShabbatDate, fmtTime } from "../js/shabbat.js";
 
 const SERVICES = ["homestead", "curb", "contracts", "watch"];
 const TOKEN_RE = /^[A-Za-z0-9_-]{20,64}$/;
@@ -86,6 +87,8 @@ async function createOrder(request, env, url) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(answers.date1 || "")) return json({ success: false, message: "Please choose your first choice date." }, 400, request);
     for (const d of [answers.date1, answers.date2].filter(Boolean))
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d < earliest) return json({ success: false, message: `Please choose dates on or after ${fmtDay(earliest)}. We need at least two days to schedule a crew.` }, 400, request);
+    for (const d of [answers.date1, answers.date2].filter(Boolean))
+      if (isShabbatDate(d)) return json({ success: false, message: "We don't schedule work on Saturdays (Shabbat). Please choose another day." }, 400, request);
     const addOns = (Array.isArray(b.addOns) ? b.addOns : []).filter((x) => CURB_ADDONS[x]);
     item = b.package; label = `Curb Appeal ${CURB[b.package].name} package`; amount = curbTotal(b.package, addOns); extra.addOns = addOns;
     status = "requested";
@@ -168,12 +171,15 @@ async function orderPage(env, token, url) {
   const paid = ["paid", "active", "delivered", "completed", "scheduled"].includes(r.status) || r.status === "test";
   const money = (n) => (n == null ? "" : "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
   const canceled = url.searchParams.get("canceled");
+  const shab = shabbatStatus();
   let body = `<p class="muted">Reference <b>${esc(r.ref)}</b> · ${esc(r.label)}${r.amount != null ? ` · ${money(r.amount)}${r.mode === "subscription" ? "/month" : ""}` : ""}</p>`;
   if (r.status === "test") body += `<div class="note warn">Test order: documents are stamped TEST and nothing is charged.</div>`;
   if (canceled && !paid) body += `<div class="note warn">Payment was cancelled. You can try again below or call 214-702-1519.</div>`;
 
   if (r.status === "waitlist") {
     body += `<h2>You're on the list</h2><p>Thanks, ${esc(first(r.name))}. This service opens soon. We saved your answers and will email you at ${esc(r.email)} as soon as it's available. Nothing has been charged.</p>`;
+  } else if (r.status === "awaiting_payment" && shab.closed) {
+    body += `<h2>Almost done</h2><p>Your order is saved. We're closed for Shabbat, so payment opens again <b>${esc(fmtTime(shab.opensAt))}</b> Central time. Come back to this page then to pay.</p><p class="muted">Bookmark this page: it's your private link to your order.</p>`;
   } else if (r.status === "awaiting_payment") {
     body += `<h2>Almost done</h2><p>Your order is saved. ${env.STRIPE_SECRET_KEY && r.stripe_session ? `<a class="btn" href="${esc(await checkoutLink(env, r))}">Pay securely</a>` : "We'll email you a secure invoice to pay online."}</p><p class="muted">Bookmark this page: it's your private link to your order${r.service === "contracts" || r.service === "homestead" ? " and documents" : ""}.</p>`;
   } else if (r.service === "homestead") {
@@ -231,7 +237,7 @@ async function builderSection(env, r, token) {
   const opts = Object.entries(DOCS).map(([k, d]) => `<option value="${k}">${esc(d.title)}</option>`).join("");
   return `<h2>Your document builder</h2><p>${esc(plan.name)} plan · ${left == null ? "unlimited documents" : `${left} of ${plan.docs} documents left this month`}</p>
    ${docs.length ? `<h3>Your documents</h3><ul>${docs.map((d) => `<li><a href="/order/${esc(token)}/doc/${esc(d.id)}">${esc(d.title)}</a> <span class="muted">${esc(d.created_at.slice(0, 10))}</span></li>`).join("")}</ul>` : ""}
-   ${left === 0 ? `<p class="note warn">You've used this month's documents. Upgrade to Investor for unlimited documents: call 214-702-1519.</p>` : `
+   ${shabbatStatus().closed ? `<p class="note warn">We're closed for Shabbat. Your documents above stay available. You can make new documents again ${esc(fmtTime(shabbatStatus().opensAt))} Central time.</p>` : left === 0 ? `<p class="note warn">You've used this month's documents. Upgrade to Investor for unlimited documents: call 214-702-1519.</p>` : `
    <h3>Make a new document</h3><label>Document<select id="docType">${opts}</select></label><p id="docBlurb" class="muted"></p><form id="docForm"></form>
    <button class="btn" id="docGo" type="button">Create document</button><p id="docMsg" class="muted"></p>
    <script type="module">

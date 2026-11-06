@@ -127,6 +127,7 @@
           <details><summary>What if it rains?</summary><p>We'll move you to the next open day and let you know right away. Pressure washing and painting need dry weather.</p></details>
           <details><summary>Can I customize a package?</summary><p>Yes. Add notes when you book, or call us. We'll quote anything extra before we do it.</p></details>
           <details><summary>Do I need to be home?</summary><p>No. For front-yard work we don't need access. For backyards, tell us about gates, codes and pets.</p></details>
+          <details><summary>What days do you work?</summary><p>Sunday through Friday. We close for Shabbat from sunset Friday to sunset Saturday, so there is no work, booking or payment during that time. Friday jobs finish before sunset.</p></details>
           <details><summary>What areas do you serve?</summary><p>Most of North Texas: Dallas, Tarrant, Collin, Denton, Rockwall, Kaufman, Ellis and Johnson counties. Ask about others.</p></details>
         </div>
       </div>
@@ -185,8 +186,14 @@
     const minLabel = new Date(minDay + "T12:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
     ["date1", "date2"].forEach((n) => { f.elements[n].min = minDay; });
     const hint = document.createElement("p"); hint.className = "fine"; hint.style.cssText = "margin:4px 0 0;font-size:.85rem;color:#64748b;grid-column:1/-1";
-    hint.textContent = "Earliest available date: " + minLabel + ". We need at least two days to schedule a crew.";
+    hint.textContent = "Earliest available date: " + minLabel + ". We need at least two days to schedule a crew. We don't work on Saturdays (Shabbat).";
     f.elements.date2.closest("label").after(hint);
+    ["date1", "date2"].forEach((n) => f.elements[n].addEventListener("change", (e) => {
+      const v = e.target.value, sat = v && new Date(v + "T12:00:00Z").getUTCDay() === 6;
+      e.target.setCustomValidity(sat ? "We don't work on Saturdays (Shabbat)." : "");
+      if (sat) { $("cMsg").className = "msg err"; $("cMsg").textContent = "We don't schedule work on Saturdays (Shabbat). Please choose another day."; }
+      else if (/Saturdays/.test($("cMsg").textContent)) $("cMsg").textContent = "";
+    }));
     const st = await status(); if (!st.payments) $("payNowWrap").hidden = true;
     f.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -195,10 +202,13 @@
       if (need.length) { $("cMsg").className = "msg err"; $("cMsg").textContent = "Please complete the required fields."; f.elements[need[0]].focus(); return; }
       const early = ["date1", "date2"].find((k) => a[k] && a[k] < minDay);
       if (early) { $("cMsg").className = "msg err"; $("cMsg").textContent = "Please choose dates on or after " + minLabel + ". We need at least two days to schedule a crew."; f.elements[early].focus(); return; }
+      const sat = ["date1", "date2"].find((k) => a[k] && new Date(a[k] + "T12:00:00Z").getUTCDay() === 6);
+      if (sat) { $("cMsg").className = "msg err"; $("cMsg").textContent = "We don't schedule work on Saturdays (Shabbat). Please choose another day."; f.elements[sat].focus(); return; }
       const answers = {}; ["lot", "occupied", "date1", "date2", "window", "access", "notes", "role"].forEach((k) => answers[k] = a[k] || "");
       submit({ service: "curb", package: pick, addOns: addOns(), website: a.website, name: a.name, email: a.email, phone: a.phone, property_address: a.property_address, answers,
         payNow: a.pay === "now", consent: $("consent").checked, consent_text: $("consentText").textContent.trim() }, { btn: $("cBtn"), msg: $("cMsg"), form: f, done: $("done") });
     });
   </script>
+  <script type="module" src="js/shabbat-banner.js"></script>
 </body>
 </html>
