@@ -4,32 +4,183 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>House Lot & Land Sales Co. LLC - We Buy Houses Fast | Cash Offers</title>
-    <meta name="description" content="Get a fast, no-obligation cash offer for your house, lot, or land. We buy properties in any condition - vacant or occupied. Call 214-702-1519 today!">
-    <meta name="keywords" content="we buy houses, cash offer, sell house fast, real estate investment, distressed properties">
-    
-    <!-- Open Graph Meta Tags -->
+    <meta name="description" content="Get a fast, no-obligation cash offer for your house, lot, or land in Dallas-Fort Worth. We buy properties in any condition - vacant or occupied. Call 214-702-1519 today!">
+    <meta name="keywords" content="we buy houses, cash offer, sell house fast, sell land, inherited property, Dallas Fort Worth">
     <meta property="og:title" content="House Lot & Land Sales Co. LLC - We Buy Houses Fast">
     <meta property="og:description" content="Get a fast, no-obligation cash offer for your house, lot, or land. We buy properties in any condition.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://houselotandland.com">
-    <meta property="og:image" content="images/hero-bg.jpg">
-    
-    <!-- Favicon -->
+    <meta property="og:url" content="https://houselotandland.org">
+    <meta property="og:image" content="https://houselotandland.org/images/Logo.png">
     <link rel="icon" type="image/x-icon" href="images/favicon.ico">
-    
-    <!-- CSS Files -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/responsive.css">
-    
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Home page design (matches funding.html). The page keeps one light theme in every OS mode,
+           so the shared stylesheet's dark-mode variables are reset here. */
+        body.home { --text-dark: #1f2937; --text-light: #6b7280; --bg-white: #ffffff; --bg-light: #f8fafc; --border-color: #e5e7eb;
+            --navy: #0b1730; --navy-2: #13254a; --blue: #2563eb; --blue-d: #1d4ed8; --gold: #f59e0b; --ink: #0f172a; --body: #334155; --muted: #64748b; --line: #e2e8f0; --soft: #f1f5f9;
+            background: #fff; color: var(--body); }
+        .home .header { background: #fff; }
+        .home p { color: var(--body); }
+        .hx-wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+        .hx-eyebrow { font: 600 .8rem Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--blue); margin-bottom: .6rem; }
+        .hx-h2 { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem, 3.2vw, 2.5rem); color: var(--ink); margin: 0 0 .75rem; line-height: 1.15; }
+        .hx-lead { font-size: 1.1rem; max-width: 720px; color: var(--body) !important; }
+        .hx-sec { padding: 80px 0; }
+        .hx-sec.alt { background: var(--soft); }
+        .hx-center { text-align: center; }
+        .hx-center .hx-lead { margin: 0 auto; }
+
+        /* Hero */
+        .home .hero { min-height: 0; padding: calc(80px + 56px) 0 64px; background: radial-gradient(1100px 500px at 85% -10%, rgba(37,99,235,.55), transparent 60%), linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 100%); }
+        .home .hero::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 44px 44px; mask-image: linear-gradient(180deg, #000 0%, transparent 85%); pointer-events: none; }
+        .home .hero-background { display: none; }
+        .home .hero .container { position: relative; }
+        .home .hero-content { gap: 48px; }
+        .home .carousel { border-radius: 16px; box-shadow: 0 30px 60px -24px rgba(0,0,0,.6); }
+        .home .carousel-dots button { background: rgba(255,255,255,.35); }
+        .home .carousel-dots button.active { background: var(--gold); }
+        .hx-tag { display: inline-flex; gap: .5rem; align-items: center; padding: .4rem .85rem; border-radius: 999px; background: rgba(245,158,11,.15); color: #fcd34d; font: 600 .85rem Inter, sans-serif; margin-bottom: 1rem; }
+        .home .hero-title { color: #fff; font-size: clamp(2.2rem, 4.4vw, 3.4rem); line-height: 1.08; }
+        .home .hero-title .highlight { color: var(--gold); }
+        .home .hero-subtitle { color: rgba(255,255,255,.88) !important; font-size: 1.15rem; }
+        .home .hero-buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+        .home .hero-buttons .btn-primary { background: var(--gold); border-color: var(--gold); color: #1f2937; font-weight: 700; }
+        .home .hero-buttons .btn-primary:hover { background: #fbbf24; color: #1f2937; }
+        .home .hero-buttons .btn-secondary { background: transparent; border: 1.5px solid rgba(255,255,255,.55); color: #fff; }
+        .home .hero-buttons .btn-secondary:hover { background: rgba(255,255,255,.1); color: #fff; }
+        .hx-ticks { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 1.4rem; color: rgba(255,255,255,.82); font-size: .93rem; }
+        .hx-ticks i { color: #4ade80; margin-right: .35rem; }
+        .home .form-card { background: #fff !important; border-radius: 16px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.45); border-top: 4px solid var(--gold); }
+        .home .form-card h3 { color: var(--ink); }
+        .home .form-card label { color: var(--body); }
+        .home .form-subtitle { color: var(--muted) !important; }
+        .home .form-disclaimer { color: var(--muted) !important; }
+        .hx-find { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); font-size: .92rem; color: var(--body); text-align: center; }
+        .hx-find a { font-weight: 600; }
+
+        /* Stat strip */
+        .hx-stats { background: #fff; border-bottom: 1px solid var(--line); }
+        .hx-stats .hx-wrap { display: grid; grid-template-columns: repeat(5, 1fr); }
+        .hx-stat { padding: 26px 14px; text-align: center; border-right: 1px solid var(--line); }
+        .hx-stat:last-child { border-right: 0; }
+        .hx-stat i { color: var(--blue); font-size: 1.3rem; margin-bottom: .5rem; display: block; }
+        .hx-stat .v { font: 700 1.05rem Inter, sans-serif; color: var(--ink); }
+        .hx-stat .l { font-size: .86rem; color: var(--muted); margin-top: 2px; }
+
+        /* Situations */
+        .hx-sits { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 36px; }
+        .hx-sit { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 22px; transition: box-shadow .2s, transform .2s; }
+        .hx-sit:hover { box-shadow: 0 18px 40px -20px rgba(15,23,42,.25); transform: translateY(-2px); }
+        .hx-sit i { width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; background: #eff6ff; color: var(--blue); font-size: 1.1rem; margin-bottom: 12px; }
+        .hx-sit h3 { font: 700 1.02rem Inter, sans-serif; color: var(--ink); margin: 0 0 .3rem; }
+        .hx-sit p { font-size: .92rem; margin: 0; line-height: 1.5; }
+
+        /* Services (restyles the shared cards) */
+        .home .services { background: #fff; padding: 80px 0; }
+        .home .section-header h2 { font-family: 'Playfair Display', serif; color: var(--ink); }
+        .home .section-header p { color: var(--body); }
+        .home .services-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+        .home .service-card { background: #fff !important; border: 1px solid var(--line); border-radius: 14px; box-shadow: none; text-align: left; padding: 24px; }
+        .home .service-card:hover { box-shadow: 0 18px 40px -20px rgba(15,23,42,.25); }
+        .home .service-icon { width: 44px; height: 44px; border-radius: 10px; background: #eff6ff; color: var(--blue); display: grid; place-items: center; font-size: 1.15rem; margin: 0 0 14px; }
+        .home .service-icon i { color: var(--blue); font-size: 1.15rem; }
+        .home .service-card h3 { font: 700 1.08rem Inter, sans-serif; color: var(--ink); }
+        .home .service-card p { font-size: .94rem; }
+        .home .service-card.feature { background: linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 100%) !important; border: 0; }
+        .home .service-card.feature h3 { color: #fff; }
+        .home .service-card.feature p { color: rgba(255,255,255,.85); }
+        .home .service-card.feature .service-icon { background: rgba(245,158,11,.18); }
+        .home .service-card.feature .service-icon i { color: var(--gold); }
+        .home .service-card.feature a { color: var(--gold) !important; }
+
+        /* Compare */
+        .hx-compare { margin-top: 36px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: #fff; }
+        .hx-compare table { width: 100%; border-collapse: collapse; font-size: .97rem; }
+        .hx-compare th, .hx-compare td { padding: 15px 20px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+        .hx-compare tr:last-child td { border-bottom: 0; }
+        .hx-compare thead th { background: var(--soft); font: 700 .95rem Inter, sans-serif; color: var(--ink); }
+        .hx-compare thead th.us { background: var(--blue); color: #fff; }
+        .hx-compare td:first-child { font-weight: 600; color: var(--ink); width: 26%; }
+        .hx-compare td.us { background: #f8fbff; color: var(--ink); font-weight: 500; }
+        .hx-compare td.us i { color: #16a34a; margin-right: .45rem; }
+        .hx-compare td.them { color: var(--muted); }
+        .hx-note { font-size: .85rem; color: var(--muted) !important; margin-top: 14px; }
+
+        /* How it works */
+        .home .how-it-works { padding: 80px 0; background: var(--soft); }
+        .home .steps-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
+        .home .step-card { background: transparent; box-shadow: none; text-align: left; padding: 58px 0 0; position: relative; }
+        .home .step-number { position: absolute; top: 0; left: 0; width: 42px; height: 42px; margin: 0; border-radius: 50%; background: var(--blue); color: #fff; display: grid; place-items: center; font: 700 1.05rem Inter, sans-serif; box-shadow: 0 0 0 6px #dbeafe; }
+        .home .step-card::after { content: ""; position: absolute; top: 21px; left: 58px; right: -12px; height: 2px; background: linear-gradient(90deg, #bfdbfe, transparent); }
+        .home .step-card:last-child::after { display: none; }
+        .home .step-card h3 { font: 700 1.05rem Inter, sans-serif; color: var(--ink); }
+        .home .step-card p { font-size: .95rem; }
+
+        /* Investor band */
+        .hx-band { background: linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 100%); color: #fff; padding: 56px 0; position: relative; overflow: hidden; }
+        .hx-band::after { content: ""; position: absolute; width: 360px; height: 360px; right: -100px; top: -140px; border-radius: 50%; background: radial-gradient(circle, rgba(245,158,11,.3), transparent 70%); }
+        .hx-band .hx-wrap { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; position: relative; z-index: 1; }
+        .hx-band h2 { font-family: 'Playfair Display', serif; color: #fff; font-size: clamp(1.6rem, 3vw, 2.2rem); margin: .2rem 0 .5rem; }
+        .hx-band p { color: rgba(255,255,255,.85) !important; margin: 0; max-width: 620px; }
+        .hx-band .k { font: 600 .8rem Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #fcd34d; }
+        .btn-gold { display: inline-flex; align-items: center; gap: .55rem; padding: .95rem 1.6rem; border-radius: 10px; background: var(--gold); color: #1f2937 !important; font: 700 1rem Inter, sans-serif; text-decoration: none; }
+        .btn-gold:hover { background: #fbbf24; }
+
+        /* FAQ */
+        .home .faq { padding: 80px 0; background: #fff; }
+        .home .faq-grid { max-width: 860px; margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 10px; }
+        .home .faq-item { background: #fff !important; border: 1px solid var(--line); border-radius: 12px; box-shadow: none; }
+        .home .faq-question h3 { font: 600 1.02rem Inter, sans-serif; color: var(--ink); }
+        .home .faq-question:hover { background: var(--soft); }
+        .home .faq-item { margin-bottom: 0; }
+        .home .faq-question { padding: 18px 22px; }
+        .home .faq-item.active .faq-answer { max-height: 400px; }
+
+        /* Contact */
+        .home .contact { background: linear-gradient(135deg, var(--blue) 0%, var(--blue-d) 100%); padding: 80px 0; }
+        .home .contact-info h2 { font-family: 'Playfair Display', serif; color: #fff; }
+        .home .contact-info > p { color: rgba(255,255,255,.9) !important; }
+        .home .contact-method i { background: rgba(255,255,255,.16); color: var(--gold); }
+        .home .contact-method h4 { color: #fff; }
+        .home .contact-method a, .home .contact-method p { color: rgba(255,255,255,.9) !important; }
+        .home .contact-form { background: #fff !important; border-radius: 16px; box-shadow: 0 30px 60px -24px rgba(0,0,0,.4); }
+        .home .contact-form h3 { color: var(--ink); }
+
+        /* Footer (the shared dark-mode rule made its text unreadable) */
+        .home .footer, .home .footer-section h4, .home .footer-section ul li a, .home .footer-bottom { color: #e2e8f0 !important; }
+        .home .footer p, .home .footer-bottom p { color: #cbd5e1 !important; }
+        .home .footer-section ul li { color: #e2e8f0; }
+
+        @media (max-width: 1000px) {
+            .hx-sits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .home .steps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .home .step-card::after { display: none; }
+            .hx-stats .hx-wrap { grid-template-columns: repeat(3, 1fr); }
+            .hx-stat:nth-child(3) { border-right: 0; }
+            .hx-stat:nth-child(n+4) { border-top: 1px solid var(--line); }
+        }
+        @media (max-width: 680px) {
+            .hx-sec, .home .services, .home .how-it-works, .home .faq, .home .contact { padding: 56px 0; }
+            .hx-sits, .home .steps-grid { grid-template-columns: 1fr; }
+            .hx-sits { gap: 10px; }
+            .hx-sit { display: grid; grid-template-columns: 42px 1fr; column-gap: 14px; padding: 16px; }
+            .hx-sit i { grid-row: span 2; margin: 0; }
+            .hx-stats .hx-wrap { grid-template-columns: 1fr 1fr; }
+            .hx-stat { border-right: 0 !important; border-top: 1px solid var(--line); }
+            .hx-stat:nth-child(odd) { border-right: 1px solid var(--line) !important; }
+            .hx-stat:nth-child(-n+2) { border-top: 0; }
+            .hx-stat:last-child { grid-column: 1 / -1; border-right: 0 !important; }
+            .hx-compare th, .hx-compare td { padding: 12px; font-size: .9rem; }
+            .hx-compare td:first-child { width: auto; }
+        }
+    </style>
 </head>
-<body>
+<body class="home">
     <!-- Header -->
     <header class="header">
         <nav class="navbar">
@@ -39,33 +190,17 @@
                         <img src="images/Menu-Logo.png" alt="House Lot & Land Sales Co. LLC" class="logo">
                     </div>
                 </div>
-                
                 <div class="nav-menu" id="nav-menu">
                     <ul class="nav-list">
-                        <li class="nav-item">
-                            <a href="#home" class="nav-link">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#services" class="nav-link">Services</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="funding.html" class="nav-link">Investor Funding</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#how-it-works" class="nav-link">How It Works</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#faq" class="nav-link">FAQ</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#contact" class="nav-link">Contact</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/find" class="nav-link">Find My Offer</a>
-                        </li>
+                        <li class="nav-item"><a href="#home" class="nav-link">Home</a></li>
+                        <li class="nav-item"><a href="#services" class="nav-link">Services</a></li>
+                        <li class="nav-item"><a href="funding.html" class="nav-link">Investor Funding</a></li>
+                        <li class="nav-item"><a href="#how-it-works" class="nav-link">How It Works</a></li>
+                        <li class="nav-item"><a href="#faq" class="nav-link">FAQ</a></li>
+                        <li class="nav-item"><a href="#contact" class="nav-link">Contact</a></li>
+                        <li class="nav-item"><a href="/find" class="nav-link">Find My Offer</a></li>
                     </ul>
                 </div>
-                
                 <div class="nav-contact">
                     <button type="button" class="lang-toggle" data-lang-toggle aria-label="Ver este sitio en español">Español</button>
                     <a href="tel:214-702-1519" class="phone-link">
@@ -73,7 +208,6 @@
                         <span>214-702-1519</span>
                     </a>
                 </div>
-                
                 <div class="nav-toggle" id="nav-toggle">
                     <span class="bar"></span>
                     <span class="bar"></span>
@@ -113,15 +247,16 @@
                         <div class="carousel-dots" id="carousel-dots"></div>
                     </div>
                     <div class="hero-text">
+                        <span class="hx-tag"><i class="fas fa-map-marker-alt"></i> <span>Local Dallas-Fort Worth buyer</span></span>
                         <h1 class="hero-title">
                             We Buy Houses <span class="highlight">Fast</span> and in Any Condition!
                         </h1>
                         <p class="hero-subtitle">
-                            Get a no-obligation cash offer for your house, lot, or land. 
+                            Get a no-obligation cash offer for your house, lot, or land.
                             We buy properties in any condition - vacant or occupied.
                         </p>
                         <div class="hero-buttons">
-                            <a href="#contact" class="btn btn-primary">
+                            <a href="#offer-form" class="btn btn-primary">
                                 <i class="fas fa-dollar-sign"></i>
                                 Get Cash Offer
                             </a>
@@ -130,6 +265,11 @@
                                 Call Now
                             </a>
                         </div>
+                        <div class="hx-ticks">
+                            <span><i class="fas fa-check"></i>No repairs or cleaning</span>
+                            <span><i class="fas fa-check"></i>No agent commissions</span>
+                            <span><i class="fas fa-check"></i>You pick the closing date</span>
+                        </div>
                     </div>
                 </div>
                 <div class="hero-form">
@@ -137,10 +277,6 @@
                         <div class="form-header">
                             <h3>Get Your Free Cash Offer</h3>
                             <p class="form-subtitle">No Obligation • 24-Hour Response • As-Is Properties</p>
-                            <div class="urgency-badge">
-                                <i class="fas fa-clock"></i>
-                                <span>Limited Time Offer</span>
-                            </div>
                         </div>
                         <form id="offer-form" class="offer-form">
                             <div style="position:absolute;left:-9999px" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
@@ -214,14 +350,39 @@
                                 Your information is secure and will never be shared with third parties.
                             </p>
                         </form>
-                        <div class="social-proof">
-                            <div class="testimonial-preview">
-                                <i class="fas fa-star"></i>
-                                <span>"Got my offer in 2 hours and closed in 7 days!" - Sarah M.</span>
-                            </div>
-                        </div>
+                        <div class="hx-find">Already have a reference number? <a href="/find">Find My Offer</a></div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Highlights -->
+    <section class="hx-stats" aria-label="Why sellers choose us">
+        <div class="hx-wrap">
+            <div class="hx-stat"><i class="fas fa-bolt"></i><div class="v">Offer in 24 hours</div><div class="l">Written options, no obligation</div></div>
+            <div class="hx-stat"><i class="fas fa-calendar-check"></i><div class="v">Close in as little as 7 days</div><div class="l">Or on the date you choose</div></div>
+            <div class="hx-stat"><i class="fas fa-tools"></i><div class="v">Sell as-is</div><div class="l">No repairs, cleaning or showings</div></div>
+            <div class="hx-stat"><i class="fas fa-percent"></i><div class="v">No commissions</div><div class="l">No agent fees taken from your price</div></div>
+            <div class="hx-stat"><i class="fas fa-map"></i><div class="v">Houses, lots &amp; land</div><div class="l">Any size, anywhere in DFW</div></div>
+        </div>
+    </section>
+
+    <!-- Situations -->
+    <section class="hx-sec alt" id="situations">
+        <div class="hx-wrap">
+            <div class="hx-eyebrow">We can help</div>
+            <h2 class="hx-h2">Whatever your situation, we've seen it before</h2>
+            <p class="hx-lead">Selling the usual way doesn't work for every property or every seller. We make simple, fair offers and work around your timeline.</p>
+            <div class="hx-sits">
+                <div class="hx-sit"><i class="fas fa-house-user"></i><h3>Inherited a property</h3><p>Probate, multiple heirs or a house full of belongings. We can help sort it out.</p></div>
+                <div class="hx-sit"><i class="fas fa-file-invoice-dollar"></i><h3>Behind on payments</h3><p>Facing foreclosure or back taxes and need to act before it's too late.</p></div>
+                <div class="hx-sit"><i class="fas fa-hammer"></i><h3>Needs major repairs</h3><p>Foundation, roof, fire or water damage, or code violations. Sell it as it is.</p></div>
+                <div class="hx-sit"><i class="fas fa-key"></i><h3>Tired landlord</h3><p>Problem tenants or a rental that costs more than it earns. We buy occupied properties.</p></div>
+                <div class="hx-sit"><i class="fas fa-truck-moving"></i><h3>Relocating</h3><p>A new job or a move out of state, and no time to wait on a buyer.</p></div>
+                <div class="hx-sit"><i class="fas fa-handshake"></i><h3>Divorce or separation</h3><p>A quick, clean sale so everyone can move forward.</p></div>
+                <div class="hx-sit"><i class="fas fa-tree"></i><h3>Land you don't use</h3><p>Vacant lots and acreage you're paying taxes on but not using.</p></div>
+                <div class="hx-sit"><i class="fas fa-door-closed"></i><h3>Vacant house</h3><p>An empty property that's a worry to keep up and insure.</p></div>
             </div>
         </div>
     </section>
@@ -233,65 +394,67 @@
                 <h2>Our Services</h2>
                 <p>We provide comprehensive real estate solutions for property owners</p>
             </div>
-            
             <div class="services-grid">
                 <div class="service-card">
-                    <div class="service-icon">
-                        <i class="fas fa-home"></i>
-                    </div>
+                    <div class="service-icon"><i class="fas fa-home"></i></div>
                     <h3>Cash Offers</h3>
                     <p>Get a fair, no-obligation cash offer for your property within 24 hours. No repairs needed!</p>
                 </div>
-                
                 <div class="service-card">
-                    <div class="service-icon">
-                        <i class="fas fa-map-marked-alt"></i>
-                    </div>
+                    <div class="service-icon"><i class="fas fa-map-marked-alt"></i></div>
                     <h3>Land & Lots</h3>
                     <p>We buy vacant land, lots, and undeveloped properties for cash. Quick closing available.</p>
                 </div>
-                
                 <div class="service-card">
-                    <div class="service-icon">
-                        <i class="fas fa-tools"></i>
-                    </div>
+                    <div class="service-icon"><i class="fas fa-tools"></i></div>
                     <h3>Distressed Properties</h3>
                     <p>Don't worry about repairs or condition. We buy properties as-is, saving you time and money.</p>
                 </div>
-                
                 <div class="service-card">
-                    <div class="service-icon">
-                        <i class="fas fa-file-contract"></i>
-                    </div>
+                    <div class="service-icon"><i class="fas fa-file-contract"></i></div>
                     <h3>Contract Drafting</h3>
                     <p>Professional contract preparation and legal documentation for smooth property transactions.</p>
                 </div>
-                
                 <div class="service-card">
-                    <div class="service-icon">
-                        <i class="fas fa-shield-alt"></i>
-                    </div>
+                    <div class="service-icon"><i class="fas fa-shield-alt"></i></div>
                     <h3>Homestead Trust</h3>
                     <p>Protect your property with professional homestead trust preparation services.</p>
                 </div>
-                
                 <div class="service-card">
-                    <div class="service-icon">
-                        <i class="fas fa-eye"></i>
-                    </div>
+                    <div class="service-icon"><i class="fas fa-eye"></i></div>
                     <h3>Vacant Property Watch</h3>
                     <p>Professional monitoring and maintenance services for vacant properties.</p>
                 </div>
-                
-                <div class="service-card">
-                    <div class="service-icon">
-                        <i class="fas fa-hand-holding-usd"></i>
-                    </div>
+                <div class="service-card feature">
+                    <div class="service-icon"><i class="fas fa-hand-holding-usd"></i></div>
                     <h3>Private Money Brokering</h3>
                     <p>Secure funding for your real estate investments. We connect investors with private lenders for fix-and-flip, rental properties, and wholesale deals.</p>
-                    <a href="funding.html" style="color: var(--primary-color); font-weight: 500; margin-top: 0.5rem; display: inline-block;">Learn More →</a>
+                    <a href="funding.html" style="font-weight: 600; margin-top: 0.5rem; display: inline-block;">Learn More →</a>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- Compare -->
+    <section class="hx-sec alt" id="compare">
+        <div class="hx-wrap">
+            <div class="hx-eyebrow">Your options</div>
+            <h2 class="hx-h2">Selling to us vs. listing with an agent</h2>
+            <p class="hx-lead">Listing can bring a higher price for a move-in-ready home. For properties that need work, or when time and certainty matter more, a direct sale is often simpler.</p>
+            <div class="hx-compare">
+                <table>
+                    <thead><tr><th scope="col"></th><th scope="col" class="us">House Lot &amp; Land</th><th scope="col">Listing with an agent</th></tr></thead>
+                    <tbody>
+                        <tr><td>Commissions</td><td class="us"><i class="fas fa-check"></i>None</td><td class="them">Commonly 5-6% of the price</td></tr>
+                        <tr><td>Repairs and cleaning</td><td class="us"><i class="fas fa-check"></i>None. We buy as-is</td><td class="them">Often needed to sell or pass inspection</td></tr>
+                        <tr><td>Showings and open houses</td><td class="us"><i class="fas fa-check"></i>One visit</td><td class="them">Many, on the buyer's schedule</td></tr>
+                        <tr><td>Time to close</td><td class="us"><i class="fas fa-check"></i>As little as 7 days, or your date</td><td class="them">Usually 30-60 days after a buyer is found</td></tr>
+                        <tr><td>Financing risk</td><td class="us"><i class="fas fa-check"></i>No bank loan approval needed</td><td class="them">Deals can fall through if the buyer's loan fails</td></tr>
+                        <tr><td>Closing costs</td><td class="us"><i class="fas fa-check"></i>Discussed upfront in your offer</td><td class="them">Seller typically pays a share</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="hx-note">Every property is different. We'll walk you through your options honestly, even if listing is the better fit for you.</p>
         </div>
     </section>
 
@@ -300,28 +463,42 @@
         <div class="container">
             <div class="section-header">
                 <h2>How It Works</h2>
-                <p>Simple 3-step process to get your cash offer</p>
+                <p>A simple process, on your schedule</p>
             </div>
-            
             <div class="steps-grid">
                 <div class="step-card">
                     <div class="step-number">1</div>
                     <h3>Contact Us</h3>
                     <p>Fill out our form or call us at 214-702-1519. Tell us about your property.</p>
                 </div>
-                
                 <div class="step-card">
                     <div class="step-number">2</div>
                     <h3>Get Your Offer</h3>
                     <p>We'll provide you with a fair, no-obligation cash offer within 24 hours.</p>
                 </div>
-                
                 <div class="step-card">
                     <div class="step-number">3</div>
+                    <h3>Pick your option online</h3>
+                    <p>Review your offer options on a private page, choose the one that works for you, and sign electronically.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">4</div>
                     <h3>Close Fast</h3>
                     <p>If you accept, we can close in as little as 7 days. No hidden fees!</p>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- Investor band -->
+    <section class="hx-band" aria-labelledby="hInv">
+        <div class="hx-wrap">
+            <div>
+                <div class="k">For real estate investors</div>
+                <h2 id="hInv">Need funding for your next deal?</h2>
+                <p>Fix-and-flip, rental, bridge, construction and commercial loans through our private lender network. Run your numbers and apply online. 1% broker fee on your first 3 loans.</p>
+            </div>
+            <a href="funding.html" class="btn-gold"><i class="fas fa-hand-holding-usd"></i> Explore investor funding</a>
         </div>
     </section>
 
@@ -332,66 +509,38 @@
                 <h2>Frequently Asked Questions</h2>
                 <p>Get answers to common questions about selling your property</p>
             </div>
-            
             <div class="faq-grid">
                 <div class="faq-item">
-                    <div class="faq-question">
-                        <h3>What types of properties do you buy?</h3>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="faq-answer">
-                        <p>We buy houses, lots, land, and distressed properties in any condition - whether they're vacant or occupied. No property is too damaged or too small for us to consider.</p>
-                    </div>
+                    <div class="faq-question"><h3>What types of properties do you buy?</h3><i class="fas fa-chevron-down"></i></div>
+                    <div class="faq-answer"><p>We buy houses, lots, land, and distressed properties in any condition - whether they're vacant or occupied. No property is too damaged or too small for us to consider.</p></div>
                 </div>
-                
                 <div class="faq-item">
-                    <div class="faq-question">
-                        <h3>How quickly can I get a cash offer?</h3>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="faq-answer">
-                        <p>We provide no-obligation cash offers within 24 hours of receiving your property information. The process is fast and straightforward.</p>
-                    </div>
+                    <div class="faq-question"><h3>How quickly can I get a cash offer?</h3><i class="fas fa-chevron-down"></i></div>
+                    <div class="faq-answer"><p>We provide no-obligation cash offers within 24 hours of receiving your property information. The process is fast and straightforward.</p></div>
                 </div>
-                
                 <div class="faq-item">
-                    <div class="faq-question">
-                        <h3>Do I need to make repairs before selling?</h3>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="faq-answer">
-                        <p>No! We buy properties as-is. You don't need to make any repairs, clean up, or spend money fixing anything. We'll take care of everything.</p>
-                    </div>
+                    <div class="faq-question"><h3>Do I need to make repairs before selling?</h3><i class="fas fa-chevron-down"></i></div>
+                    <div class="faq-answer"><p>No! We buy properties as-is. You don't need to make any repairs, clean up, or spend money fixing anything. We'll take care of everything.</p></div>
                 </div>
-                
                 <div class="faq-item">
-                    <div class="faq-question">
-                        <h3>How fast can we close?</h3>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="faq-answer">
-                        <p>We can close in as little as 7 days, depending on your timeline and preferences. We work around your schedule.</p>
-                    </div>
+                    <div class="faq-question"><h3>How fast can we close?</h3><i class="fas fa-chevron-down"></i></div>
+                    <div class="faq-answer"><p>We can close in as little as 7 days, depending on your timeline and preferences. We work around your schedule.</p></div>
                 </div>
-                
                 <div class="faq-item">
-                    <div class="faq-question">
-                        <h3>Is the cash offer really no-obligation?</h3>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="faq-answer">
-                        <p>Yes! Our cash offers are completely no-obligation. You can review the offer, ask questions, and decide if it's right for you with no pressure.</p>
-                    </div>
+                    <div class="faq-question"><h3>Is the cash offer really no-obligation?</h3><i class="fas fa-chevron-down"></i></div>
+                    <div class="faq-answer"><p>Yes! Our cash offers are completely no-obligation. You can review the offer, ask questions, and decide if it's right for you with no pressure.</p></div>
                 </div>
-                
                 <div class="faq-item">
-                    <div class="faq-question">
-                        <h3>What areas do you serve?</h3>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="faq-answer">
-                        <p>We serve the greater Dallas-Fort Worth area and surrounding communities. Contact us to see if we cover your specific location.</p>
-                    </div>
+                    <div class="faq-question"><h3>What if the property was inherited or is in probate?</h3><i class="fas fa-chevron-down"></i></div>
+                    <div class="faq-answer"><p>We buy inherited properties often. Tell us who the owners or heirs are, and we'll explain the steps and work with the title company to get everyone to closing.</p></div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question"><h3>Will you buy the property yourselves?</h3><i class="fas fa-chevron-down"></i></div>
+                    <div class="faq-answer"><p>We buy through a purchase contract. We may close on the property ourselves or assign our contract to another buyer before closing, and we always tell you this in writing. Either way, your price and closing terms stay the same.</p></div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question"><h3>What areas do you serve?</h3><i class="fas fa-chevron-down"></i></div>
+                    <div class="faq-answer"><p>We serve the greater Dallas-Fort Worth area and surrounding communities. Contact us to see if we cover your specific location.</p></div>
                 </div>
             </div>
         </div>
@@ -404,54 +553,30 @@
                 <div class="contact-info">
                     <h2>Ready to Get Your Cash Offer?</h2>
                     <p>Don't wait! Contact us today to get started with your no-obligation cash offer.</p>
-                    
                     <div class="contact-methods">
                         <div class="contact-method">
                             <i class="fas fa-phone"></i>
-                            <div>
-                                <h4>Call Us</h4>
-                                <a href="tel:214-702-1519">214-702-1519</a>
-                            </div>
+                            <div><h4>Call Us</h4><a href="tel:214-702-1519">214-702-1519</a></div>
                         </div>
-                        
                         <div class="contact-method">
                             <i class="fas fa-envelope"></i>
-                            <div>
-                                <h4>Email Us</h4>
-                                <a href="mailto:houselotandland+website@gmail.com">houselotandland+website@gmail.com</a>
-                            </div>
+                            <div><h4>Email Us</h4><a href="mailto:houselotandland+website@gmail.com">houselotandland+website@gmail.com</a></div>
                         </div>
-                        
                         <div class="contact-method">
                             <i class="fas fa-clock"></i>
-                            <div>
-                                <h4>Response Time</h4>
-                                <p>Within 24 hours</p>
-                            </div>
+                            <div><h4>Response Time</h4><p>Within 24 hours</p></div>
                         </div>
                     </div>
                 </div>
-                
                 <div class="contact-form">
                     <h3>Send Us a Message</h3>
                     <form id="contact-form" class="contact-form-fields">
-                    <div style="position:absolute;left:-9999px" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
-
-                        <div class="form-group">
-                            <input type="text" id="contact-name" name="contact-name" placeholder="Your Name" required>
-                        </div>
-                        <div class="form-group">
-                            <input type="tel" id="contact-phone" name="contact-phone" placeholder="Phone Number" required>
-                        </div>
-                        <div class="form-group">
-                            <input type="email" id="contact-email" name="contact-email" placeholder="Email Address" required>
-                        </div>
-                        <div class="form-group">
-                            <textarea id="contact-message" name="contact-message" placeholder="Tell us about your property" rows="4"></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-full">
-                            Send Message
-                        </button>
+                        <div style="position:absolute;left:-9999px" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+                        <div class="form-group"><input type="text" id="contact-name" name="contact-name" placeholder="Your Name" required></div>
+                        <div class="form-group"><input type="tel" id="contact-phone" name="contact-phone" placeholder="Phone Number" required></div>
+                        <div class="form-group"><input type="email" id="contact-email" name="contact-email" placeholder="Email Address" required></div>
+                        <div class="form-group"><textarea id="contact-message" name="contact-message" placeholder="Tell us about your property" rows="4"></textarea></div>
+                        <button type="submit" class="btn btn-primary btn-full">Send Message</button>
                     </form>
                 </div>
             </div>
@@ -466,7 +591,6 @@
                     <img src="images/logo.png" alt="House Lot & Land Sales Co. LLC" class="footer-logo">
                     <p>Professional real estate solutions for property owners. We buy houses, lots, and land for cash.</p>
                 </div>
-                
                 <div class="footer-section">
                     <h4>Quick Links</h4>
                     <ul>
@@ -474,9 +598,10 @@
                         <li><a href="#services">Services</a></li>
                         <li><a href="#how-it-works">How It Works</a></li>
                         <li><a href="#faq">FAQ</a></li>
+                        <li><a href="/find">Find My Offer</a></li>
+                        <li><a href="funding.html">Investor Funding</a></li>
                     </ul>
                 </div>
-                
                 <div class="footer-section">
                     <h4>Contact Info</h4>
                     <ul>
@@ -484,25 +609,14 @@
                         <li><i class="fas fa-envelope"></i> houselotandland+website@gmail.com</li>
                     </ul>
                 </div>
-                
-                <div class="footer-section">
-                    <h4>Follow Us</h4>
-                    <div class="social-links">
-                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
-                        <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-                        <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
-                    </div>
-                </div>
             </div>
-            
             <div class="footer-bottom">
                 <p>&copy; 2026 House Lot & Land Sales Co. LLC. All rights reserved.</p>
             </div>
         </div>
     </footer>
 
-    <!-- JavaScript -->
     <script src="js/i18n.js"></script>
     <script src="js/main.js"></script>
 </body>
-</html> 
+</html>
