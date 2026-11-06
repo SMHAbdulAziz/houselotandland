@@ -21,6 +21,7 @@ const T = {
     soonTail: "and reopen Saturday at",
     hours: "Closed for Shabbat every week from sunset Friday to sunset Saturday (Dallas time).",
     terms: "Terms of Use",
+    work: "Work with us",
     agree: "By submitting, you agree to our",
     d: "d", h: "h", m: "m", s: "s",
   },
@@ -35,6 +36,7 @@ const T = {
     soonTail: "y abrimos de nuevo el sábado a las",
     hours: "Cerrado por el Shabat cada semana desde la puesta del sol del viernes hasta la del sábado (hora de Dallas).",
     terms: "Términos de uso",
+    work: "Trabaje con nosotros",
     agree: "Al enviar, usted acepta nuestros",
     d: "d", h: "h", m: "m", s: "s",
   },
@@ -123,7 +125,7 @@ function render() {
 function footer(t) {
   document.querySelectorAll(".shb-foot, .shb-agree").forEach((e) => e.remove());
   const fb = document.querySelector(".footer-bottom");
-  if (fb) { const p = document.createElement("p"); p.className = "shb-foot"; p.innerHTML = `${t.hours} <a href="/terms.html">${t.terms}</a>`; fb.append(p); }
+  if (fb) { const p = document.createElement("p"); p.className = "shb-foot"; p.innerHTML = `${t.hours} <a href="/terms.html">${t.terms}</a> · <a href="/work-with-us.html">${t.work}</a>`; fb.append(p); }
   if (mode === "site") document.querySelectorAll("form").forEach((f) => {
     const btn = f.querySelector('[type="submit"], button.submit, button:not([type="button"])');
     if (!btn) return;

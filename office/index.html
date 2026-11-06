@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Back Office · House Lot &amp; Land</title>
+<link rel="icon" href="/images/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap">
+<link rel="stylesheet" href="/office/office.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="/images/Menu-Logo.png" alt=""><div><b>Back Office</b><span>House Lot &amp; Land Sales Co. LLC</span></div></div>
+  <form class="search" id="searchForm" role="search"><input id="q" type="search" placeholder="Search address, owner, phone, ref…" aria-label="Search"></form>
+  <span class="who" id="who"></span>
+</header>
+<nav class="tabs" id="tabs">
+  <a href="#overview" data-tab="overview">Overview</a>
+  <a href="#deals" data-tab="deals">Deals</a>
+  <a href="#add" data-tab="add">Add property</a>
+  <a href="#workers" data-tab="workers">Workers &amp; crews</a>
+  <a href="#links" data-tab="links">Dashboards &amp; links</a>
+</nav>
+<div id="shabbat" class="banner" hidden></div>
+<main id="view" aria-live="polite"></main>
+<div class="drawer" id="drawer" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dTitle"><button class="x" id="dClose" type="button" aria-label="Close">&times;</button><div id="dBody"></div></div></div>
+<div class="toast" id="toast" hidden></div>
+<script type="module" src="/office/office.js"></script>
+</body>
+</html>

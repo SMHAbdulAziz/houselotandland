@@ -6,7 +6,7 @@
   "assets": {
     "directory": "./",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/offer/*", "/find", "/sign/*", "/doc/*", "/order/*"]
+    "run_worker_first": ["/api/*", "/offer/*", "/find", "/sign/*", "/doc/*", "/order/*", "/office", "/office/*"]
   },
   "d1_databases": [
     {
@@ -15,5 +15,9 @@
       "database_id": "41cd2c24-fb52-41ae-95b9-748ee75b2d31"
     }
   ],
+  // Back office (/office) is behind Cloudflare Access. Fill these in from Zero Trust > Access > Applications;
+  // they are not secrets. Until both are set, /office shows "locked". OFFICE_EMAILS (comma list) optionally narrows who
+  // the Access policy already allows; leave it empty to rely on the Access policy alone.
+  "vars": { "ACCESS_TEAM_DOMAIN": "", "ACCESS_AUD": "", "OFFICE_EMAILS": "" },
   "observability": { "enabled": true }
 }

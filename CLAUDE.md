@@ -22,8 +22,18 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
 | `loan_apps` | Private money loan applications from `/apply.html` (schema in `src/loan_apps.sql`): applicant data JSON, fix-and-flip analysis, desk status/checklist/notes | `POST /api/loan` (create), Deal Desk Funding panel (work) |
 | `service_requests`, `service_docs` | Homestead Trust, Curb Appeal, Contract Drafting and Property Watch orders (schema in `src/services.sql`); documents made with subscriptions | `POST /api/service`, Stripe webhook, `/api/order/<token>/doc` (create), Deal Desk Services panel (work) |
 | `settings` | `agreements_approved` and `legal_templates_approved` ('true' only after attorney sign-off) | Claude, on Harvey's word |
+| `properties`, `contacts`, `property_contacts`, `deals`, `activities` | **Master list ("hub")**, schema in `src/hub.sql`. One property per address key, one contact per phone/email, one deal per property per track (`wholesale`, `subto`, `creative`, `funding`, `services`; stages in `js/hub-keys.js`). Keys from `js/hub-keys.js` (`propertyKey`, `phoneKey`). `deals.source_app/source_id` point back to the dashboard record it came from | Back office, migration (Nov 6, 2026: 45 Sub-To, 8 Creative, 3 Desk) |
+| `workers`, `worker_jobs` | Crew/contractor applicants and roster (status applied/approved/active/inactive/declined, W-9 status only, never tax IDs), jobs with pay and paid date | `POST /api/worker/apply` (`work-with-us.html`), back office |
+| `hub_imports` | Log of imports into the master list | migrations, imports |
 
 `events_at` > `synced_at` means "something changed the Deal Desk hasn't picked up yet".
+
+## Back office (houselotandland.org/office)
+- `office/` (page, JS, CSS) and `/api/office/*` (`src/office.js`) are served only after the Worker verifies a Cloudflare Access token
+  (vars `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, optional `OFFICE_EMAILS` in `wrangler.jsonc`). Empty vars = locked. Local testing: `OFFICE_DEV=1` in `.dev.vars`.
+- Tabs: overview (pipelines, follow-ups, activity), deals by track, property drawer (tracks, owners, do-not-contact, history), add property (matches instead of duplicating),
+  workers and crews (status, W-9, agreement, insurance, jobs, pay owed/paid), links to every dashboard.
+- Phase 2 (planned): Sub-To Pipeline, Creative Finance Tracker and Deal Desk read and write the master list directly. Phase 3: phone agent lookup. Phase 4: Google Takeout import of Maps saved lists.
 
 ## The rest of the system (outside this repo)
 - **Wholesale Deal Desk**: claude.ai artifact https://claude.ai/artifact/5MAcErFcTQZoe6VCGzbjHs. Master lead list.

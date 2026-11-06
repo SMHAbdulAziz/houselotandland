@@ -11,11 +11,14 @@ import { handleFindPage, handleFindApi } from "./find.js";
 import { handleSignPage, handleSignApi, handleDocPage } from "./sign.js";
 import { handleLoanApi } from "./loan.js";
 import { handleServiceApi, handleOrderPage } from "./services.js";
+import { handleOfficePage, handleOfficeApi } from "./office.js";
+import { handleWorkerApply } from "./workers.js";
 import { shabbatStatus, closedMessage, TZ } from "../js/shabbat.js";
 
 // New-business actions refused from sunset Friday to sunset Saturday (Shabbat). Viewing orders, documents,
 // offer pages and "Find my offer" stays open, and Stripe webhooks are still recorded.
-const NEW_BUSINESS = /^\/api\/(lead|loan|service|offer\/[^/]+\/(choose|callback|owners)|sign\/[^/]+|order\/[^/]+\/doc)$/;
+// Back-office changes (/api/office/*, any method but GET) and worker applications are refused too.
+const NEW_BUSINESS = /^\/api\/(lead|loan|service|worker\/apply|offer\/[^/]+\/(choose|callback|owners)|sign\/[^/]+|order\/[^/]+\/doc|office\/.+)$/;
 // Customer pages rendered by this Worker get the Shabbat notice (mode=access: nothing is hidden).
 const NOTICE_PAGES = /^\/(offer\/[^/]+|sign\/[^/]+|order\/[^/]+|find)\/?$/;
 
@@ -25,7 +28,7 @@ const MAX_LEN = { name: 120, phone: 40, email: 160, property_address: 300, prope
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (request.method === "POST" && NEW_BUSINESS.test(url.pathname)) {
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && NEW_BUSINESS.test(url.pathname)) {
       const st = shabbatStatus();
       if (st.closed) {
         const h = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "retry-after": String(Math.max(60, Math.ceil((st.opensAt - Date.now()) / 1000))), ...cors(request) };
@@ -65,6 +68,9 @@ async function route(request, env, ctx, url) {
     if (url.pathname.startsWith("/order/")) return handleOrderPage(request, env, url);
     if (url.pathname === "/api/health") return json({ ok: true }, 200, request);
     if (url.pathname === "/api/hours") return hours();
+    if (url.pathname === "/api/worker/apply") return handleWorkerApply(request, env);
+    if (url.pathname.startsWith("/api/office/")) return handleOfficeApi(request, env, url);
+    if (url.pathname === "/office" || url.pathname.startsWith("/office/")) return handleOfficePage(request, env, url);
 
     return env.ASSETS.fetch(request);
 }
