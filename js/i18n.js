@@ -129,7 +129,7 @@
     "No commissions": "Sin comisiones",
     "No agent fees taken from your price": "No se descuentan comisiones de su precio",
     "Houses, lots & land": "Casas, lotes y terrenos",
-    "Any size, anywhere in DFW": "De cualquier tamaño, en todo DFW",
+    "Any size, anywhere in North Texas": "De cualquier tamaño, en todo el norte de Texas",
     "We can help": "Podemos ayudarle",
     "Whatever your situation, we've seen it before": "Sea cual sea su situación, ya la hemos visto antes",
     "Selling the usual way doesn't work for every property or every seller. We make simple, fair offers and work around your timeline.": "Vender de la manera tradicional no funciona para todas las propiedades ni para todos los vendedores. Hacemos ofertas sencillas y justas, y nos ajustamos a su plazo.",
