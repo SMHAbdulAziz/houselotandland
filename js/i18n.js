@@ -183,6 +183,8 @@
     "We buy inherited properties often. Tell us who the owners or heirs are, and we'll explain the steps and work with the title company to get everyone to closing.": "Compramos propiedades heredadas con frecuencia. Díganos quiénes son los dueños o herederos, y le explicaremos los pasos y trabajaremos con la compañía de títulos para llevar a todos al cierre.",
     "Will you buy the property yourselves?": "¿Ustedes mismos compran la propiedad?",
     "We buy through a purchase contract. We may close on the property ourselves or assign our contract to another buyer before closing, and we always tell you this in writing. Either way, your price and closing terms stay the same.": "Compramos mediante un contrato de compraventa. Podemos cerrar nosotros mismos o ceder nuestro contrato a otro comprador antes del cierre, y siempre se lo informamos por escrito. De cualquier forma, su precio y sus condiciones de cierre no cambian.",
+    "Curb Appeal Packages": "Paquetes de Mejora Exterior",
+    "Flat-price yard, pressure washing, mulch and paint packages that get a property ready to list or rent.": "Paquetes a precio fijo de jardín, lavado a presión, mantillo y pintura para dejar una propiedad lista para vender o rentar.",
     // Messages shown by the site's scripts
     "Sending...": "Enviando...",
     "Thank You!": "¡Gracias!",

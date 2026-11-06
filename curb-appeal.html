@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curb Appeal Packages in North Texas | House Lot & Land Sales Co. LLC</title>
+  <meta name="description" content="Flat-price curb appeal packages for North Texas homes: mowing, pressure washing, mulch, shrub trimming, paint and haul-off. Book online.">
+  <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/pages.css">
+</head>
+<body class="px">
+  <header class="header">
+    <nav class="navbar">
+      <div class="container">
+        <div class="nav-brand"><div class="logo-crop"><img src="images/Menu-Logo.png" alt="House Lot & Land Sales Co. LLC" class="logo"></div></div>
+        <div class="nav-menu" id="nav-menu">
+          <ul class="nav-list">
+            <li class="nav-item"><a href="index.html#home" class="nav-link">Home</a></li>
+            <li class="nav-item"><a href="index.html#services" class="nav-link">Services</a></li>
+            <li class="nav-item"><a href="#start" class="nav-link">Book a package</a></li>
+            <li class="nav-item"><a href="#faq" class="nav-link">FAQ</a></li>
+            <li class="nav-item"><a href="index.html#contact" class="nav-link">Contact</a></li>
+          </ul>
+        </div>
+        <div class="nav-contact"><a href="tel:214-702-1519" class="phone-link"><i class="fas fa-phone"></i><span>214-702-1519</span></a></div>
+        <div class="nav-toggle" id="nav-toggle"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+      </div>
+    </nav>
+  </header>
+  <main>
+    <section class="px-hero">
+      <div class="px-wrap grid">
+        <div>
+          <span class="px-tag"><i class="fas fa-seedling"></i> North Texas · packages from $299</span>
+          <h1>First impressions <em>that sell.</em></h1>
+          <p class="sub">Curb appeal packages for homeowners getting ready to list, landlords between tenants and investors finishing a flip. Pick a package, choose your dates, and our local crew handles the rest.</p>
+          <div class="ctas"><a href="#start" class="btn-gold"><i class="fas fa-calendar-check"></i> Book a package</a><a href="tel:214-702-1519" class="btn-ghost"><i class="fas fa-phone"></i> 214-702-1519</a></div>
+          <div class="px-ticks"><span><i class="fas fa-check"></i>Flat package prices</span><span><i class="fas fa-check"></i>Before-and-after photos</span><span><i class="fas fa-check"></i>You approve the work</span></div>
+        </div>
+        <aside class="px-card">
+          <h3>Most homes need just one day</h3>
+          <ul>
+            <li><i class="fas fa-check"></i><span>Mowing, edging, trimming and bed cleanup</span></li>
+            <li><i class="fas fa-check"></i><span>Pressure washing for drives, walks, porches and siding</span></li>
+            <li><i class="fas fa-check"></i><span>Fresh mulch, seasonal color and shrub shaping</span></li>
+            <li><i class="fas fa-check"></i><span>Front door paint, new house numbers and haul-off</span></li>
+          </ul>
+          <p class="fine">Serving Dallas, Tarrant, Collin, Denton, Rockwall, Kaufman, Ellis and Johnson counties. Other areas on request.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="px-sec" id="start">
+      <div class="px-wrap">
+        <div class="px-eyebrow">Packages</div>
+        <h2 class="px-h2">Choose your package</h2>
+        <p class="px-lead">Prices cover a typical North Texas lot up to a quarter acre. Larger lots and extras are add-ons below.</p>
+        <div class="px-grid" id="pkgs"></div>
+
+        <form class="pf" id="cForm" novalidate style="margin-top:28px">
+          <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+          <h3>Add-ons</h3>
+          <div id="addons"></div>
+          <h3>Property and schedule</h3>
+          <div class="row">
+            <label class="f full"><span class="req">Property address, city, ZIP</span><input name="property_address"></label>
+            <label class="f"><span>Lot size</span><select name="lot"><option>Under 1/4 acre</option><option>1/4 to 1/2 acre</option><option>1/2 to 1 acre</option><option>Over 1 acre</option></select></label>
+            <label class="f"><span>The property is</span><select name="occupied"><option>Vacant</option><option>Owner-occupied</option><option>Tenant-occupied</option><option>Listed for sale</option></select></label>
+            <label class="f"><span class="req">First choice date</span><input name="date1" type="date"></label>
+            <label class="f"><span>Second choice date</span><input name="date2" type="date"></label>
+            <label class="f"><span>Time window</span><select name="window"><option>Morning (8-12)</option><option>Afternoon (12-5)</option><option>Any time</option></select></label>
+            <label class="f"><span>Access</span><select name="access"><option>Someone will be there</option><option>Lockbox / gate code (we'll ask)</option><option>Front yard only, no access needed</option></select></label>
+            <label class="f full"><span>Notes for the crew</span><textarea name="notes" placeholder="Gate codes, pets, problem areas, HOA rules, photos you'll text us..."></textarea></label>
+          </div>
+          <h3>Your contact info</h3>
+          <div class="row">
+            <label class="f"><span class="req">Name</span><input name="name" autocomplete="name"></label>
+            <label class="f"><span class="req">Phone</span><input name="phone" type="tel" autocomplete="tel"></label>
+            <label class="f"><span class="req">Email</span><input name="email" type="email" autocomplete="email"></label>
+            <label class="f"><span>I am a</span><select name="role"><option>Homeowner</option><option>Landlord</option><option>Investor</option><option>Real estate agent</option><option>Property manager</option></select></label>
+          </div>
+          <h3>Payment</h3>
+          <label class="check"><input type="radio" name="pay" value="later" checked> <span><strong>Pay after we confirm your date</strong> (we'll send a secure payment link)</span></label>
+          <label class="check" id="payNowWrap"><input type="radio" name="pay" value="now"> <span><strong>Pay now</strong> by card to lock in your date</span></label>
+          <div class="total"><span>Total</span><b id="cTotal">$0</b></div>
+          <label class="check"><input type="checkbox" id="consent"> <span id="consentText">House Lot &amp; Land Sales Co. LLC may call or text me at the number above to schedule and confirm this job. Message and data rates may apply. Reply STOP to opt out.</span></label>
+          <button class="btn-gold submit" id="cBtn" type="submit">Request my booking</button>
+          <div class="msg" id="cMsg" role="status" aria-live="polite"></div>
+          <p class="px-note">Not included (these need a licensed specialist): <span id="excluded"></span>. We'll happily refer you.</p>
+        </form>
+      <section class="pf px-done" id="done" hidden>
+        <div class="ico"><i class="fas fa-check"></i></div>
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.5rem">Booking request received</h3>
+        <p>Your reference number is</p><p class="ref" data-ref></p>
+        <p data-note>We'll confirm your date within one business day.</p>
+        <p><a class="btn-gold" data-order href="#">View your booking</a></p>
+        <p style="font-size:.88rem;color:#64748b">Bookmark that page: it's your private link to this request.</p>
+      </section>
+      </div>
+    </section>
+
+    <section class="px-sec alt">
+      <div class="px-wrap">
+        <div class="px-eyebrow">How it works</div>
+        <h2 class="px-h2">Booked in minutes, done in a day</h2>
+        <div class="px-steps">
+          <div class="px-step"><h3>Book online</h3><p>Pick a package and two dates that work for you.</p></div>
+          <div class="px-step"><h3>We confirm</h3><p>We confirm your date and time by phone, text or email within one business day.</p></div>
+          <div class="px-step"><h3>Crew does the work</h3><p>A local crew completes the package and takes before-and-after photos.</p></div>
+          <div class="px-step"><h3>You approve</h3><p>Review the photos. Anything missed, we come back and make it right.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="px-sec" id="faq">
+      <div class="px-wrap">
+        <div class="px-eyebrow" style="text-align:center">Questions</div>
+        <h2 class="px-h2" style="text-align:center">Curb appeal FAQ</h2>
+        <div class="px-faq">
+          <details><summary>Who does the work?</summary><p>Local crews we vet and schedule ourselves. We coordinate everything, check the work and stand behind it.</p></details>
+          <details><summary>What if it rains?</summary><p>We'll move you to the next open day and let you know right away. Pressure washing and painting need dry weather.</p></details>
+          <details><summary>Can I customize a package?</summary><p>Yes. Add notes when you book, or call us. We'll quote anything extra before we do it.</p></details>
+          <details><summary>Do I need to be home?</summary><p>No. For front-yard work we don't need access. For backyards, tell us about gates, codes and pets.</p></details>
+          <details><summary>What areas do you serve?</summary><p>Most of North Texas: Dallas, Tarrant, Collin, Denton, Rockwall, Kaufman, Ellis and Johnson counties. Ask about others.</p></details>
+        </div>
+      </div>
+    </section>
+    <div class="px-wrap px-disc"><p><strong>Note.</strong> Package contents and prices are for typical properties; we'll confirm anything unusual before work starts. We don't perform work that requires a Texas license, including irrigation, electrical, pesticide application, tree work near power lines and roofing.</p></div>
+  </main>
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-section">
+          <img src="images/logo.png" alt="House Lot & Land Sales Co. LLC" class="footer-logo">
+          <p>Real estate solutions for North Texas property owners and investors.</p>
+        </div>
+        <div class="footer-section">
+          <h4>Services</h4>
+          <ul>
+            <li><a href="index.html">Sell your property</a></li>
+            <li><a href="homestead-trust.html">Homestead Trust</a></li>
+            <li><a href="curb-appeal.html">Curb Appeal Packages</a></li>
+            <li><a href="contracts.html">Contract Drafting</a></li>
+            <li><a href="property-watch.html">Vacant Property Watch</a></li>
+            <li><a href="funding.html">Investor Funding</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Contact Info</h4>
+          <ul>
+            <li><i class="fas fa-phone"></i> 214-702-1519</li>
+            <li><i class="fas fa-envelope"></i> houselotandland+website@gmail.com</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom"><p>&copy; 2026 House Lot &amp; Land Sales Co. LLC. All rights reserved.</p></div>
+    </div>
+  </footer>
+  <script src="js/main.js"></script>
+  <script type="module">
+    import { CURB, CURB_ADDONS, CURB_EXCLUDED, curbTotal } from "./js/services-catalog.js";
+    import { usd, status, submit } from "./js/service-form.js";
+    const $ = (id) => document.getElementById(id), f = $("cForm");
+    let pick = new URLSearchParams(location.search).get("package") || "showcase";
+    $("pkgs").innerHTML = Object.entries(CURB).map(([k, p]) => '<article class="px-box pkg" data-pkg="' + k + '" tabindex="0" role="button" aria-pressed="false">' + (k === "showcase" ? '<span class="badge">Most popular</span>' : '') +
+      '<h3>' + p.name + '</h3><div class="price">$' + p.price + '</div><div class="meta">' + p.hours + '</div><ul>' + p.items.map((i) => '<li>' + i + '</li>').join('') + '</ul><div class="pick"><span>Select</span></div></article>').join("");
+    $("addons").innerHTML = Object.entries(CURB_ADDONS).map(([k, a]) => '<label class="check"><input type="checkbox" name="ao_' + k + '"> <span>' + a.label + ': +$' + a.price + '</span></label>').join("");
+    $("excluded").textContent = CURB_EXCLUDED.join(", ").toLowerCase();
+    const addOns = () => Object.keys(CURB_ADDONS).filter((k) => f.elements["ao_" + k].checked);
+    const sync = () => {
+      document.querySelectorAll(".pkg").forEach((el) => { const on = el.dataset.pkg === pick; el.classList.toggle("on", on); el.setAttribute("aria-pressed", on); el.querySelector(".pick span").textContent = on ? "Selected" : "Select"; });
+      $("cTotal").textContent = usd(curbTotal(pick, addOns()));
+    };
+    $("pkgs").addEventListener("click", (e) => { const c = e.target.closest(".pkg"); if (c) { pick = c.dataset.pkg; sync(); } });
+    $("pkgs").addEventListener("keydown", (e) => { const c = e.target.closest(".pkg"); if (c && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pick = c.dataset.pkg; sync(); } });
+    f.addEventListener("change", sync); sync();
+    const st = await status(); if (!st.payments) $("payNowWrap").hidden = true;
+    f.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const a = Object.fromEntries(new FormData(f));
+      const need = ["property_address", "date1", "name", "phone", "email"].filter((k) => !String(a[k] || "").trim());
+      if (need.length) { $("cMsg").className = "msg err"; $("cMsg").textContent = "Please complete the required fields."; f.elements[need[0]].focus(); return; }
+      const answers = {}; ["lot", "occupied", "date1", "date2", "window", "access", "notes", "role"].forEach((k) => answers[k] = a[k] || "");
+      submit({ service: "curb", package: pick, addOns: addOns(), website: a.website, name: a.name, email: a.email, phone: a.phone, property_address: a.property_address, answers,
+        payNow: a.pay === "now", consent: $("consent").checked, consent_text: $("consentText").textContent.trim() }, { btn: $("cBtn"), msg: $("cMsg"), form: f, done: $("done") });
+    });
+  </script>
+</body>
+</html>

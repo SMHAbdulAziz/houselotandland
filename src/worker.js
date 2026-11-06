@@ -4,11 +4,13 @@
 // POST /api/lead  — saves a website form submission to the D1 database "hll-leads".
 //                   Claude's hourly task reads new rows and adds them to the Wholesale Deal Desk.
 // POST /api/loan  — private money loan application (src/loan.js), table loan_apps.
+// /api/service, /order/*, /api/stripe/webhook — service orders and Stripe (src/services.js).
 
 import { handleOfferPage, handleOfferApi } from "./offer.js";
 import { handleFindPage, handleFindApi } from "./find.js";
 import { handleSignPage, handleSignApi, handleDocPage } from "./sign.js";
 import { handleLoanApi } from "./loan.js";
+import { handleServiceApi, handleOrderPage } from "./services.js";
 
 const REF_ALPHABET ="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const MAX_LEN = { name: 120, phone: 40, email: 160, property_address: 300, property_type: 60, property_condition: 60, timeline: 60, details: 3000 };
@@ -37,6 +39,8 @@ export default {
       return handleLead(request, env);
     }
     if (url.pathname === "/api/loan") return handleLoanApi(request, env);
+    if (url.pathname === "/api/service" || url.pathname === "/api/service/status" || url.pathname === "/api/stripe/webhook" || url.pathname.startsWith("/api/order/")) return handleServiceApi(request, env, url);
+    if (url.pathname.startsWith("/order/")) return handleOrderPage(request, env, url);
     if (url.pathname === "/api/health") return json({ ok: true }, 200, request);
 
     return env.ASSETS.fetch(request);

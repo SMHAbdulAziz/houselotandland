@@ -5,7 +5,7 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
 
 ## How it deploys
 - Cloudflare Worker `houselotandland` (account `leelane-aimhigh`), built by Workers Builds on every push to `main`.
-- `wrangler.jsonc`: static files from the repo root; `src/worker.js` runs first only for `/api/*`, `/offer/*`, `/find`, `/sign/*`, `/doc/*`.
+- `wrangler.jsonc`: static files from the repo root; `src/worker.js` runs first only for `/api/*`, `/offer/*`, `/find`, `/sign/*`, `/doc/*`, `/order/*`.
 - Custom domains `houselotandland.org` and `www.houselotandland.org`. DNS is on Cloudflare.
   Do NOT attach `msg` or `esign` to this Worker: they are Cloudflare tunnels to Lee's Mac (texting bridge).
 - `.assetsignore` keeps `src/`, `wrangler.jsonc`, `*.md`, `form-handler.php` (unused, legacy) off the public site.
@@ -20,7 +20,8 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
 | `find_attempts` | Rate limit for `/find` | site |
 | `envelopes`, `signers`, `sign_audit` | E-sign: locked document + hash, per-signer links, audit trail | Deal Desk (create), site (sign) |
 | `loan_apps` | Private money loan applications from `/apply.html` (schema in `src/loan_apps.sql`): applicant data JSON, fix-and-flip analysis, desk status/checklist/notes | `POST /api/loan` (create), Deal Desk Funding panel (work) |
-| `settings` | `agreements_approved` ('true' only after attorney sign-off) | Claude, on Harvey's word |
+| `service_requests`, `service_docs` | Homestead Trust, Curb Appeal, Contract Drafting and Property Watch orders (schema in `src/services.sql`); documents made with subscriptions | `POST /api/service`, Stripe webhook, `/api/order/<token>/doc` (create), Deal Desk Services panel (work) |
+| `settings` | `agreements_approved` and `legal_templates_approved` ('true' only after attorney sign-off) | Claude, on Harvey's word |
 
 `events_at` > `synced_at` means "something changed the Deal Desk hasn't picked up yet".
 
@@ -32,6 +33,8 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
 - **AI phone line**: ElevenLabs agents behind Bandwidth +1 337-604-0230; 214-702-1519 (Google Voice) and 214-608-8032 (Android) forward there.
 - **Texting**: House Lot & Land Messaging Bridge (msg.houselotandland.org, queue-only; Harvey releases texts).
 - **Private money brokering**: `apply.html` + `js/loan-analyzer.js` (JS port of Harvey's COGO Deal Analyzer: loan = min(65% ARV, 80% purchase); profit = ARV − purchase − rehab − selling costs by exit strategy − broker fee − 5% finance; eligible at $20K). The same math is copied into the Deal Desk Funding panel; change both together. Applications are business-purpose, non-owner-occupied only; never collect SSNs, ID or account numbers on the site. Not offered in UT, ID, MN, AZ, MA, NY, SD, ND.
+- **Services** (`homestead-trust.html`, `curb-appeal.html`, `contracts.html`, `property-watch.html`, shared `css/pages.css`, `js/service-form.js`): prices and questionnaires live in `js/services-catalog.js` (drafts for Harvey's approval); the Worker (`src/services.js`) recomputes every price from it. Legal document templates are in `src/legaldocs.js`; they render DRAFT and real customers join a waitlist until `settings.legal_templates_approved = 'true'`. Names starting with "Test" make test orders (no charge, stamped TEST). Texas only; self-help software with the Gov't Code §81.101(c) disclaimer on every page and document; never give legal advice. Curb Appeal: no licensed trades (irrigation, electrical, pesticide, tree work near lines, roofing).
+- **Stripe**: Checkout via REST in `src/services.js`. Secrets `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are set by Harvey in Cloudflare (never in the repo). Webhook endpoint: `https://houselotandland.org/api/stripe/webhook` (events: checkout.session.completed, customer.subscription.deleted, invoice.paid, invoice.payment_failed). Without the key, orders save as awaiting_payment and Harvey invoices.
 - **Agreement text**: claude.ai doc "Seller Agreement Templates (Draft for Attorney Review)". `src/agreements.js` must match it word for word.
 
 ## Rules
