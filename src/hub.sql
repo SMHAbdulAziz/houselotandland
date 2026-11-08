@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS activities_property ON activities (property_id, at);
 CREATE TABLE IF NOT EXISTS workers (
   id TEXT PRIMARY KEY, ref TEXT, name TEXT NOT NULL, phone TEXT, phone_key TEXT, email TEXT, city TEXT, zip TEXT, lang TEXT DEFAULT 'en',
   kind TEXT DEFAULT 'contractor', trades TEXT, equipment TEXT, availability TEXT, experience TEXT, rate_note TEXT,
-  status TEXT NOT NULL DEFAULT 'applied', agreement_at TEXT, insurance_exp TEXT, w9 TEXT DEFAULT 'not requested',
+  status TEXT NOT NULL DEFAULT 'applied', agreement_at TEXT, insurance_exp TEXT, w9 TEXT DEFAULT 'not requested', w9_at TEXT,
   consent INTEGER DEFAULT 0, consent_text TEXT, notes TEXT, notified_at TEXT, ip_hash TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS workers_status ON workers (status);

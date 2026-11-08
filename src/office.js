@@ -297,6 +297,7 @@ export async function handleOfficeApi(request, env, url) {
         let v = clean(b[k], 4000);
         if (k === "status" && !W_STATUS.includes(v)) continue;
         if (k === "w9" && !W9.includes(v)) continue;
+        if (k === "w9") { set.push("w9_at = CASE WHEN COALESCE(w9,'') != ? THEN ? ELSE w9_at END"); vals.push(v, t); }
         if (k === "phone") { set.push("phone_key = ?"); vals.push(phoneKey(v) || null); v = phoneKey(v) ? fmtPhone(v) : v; }
         set.push(`${k} = ?`); vals.push(v);
       }
@@ -446,6 +447,19 @@ export async function handleOfficeApi(request, env, url) {
       await db.prepare(`UPDATE service_requests SET amount_paid = ?, paid_at = COALESCE(paid_at, ?), status = CASE WHEN ? THEN 'paid' ELSE status END, updated_at = ? WHERE id = ?`)
         .bind(tot, amt > 0 ? at : null, toPaid ? 1 : 0, t, r.id).run();
       return json({ ok: true, paid_total: tot });
+    }
+    // ---- office settings (W-9 request link)
+    if (m === "GET" && path === "settings") {
+      const rows = (await db.prepare("SELECT key, value FROM settings WHERE key IN ('w9_link')").all()).results;
+      return json({ ok: true, ...Object.fromEntries(rows.map((r) => [r.key, r.value])) });
+    }
+    if (m === "PUT" && path === "settings") {
+      if ("w9_link" in b) {
+        const v = clean(b.w9_link, 500) || "";
+        if (v && !/^https:\/\/[^\s]+$/.test(v)) return json({ ok: false, message: "Paste the full secure link (starting with https://)." }, 400);
+        await db.prepare("INSERT INTO settings (key, value) VALUES ('w9_link', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(v).run();
+      }
+      return json({ ok: true });
     }
     if (m === "GET" && path === "open-services") {
       const rows = (await db.prepare(`SELECT id, ref, service, label, status, name, property_address, appointment_at, crew, answers FROM service_requests

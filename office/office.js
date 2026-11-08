@@ -8,7 +8,8 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const usd = (n) => (n == null || n === "" || !isFinite(n) ? "—" : "$" + Math.round(Number(n)).toLocaleString());
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
 const addDays = (n) => { const d = new Date(today() + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
-const fmtDate = (s) => (s ? new Date(String(s).slice(0, 10) + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—");
+// Plain dates (YYYY-MM-DD) stay as written; full timestamps show in local (Central) time.
+const fmtDate = (s) => (s ? (/T\d\d:/.test(String(s)) ? new Date(s) : new Date(String(s).slice(0, 10) + "T12:00:00")).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—");
 const fmtWhen = (s) => (s ? new Date(s).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
 const label = (p) => p.address || p.pname || p.name || "Untitled";
 function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 2800); }
@@ -235,11 +236,11 @@ let wFilter = "";
 async function workers() {
   const { rows } = await api("workers" + (wFilter ? "?status=" + wFilter : ""));
   $("view").innerHTML = `<section class="card"><div class="head"><h2>Workers and crews</h2><div class="acts"><a class="btn small" href="/work-with-us.html" target="_blank" rel="noopener">Public apply page ↗</a><button class="btn small gold" id="newW">Add a worker</button></div></div>
-    <p class="hint" style="margin-top:0">Independent contractors only for now. Ask for W-9s through a secure method (not email or this site); 1099-NEC is generally required once you pay someone $2,000 or more in 2026. Check with your CPA.</p>
+    <p class="hint" style="margin-top:0">Independent contractors only for now. Open a worker to send the W-9 request through your secure W-9 link (tax ID numbers never go through email, texts or this site). 1099-NEC is generally required once you pay someone $2,000 or more in 2026. Check with your CPA.</p>
     <div class="chips" style="margin-bottom:12px">${["", ...W_STATUS].map((s) => `<button class="chip" data-ws="${s}" aria-pressed="${wFilter === s}">${esc(s ? s[0].toUpperCase() + s.slice(1) : "All")}</button>`).join("")}</div>
     <div class="list">${rows.map((w) => `<div class="row"><button class="link" data-worker="${esc(w.id)}"><div class="t">${esc(w.name)} <span class="pill ${W_PILL[w.status]}">${esc(w.status)}</span></div>
       <div class="s">${esc([w.ref, w.kind === "crew" ? "Crew" : "Contractor", w.city, w.phone].filter(Boolean).join(" · "))}<br>${esc((w.trades || []).join(", "))}</div></button>
-      <div class="s" style="text-align:right">${w.jobs} jobs${w.owed ? `<br><b style="color:var(--bad)">Owed ${usd(w.owed)}</b>` : ""}${w.paid_ytd ? `<br>Paid ${usd(w.paid_ytd)} this year` : ""}<br>W-9: ${esc(w.w9)}</div></div>`).join("") || `<div class="empty">No workers yet. Share the apply page or add one.</div>`}</div></section>`;
+      <div class="s" style="text-align:right">${w.jobs} jobs${w.owed ? `<br><b style="color:var(--bad)">Owed ${usd(w.owed)}</b>` : ""}${w.paid_ytd ? `<br>Paid ${usd(w.paid_ytd)} this year` : ""}<br>W-9: ${esc(w.w9)}${w.w9_at && w.w9 !== "not requested" ? " " + fmtDate(w.w9_at) : ""}</div></div>`).join("") || `<div class="empty">No workers yet. Share the apply page or add one.</div>`}</div></section>`;
   $("view").querySelectorAll("[data-ws]").forEach((b) => b.onclick = () => { wFilter = b.dataset.ws; workers(); });
 }
 function checks(name, all, sel) { return `<div class="checks">${all.map((x) => `<label><input type="checkbox" name="${name}" value="${esc(x)}" ${sel.includes(x) ? "checked" : ""}> ${esc(x)}</label>`).join("")}</div>`; }
@@ -267,6 +268,7 @@ async function openWorker(id) {
   const { rows: svc } = await api("open-services");
   $("dBody").innerHTML = `<div><h2 id="dTitle">${esc(w.name)}</h2><p class="hint" style="margin:4px 0 0">${esc([w.ref, "applied " + fmtDate(w.created_at), w.lang === "es" ? "Prefers Spanish" : "", w.consent ? "OK to text" : "No text consent"].filter(Boolean).join(" · "))}</p></div>
     <section class="card">${workerForm(w)}</section>
+    ${await w9Section(w)}
     <section class="card"><div class="head"><h3>Jobs and pay</h3><span class="hint">No Saturday dates</span></div>
       <form id="jobForm" class="grid"><label class="wide">Service order<select name="service_request_id"><option value="">Other job (type a title)</option>${svc.map((s) => `<option value="${esc(s.id)}">${esc(s.ref)} · ${esc(s.label)} · ${esc(s.property_address || "")}${s.crew ? " · crew: " + esc(s.crew) : ""}</option>`).join("")}</select></label>
         <label>Title<input name="title" placeholder="Curb Appeal Refresh, 123 Main"></label><label>Date<input type="date" name="work_date" min="${today()}"></label><label>Pay ($)<input name="pay" inputmode="decimal"></label>
@@ -276,6 +278,7 @@ async function openWorker(id) {
         ${j.status === "scheduled" ? `<button class="btn small" data-job="${esc(j.id)}" data-st="done">Mark done</button>` : ""}${!j.paid_at && j.status === "done" ? `<button class="btn small" data-job="${esc(j.id)}" data-paid="1">Mark paid</button>` : ""}</div></div>`).join("") || `<p class="hint">No jobs yet.</p>`}</div></section>`;
   $("drawer").hidden = false;
   $("wForm").onsubmit = async (e) => { e.preventDefault(); try { await send("worker/" + id, "PATCH", readW(e.target)); toast("Saved"); openWorker(id); } catch (er) { toast(er.message); } };
+  wireW9(w, () => { openWorker(id); if (location.hash.startsWith("#workers")) workers(); });
   $("jobForm").onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
     if (f.work_date && new Date(f.work_date + "T12:00:00Z").getUTCDay() === 6) { toast("No Saturday work (Shabbat). Pick another day."); return; }
     const s = svc.find((x) => x.id === f.service_request_id); if (!f.title && s) f.title = `${s.label}, ${s.property_address || ""}`;
@@ -689,6 +692,62 @@ House Lot & Land Sales Co. LLC
   };
   $("qCopy").onclick = async () => { await navigator.clipboard.writeText(`Subject: ${subject}\n\n${text}`); mark("email"); toast("Email text copied"); };
   $("qLink").onclick = async () => { await navigator.clipboard.writeText(orderUrl); toast("Link copied"); };
+}
+
+// ---------------- W-9 requests (secure third-party link; tax IDs never touch this site) ----------------
+let w9Link = null;
+async function w9Section(w) {
+  if (w9Link === null) { try { w9Link = (await api("settings")).w9_link || ""; } catch { w9Link = ""; } }
+  const st = w.w9 || "not requested", pill = st === "received" ? "ok" : st === "requested" ? "warn" : "bad";
+  return `<section class="card"><div class="head"><h3>W-9 (tax form)</h3><span class="pill ${pill}">${esc(st)}${w.w9_at && st !== "not requested" ? " · " + fmtDate(w.w9_at) : ""}</span></div>
+    ${w9Link ? `<p class="hint" style="margin-top:0">Sends your secure W-9 link: <a href="${esc(w9Link)}" target="_blank" rel="noopener">${esc(w9Link.replace(/^https:\/\//, "").slice(0, 60))} ↗</a> · <button class="btn small" type="button" id="w9Change">Change link</button></p>
+      <p>${w.email ? `<button class="btn gold" type="button" id="w9Mail">Email W-9 request${w.lang === "es" ? " (Spanish)" : ""}</button>` : `<span class="hint">No email on file. </span>`}
+        <button class="btn" type="button" id="w9Text">Copy text message</button>
+        ${st !== "received" ? `<button class="btn" type="button" id="w9Got">Mark W-9 received</button>` : `<button class="btn small" type="button" id="w9Reset">Request again</button>`}</p>
+      <p class="hint">${w.consent ? "OK to text: paste the message into a text from your business phone." : "No text consent on file: email only."} When the worker submits, the W-9 service notifies you; check it there, then click “Mark W-9 received”.</p>`
+    : `<div class="note"><b>Set up your secure W-9 link once</b>, then every worker gets it with one click.<br>
+      Recommended: TaxBandits “W-9 SmartCollect Link” (workers e-sign on TaxBandits; it checks the tax ID with the IRS and carries over to your 1099-NECs). Sign in at taxbandits.com → Form W-9 → Request W-9 → SmartCollect Link → copy the link. Any other secure W-9 service link works too.</div>
+      <form id="w9Set" class="grid"><label class="wide">Secure W-9 link<input name="w9_link" placeholder="https://…" autocomplete="off"></label><div class="wide"><button class="btn gold">Save link</button></div></form>`}
+  </section>`;
+}
+function w9Message(w) {
+  const first = String(w.name || "").trim().split(/\s+/)[0] || "";
+  if (w.lang === "es") return { subject: "Formulario W-9 para House Lot & Land Sales Co. LLC", text: `Hola ${first},
+
+Gracias por su interés en trabajar con House Lot & Land. Antes de su primer trabajo necesitamos su Formulario W-9 (requerido para contratistas independientes). Por favor llénelo y fírmelo en este enlace seguro:
+${w9Link}
+
+Toma unos 5 minutos. No envíe su número de Seguro Social ni su número de identificación fiscal por correo electrónico ni por mensaje de texto; escríbalo solo en el formulario seguro.
+
+¿Preguntas? Llame o envíe un mensaje al 214-702-1519.
+
+Harvey Searcy
+House Lot & Land Sales Co. LLC
+214-702-1519`, sms: `House Lot & Land: Hola ${first}, por favor complete su W-9 antes de su primer trabajo (formulario seguro, 5 min): ${w9Link} No envíe su número de Seguro Social por texto. Preguntas: 214-702-1519` };
+  return { subject: "W-9 for House Lot & Land Sales Co. LLC", text: `Hi ${first},
+
+Thanks for your interest in working with House Lot & Land. Before your first job we need your Form W-9 (required for independent contractors). Please fill it out and sign it through this secure link:
+${w9Link}
+
+It takes about 5 minutes. Please don't send your Social Security or tax ID number by email or text; enter it only on the secure form.
+
+Questions? Call or text 214-702-1519.
+
+Harvey Searcy
+House Lot & Land Sales Co. LLC
+214-702-1519`, sms: `House Lot & Land: Hi ${first}, please complete your W-9 before your first job (secure form, about 5 min): ${w9Link} Please don't text your SSN. Questions: 214-702-1519` };
+}
+function wireW9(w, refresh) {
+  const mark = async (v, msg) => { try { await send("worker/" + w.id, "PATCH", { w9: v }); toast(msg); refresh(); } catch (er) { toast(er.message); } };
+  const f = $("w9Set");
+  if (f) f.onsubmit = async (e) => { e.preventDefault(); try { await send("settings", "PUT", { w9_link: e.target.w9_link.value.trim() }); w9Link = e.target.w9_link.value.trim(); toast("W-9 link saved"); refresh(); } catch (er) { toast(er.message); } };
+  const ch = $("w9Change"); if (ch) ch.onclick = () => { w9Link = ""; refresh(); };
+  const m = $("w9Mail"); if (m) m.onclick = () => { const x = w9Message(w);
+    open("https://mail.google.com/mail/?authuser=houselotandland@gmail.com&view=cm&fs=1&to=" + encodeURIComponent(w.email) + "&su=" + encodeURIComponent(x.subject) + "&body=" + encodeURIComponent(x.text), "_blank", "noopener");
+    if (w.w9 !== "received") mark("requested", "Gmail opened. Review and click Send. Marked W-9 requested."); };
+  const tx = $("w9Text"); if (tx) tx.onclick = async () => { await navigator.clipboard.writeText(w9Message(w).sms); if (w.w9 !== "received") mark("requested", "Text copied. Marked W-9 requested."); else toast("Text copied"); };
+  const got = $("w9Got"); if (got) got.onclick = () => mark("received", "W-9 marked received");
+  const rs = $("w9Reset"); if (rs) rs.onclick = () => mark("not requested", "Reset. Send the request again.");
 }
 
 // ---------------- links ----------------
