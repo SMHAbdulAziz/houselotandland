@@ -1,5 +1,5 @@
 // Agreement templates for the e-sign flow.
-// Source text: "Seller Agreement Templates (Draft for Attorney Review)" doc. Keep the two in step:
+// Source text: "Seller Agreement Templates (Attorney Approved Nov 8, 2026)" doc. Keep the two in step:
 // when the attorney changes wording there, change it here too, then set settings.agreements_approved = 'true'.
 //
 // render(vars) returns { title, html } for one envelope. vars come from the Deal Desk.
