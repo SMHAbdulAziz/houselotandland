@@ -457,7 +457,7 @@ export async function handleOfficeApi(request, env, url) {
       if ("w9_link" in b) {
         const v = clean(b.w9_link, 500) || "";
         if (v && !/^https:\/\/[^\s]+$/.test(v)) return json({ ok: false, message: "Paste the full secure link (starting with https://)." }, 400);
-        await db.prepare("INSERT INTO settings (key, value) VALUES ('w9_link', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(v).run();
+        await db.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('w9_link', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at").bind(v, t).run();
       }
       return json({ ok: true });
     }
