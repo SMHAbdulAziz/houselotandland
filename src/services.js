@@ -21,6 +21,8 @@ const REF_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 export async function handleServiceApi(request, env, url) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(request) });
   if (url.pathname === "/api/stripe/webhook") return stripeWebhook(request, env);
+  const qa = url.pathname.match(/^\/api\/order\/([^/]+)\/approve$/);
+  if (qa && request.method === "POST") return approveQuote(request, env, url, qa[1]);
   let m = url.pathname.match(/^\/api\/order\/([^/]+)\/doc$/);
   if (m && request.method === "POST") return makeDoc(request, env, m[1]);
   if (url.pathname === "/api/service/status") return json({ legal: await approved(env), payments: !!env.STRIPE_SECRET_KEY }, 200, request);
@@ -191,6 +193,8 @@ async function orderPage(env, token, url) {
     body += `<h2>Your document is ready</h2><p><a class="btn" href="/order/${esc(token)}/docs">Open ${esc(r.label)}</a></p>`;
   } else if (r.service === "contracts") {
     body += await builderSection(env, r, token);
+  } else if (r.service === "curb" && r.status === "quoted") {
+    body += quoteSection(env, r, token, money, shab, url);
   } else if (r.service === "curb") {
     const p = CURB[r.item], a = r.answers || {}, nm = esc(first(r.name));
     const reach = r.consent ? "call or text you" : "email you";
@@ -225,6 +229,52 @@ async function orderPage(env, token, url) {
   }
   if (r.service === "homestead" || r.service === "contracts") body += `<p class="disc">${esc(DISCLAIMER)}</p>`;
   return html(page(r.service === "curb" ? `Booking ${r.ref}` : r.service === "watch" ? `Quote request ${r.ref}` : `Order ${r.ref}`, body));
+}
+
+/* ---------------- quotes (Curb Appeal jobs priced in the back office) ---------------- */
+function quoteSection(env, r, token, money, shab, url) {
+  const q = r.extra.quoteDoc || {}, a = r.answers || {};
+  const expired = q.expires && q.expires < new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+  const lines = (q.lines || []).map((l) => `<div><span>${esc(l.label)}</span><b>${money(l.amount)}</b></div>`).join("");
+  let action;
+  if (expired) action = `<div class="note warn">This quote expired on ${esc(fmtDay(q.expires))}. Call or text 214-702-1519 and we'll update it.</div>`;
+  else if (shab.closed) action = `<div class="note warn">We're closed for Shabbat. You can approve and pay ${esc(fmtTime(shab.opensAt))} Central time.</div>`;
+  else if (q.approved_at) action = `<div class="note">You approved this quote on ${esc(fmtDay(q.approved_at.slice(0, 10)))}. We'll email you a secure invoice and confirm your date.</div>`;
+  else action = `<form method="post" action="/api/order/${esc(token)}/approve"><button class="btn" type="submit">${env.STRIPE_SECRET_KEY ? `Approve and pay ${money(r.amount)}` : `Approve this quote`}</button></form>
+    <p class="muted">${env.STRIPE_SECRET_KEY ? "Secure card payment through Stripe. We'll confirm your date within one business day after you pay." : "We'll email you a secure invoice after you approve, then confirm your date within one business day."}</p>`;
+  return `<h2>Your quote is ready</h2><p>Hi ${esc(first(r.name))}, here's your price for <b>${esc(r.property_address)}</b>.</p>
+    <div class="kv">${lines}<div><span><b>Total</b></span><b>${money(r.amount)}</b></div></div>
+    <p class="muted">Valid until ${esc(fmtDay(q.expires))}. Requested date: ${esc([a.date1, a.date2].filter(Boolean).map(fmtDay).join(" or "))}${a.window ? ", " + esc(a.window) : ""}.</p>
+    ${q.note ? `<div class="note">${esc(q.note).replace(/\n/g, "<br>")}</div>` : ""}
+    ${action}
+    <p class="muted">Bookmark this page: it's your private link to this quote. Questions? Call 214-702-1519.</p>`;
+}
+
+async function approveQuote(request, env, url, token) {
+  const r = await load(env, token);
+  const back = (q) => Response.redirect(`${url.origin}/order/${token}${q || ""}`, 303);
+  if (!r) return html(page("Order not found", `<p>We couldn't find this quote. Call 214-702-1519.</p>`), 404);
+  const q = r.extra.quoteDoc || {}, today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+  if (r.status !== "quoted" || !(r.amount > 0) || (q.expires && q.expires < today)) return back();
+  const now = new Date().toISOString();
+  if (!env.STRIPE_SECRET_KEY) {
+    q.approved_at = q.approved_at || now; r.extra.quoteDoc = q;
+    await env.DB.prepare("UPDATE service_requests SET extra = ?, updated_at = ? WHERE id = ?").bind(JSON.stringify(r.extra), now, r.id).run();
+    return back("?approved=1");
+  }
+  try {
+    const s = await stripe(env, "POST", "/v1/checkout/sessions", {
+      mode: "payment", customer_email: r.email, client_reference_id: r.id,
+      success_url: `${url.origin}/order/${token}?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${url.origin}/order/${token}?canceled=1`,
+      "metadata[ref]": r.ref, "metadata[service]": r.service, "metadata[quote]": "1",
+      "line_items[0][quantity]": 1, "line_items[0][price_data][currency]": "usd",
+      "line_items[0][price_data][unit_amount]": Math.round(r.amount * 100),
+      "line_items[0][price_data][product_data][name]": `${r.label} (${r.ref})`,
+    });
+    q.checkout_at = now; r.extra.quoteDoc = q;
+    await env.DB.prepare("UPDATE service_requests SET stripe_session = ?, extra = ?, updated_at = ? WHERE id = ?").bind(s.id, JSON.stringify(r.extra), now, r.id).run();
+    return Response.redirect(s.url, 303);
+  } catch { return back("?canceled=1"); }
 }
 
 async function checkoutLink(env, r) {
@@ -346,7 +396,7 @@ async function approved(env) {
   const r = await env.DB.prepare("SELECT value FROM settings WHERE key = 'legal_templates_approved'").first();
   return !!(r && r.value === "true");
 }
-function curbStatus(r) { return ({ requested: "Request received", paid: "Paid, confirming your date", scheduled: "Scheduled", in_progress: "In progress", completed: "Completed", cancelled: "Cancelled", test: "Test" })[r.status] || r.status; }
+function curbStatus(r) { return ({ quoted: "Quote ready", requested: "Request received", paid: "Paid, confirming your date", scheduled: "Scheduled", in_progress: "In progress", completed: "Completed", cancelled: "Cancelled", test: "Test" })[r.status] || r.status; }
 function fmtWhen(s) { const d = new Date(s); return isNaN(d) ? s : d.toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }); }
 function fmtDay(s) { const d = new Date(String(s).slice(0, 10) + "T12:00:00Z"); return isNaN(d) ? String(s) : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }); }
 // Curb bookings need two days' lead time, counted in North Texas (Central) time.

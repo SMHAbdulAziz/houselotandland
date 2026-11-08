@@ -33,6 +33,7 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
   (vars `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, optional `OFFICE_EMAILS` in `wrangler.jsonc`). Empty vars = locked. Local testing: `OFFICE_DEV=1` in `.dev.vars`.
 - Tabs: overview (pipelines, follow-ups, activity), deals by track, property drawer (tracks, owners, do-not-contact, history), add property (matches instead of duplicating),
   workers and crews (status, W-9, agreement, insurance, jobs, pay owed/paid), links to every dashboard.
+  Quotes tab: Curb Appeal lots over 2 acres (and lot-size corrections on unpaid bookings). `curbQuoteSuggest` + `CURB_QUOTE` in `js/services-catalog.js` suggest lines; Harvey edits and saves (`POST /api/office/quote/<id>`, status `quoted`, `extra.quoteDoc`). The customer's order page shows the quote with Approve and pay (`POST /api/order/<token>/approve` makes a Stripe Checkout session; Shabbat-blocked). Harvey sends the link from Gmail (compose link prefilled); nothing is emailed automatically.
 - Access app "HLL Back Office" (team houselotandland.cloudflareaccess.com): destinations houselotandland.org and www, paths office and api/office; policy "HLL login" allows listed emails (one-time PIN).
 - Phase 2 (planned): Sub-To Pipeline, Creative Finance Tracker and Deal Desk read and write the master list directly. Phase 3: phone agent lookup. Phase 4: Google Takeout import of Maps saved lists. After that: a visitor/customer chatbot on the public site.
 

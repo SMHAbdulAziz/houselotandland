@@ -18,7 +18,7 @@ import { shabbatStatus, closedMessage, TZ } from "../js/shabbat.js";
 // New-business actions refused from sunset Friday to sunset Saturday (Shabbat). Viewing orders, documents,
 // offer pages and "Find my offer" stays open, and Stripe webhooks are still recorded.
 // Back-office changes (/api/office/*, any method but GET) and worker applications are refused too.
-const NEW_BUSINESS = /^\/api\/(lead|loan|service|worker\/apply|offer\/[^/]+\/(choose|callback|owners)|sign\/[^/]+|order\/[^/]+\/doc|office\/.+)$/;
+const NEW_BUSINESS = /^\/api\/(lead|loan|service|worker\/apply|offer\/[^/]+\/(choose|callback|owners)|sign\/[^/]+|order\/[^/]+\/(doc|approve)|office\/.+)$/;
 // Customer pages rendered by this Worker get the Shabbat notice (mode=access: nothing is hidden).
 const NOTICE_PAGES = /^\/(offer\/[^/]+|sign\/[^/]+|order\/[^/]+|find)\/?$/;
 

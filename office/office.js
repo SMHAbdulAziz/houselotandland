@@ -1,6 +1,7 @@
 // Back office app (served only behind Cloudflare Access; data from /api/office/*).
 import { TRACKS, CLOSED_STAGES } from "/js/hub-keys.js";
 import { shabbatStatus, fmtTime } from "/js/shabbat.js";
+import { CURB, CURB_LOT, CURB_ADDONS, CURB_QUOTE, curbQuoteSuggest } from "/js/services-catalog.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -58,7 +59,7 @@ function shabbatBanner() {
 }
 
 // ---------------- router ----------------
-const VIEWS = { overview, deals, add, workers, links };
+const VIEWS = { overview, deals, add, quotes, workers, links };
 let dealFilter = { track: "", stage: "", q: "", open: "1" };
 async function route() {
   shabbatBanner();
@@ -84,6 +85,7 @@ async function overview() {
       <a class="kpi" href="#deals"><b>${open}</b><span>Open deals</span></a>
       <a class="kpi" href="#deals"><b>${s.due.length}</b><span>Follow-ups due</span></a>
       <a class="kpi" href="#deals"><b>${s.counts.properties}</b><span>Properties · ${s.counts.contacts} contacts</span></a>
+      <a class="kpi" href="#quotes"><b>${s.quoteNeeded || 0}</b><span>Curb Appeal quotes to send</span></a>
       <a class="kpi" href="#workers"><b>${wk.applied || 0}</b><span>Worker applications to review</span></a>
       <a class="kpi" href="#workers"><b>${(wk.active || 0) + (wk.approved || 0)}</b><span>Approved and active workers</span></a>
       <a class="kpi" href="https://claude.ai/artifact/5MAcErFcTQZoe6VCGzbjHs" target="_blank" rel="noopener"><b>${s.openSvc}</b><span>Open service orders ↗</span></a>
@@ -289,6 +291,118 @@ document.addEventListener("submit", async (e) => {
   try { const r = await send("worker", "POST", readW(e.target)); toast("Worker added"); $("drawer").hidden = true; openWorker(r.id); } catch (er) { toast(er.message); }
 });
 document.addEventListener("click", (e) => { if (e.target.id === "newW") { $("view").insertAdjacentHTML("beforeend", `<section class="card"><div class="head"><h2>Add a worker</h2></div>${workerForm(null)}</section>`); e.target.disabled = true; } }, true);
+
+
+// ---------------- quotes (Curb Appeal) ----------------
+const CADS = [["Dallas", "https://www.dallascad.org/SearchAddr.aspx"], ["Tarrant", "https://www.tad.org/"], ["Collin", "https://www.collincad.org/"], ["Denton", "https://www.dentoncad.com/"],
+  ["Rockwall", "https://www.rockwallcad.com/"], ["Kaufman", "https://www.kaufman-cad.org/"], ["Ellis", "https://www.elliscad.com/"], ["Johnson", "https://www.johnsoncad.com/"]];
+const first = (n) => String(n || "").trim().split(/\s+/)[0] || "there";
+const fmtLong = (s) => (s ? new Date(String(s).slice(0, 10) + "T12:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }) : "");
+function quoteState(r) {
+  const q = r.extra.quoteDoc;
+  if (r.status === "quoted" && q) {
+    if (q.expires < today()) return ["bad", "Quote expired " + fmtDate(q.expires)];
+    if (q.checkout_at) return ["warn", "Customer started payment"];
+    if (q.approved_at) return ["ok", "Approved, send invoice"];
+    return q.sent_at ? ["mute", "Sent " + fmtDate(q.sent_at) + ", waiting"] : ["warn", "Saved, not sent yet"];
+  }
+  return r.amount == null ? ["bad", "Needs a quote (over 2 acres)"] : ["mute", "Booked at " + usd(r.amount) + " (check lot size)"];
+}
+async function quotes() {
+  const { rows } = await api("quotes");
+  const need = rows.filter((r) => r.status === "requested" && r.amount == null);
+  const rest = rows.filter((r) => !need.includes(r));
+  const tr = (r) => { const [c, t] = quoteState(r); return `<tr class="click" data-quote="${esc(r.id)}"><td><b>${esc(r.ref)}</b><div class="hint">${fmtDate(r.created_at)}</div></td>
+    <td>${esc(r.name)}<div class="hint">${esc(r.phone || r.email || "")}</div></td><td>${esc(r.property_address)}</td>
+    <td>${esc(CURB[r.item]?.name || r.item)}<div class="hint">${esc(r.answers.lot || "")}${r.extra.overgrown ? " · overgrown" : ""}</div></td>
+    <td>${r.amount != null ? usd(r.amount) : "—"}</td><td><span class="pill ${c}">${esc(t)}</span></td></tr>`; };
+  const table = (list) => `<div class="tablewrap"><table><thead><tr><th>Ref</th><th>Customer</th><th>Property</th><th>Package · lot</th><th>Price</th><th>Status</th></tr></thead><tbody>${list.map(tr).join("")}</tbody></table></div>`;
+  $("view").innerHTML = `<section class="card"><div class="head"><h2>Needs a quote</h2><span class="hint">Lots over 2 acres</span></div>${need.length ? table(need) : `<div class="empty">No quote requests waiting.</div>`}</section>
+    <section class="card"><div class="head"><h2>Quotes sent and unpaid bookings</h2><span class="hint">Re-quote any unpaid booking if the lot size is different</span></div>${rest.length ? table(rest) : `<div class="empty">Nothing here.</div>`}</section>`;
+}
+document.addEventListener("click", (e) => { const q = e.target.closest("[data-quote]"); if (q) { e.preventDefault(); openQuote(q.dataset.quote); } });
+
+async function openQuote(id) {
+  const { request: r, origin } = await api("quote/" + id);
+  const a = r.answers, x = r.extra, q = x.quoteDoc;
+  const orderUrl = `${origin}/order/${r.token}`;
+  const acres0 = q?.acres ?? ({ "Up to 1/4 acre": 0.25, "1/4 to 1/2 acre": 0.5, "1/2 to 1 acre": 1, "1 to 2 acres": 2 }[a.lot] ?? "");
+  const addr = encodeURIComponent(r.property_address || "");
+  $("dBody").innerHTML = `<div><h2 id="dTitle">Quote · ${esc(r.ref)}</h2><p class="hint" style="margin:4px 0 0">${esc([r.name, r.phone, r.email, r.consent ? "OK to call/text" : "Email only"].filter(Boolean).join(" · "))}</p></div>
+    <section class="card"><div class="head"><h3>Request</h3><span class="pill ${quoteState(r)[0]}">${esc(quoteState(r)[1])}</span></div>
+      <div class="hint" style="font-size:.95rem;line-height:1.7"><b>${esc(r.property_address)}</b><br>${esc(CURB[r.item]?.name || r.item)} · ${esc(a.lot || "lot size not given")}${x.overgrown ? " · overgrown" : ""}${(x.addOns || []).length ? " · " + esc(x.addOns.map((k) => CURB_ADDONS[k]?.label || k).join(", ")) : ""}<br>
+      Dates: ${esc([[a.date1, a.date2].filter(Boolean).map(fmtLong).join(" or "), a.window, a.occupied, a.access].filter(Boolean).join(" · "))}${a.notes ? `<br>Notes: ${esc(a.notes)}` : ""}</div>
+      <p style="margin:10px 0 0"><a class="btn small" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${addr}">Map / satellite ↗</a>
+        <a class="btn small" target="_blank" rel="noopener" href="https://www.google.com/search?q=${addr}+appraisal+district+acres">Search lot size ↗</a>
+        ${CADS.map(([c, u]) => `<a class="btn small" target="_blank" rel="noopener" href="${u}">${c} CAD ↗</a>`).join(" ")}</p></section>
+    <section class="card"><div class="head"><h3>Build the quote</h3><span class="hint">Over 2 acres: $${CURB_LOT.a2.price} + $${CURB_QUOTE.perAcreOver2}/extra acre · overgrown + $${CURB_QUOTE.overgrownPerAcreOver2}/extra acre</span></div>
+      <form id="qForm" class="grid">
+        <label>Package<select name="package">${Object.entries(CURB).map(([k, p]) => `<option value="${k}" ${k === (r.item) ? "selected" : ""}>${esc(p.name)} ($${p.price})</option>`).join("")}</select></label>
+        <label>Lot size (acres)<input name="acres" inputmode="decimal" value="${esc(acres0)}" placeholder="e.g. 3.4"></label>
+        <div class="wide checks"><label><input type="checkbox" name="overgrown" ${(q ? q.overgrown : x.overgrown) ? "checked" : ""}> Overgrown (over 12 in.)</label>
+          ${Object.entries(CURB_ADDONS).map(([k, ad]) => `<label><input type="checkbox" name="ao" value="${k}" ${((q ? q.addOns : x.addOns) || []).includes(k) ? "checked" : ""}> ${esc(ad.label)}</label>`).join("")}</div>
+        <div class="wide"><button class="btn small" type="button" id="qSuggest">Fill in suggested prices</button> <span class="hint">You can edit any line, add your own (extra haul-off, a discount as a negative amount) or delete one.</span></div>
+        <div class="wide" id="qLines"></div>
+        <div class="wide"><button class="btn small" type="button" id="qAdd">+ Add a line</button></div>
+        <label>Crew payout guide ($)<input name="labor_guide" inputmode="decimal" value="${esc(q?.laborGuide ?? "")}"></label>
+        <label>Valid for (days)<input name="valid_days" inputmode="numeric" value="${CURB_QUOTE.validDays}"></label>
+        <label class="wide">Note to the customer (optional)<textarea name="note" placeholder="e.g. Price includes mowing the back pasture; we'll leave the tree line as is.">${esc(q?.note || "")}</textarea></label>
+        <div class="wide" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><b style="font-size:1.25rem">Total <span id="qTotal">$0</span></b>
+          <button class="btn gold">${q ? "Save updated quote" : "Save quote"}</button></div>
+      </form></section>
+    <section class="card" id="qSend" ${r.status === "quoted" ? "" : "hidden"}><div class="head"><h3>Send it</h3><span class="hint" id="qSent">${q?.sent_at ? "Last sent " + esc(fmtWhen(q.sent_at)) : "Not sent yet"}</span></div>
+      <p class="hint">The customer's private page shows the quote with an <b>Approve and pay</b> button (secure Stripe checkout). Paid quotes move to "Paid, confirming your date".</p>
+      <p><button class="btn gold" type="button" id="qGmail">Email it from Gmail</button> <button class="btn" type="button" id="qCopy">Copy email text</button> <button class="btn" type="button" id="qLink">Copy link</button>
+        <a class="btn" target="_blank" rel="noopener" href="${esc(orderUrl)}">Preview customer page ↗</a></p></section>`;
+  $("drawer").hidden = false;
+  const f = $("qForm");
+  let lines = q ? q.lines.map((l) => ({ ...l })) : [];
+  const draw = () => {
+    $("qLines").innerHTML = lines.map((l, i) => `<div style="display:grid;grid-template-columns:1fr 120px 36px;gap:8px;margin-bottom:6px"><input data-i="${i}" data-k="label" value="${esc(l.label)}" aria-label="Line description">
+      <input data-i="${i}" data-k="amount" inputmode="decimal" value="${esc(l.amount)}" aria-label="Amount"><button class="btn small" type="button" data-del="${i}" aria-label="Remove line">&times;</button></div>`).join("") || `<p class="hint">No lines yet. Enter the acres and click “Fill in suggested prices”.</p>`;
+    $("qTotal").textContent = usd(lines.reduce((t, l) => t + (Number(l.amount) || 0), 0));
+  };
+  const readOpts = () => ({ pkg: f.elements.package.value, acres: f.elements.acres.value, overgrown: f.elements.overgrown.checked, addOns: [...f.querySelectorAll("[name=ao]:checked")].map((c) => c.value) });
+  $("qLines").addEventListener("input", (e) => { const i = e.target.dataset.i; if (i == null) return; lines[i][e.target.dataset.k] = e.target.dataset.k === "amount" ? e.target.value.replace(/[$,\s]/g, "") : e.target.value; $("qTotal").textContent = usd(lines.reduce((t, l) => t + (Number(l.amount) || 0), 0)); });
+  $("qLines").addEventListener("click", (e) => { const d = e.target.dataset.del; if (d != null) { lines.splice(+d, 1); draw(); } });
+  $("qSuggest").onclick = () => { const o = readOpts(); if (!(Number(o.acres) > 0)) { toast("Enter the lot size in acres first."); f.elements.acres.focus(); return; }
+    const s = curbQuoteSuggest(o); lines = s.lines.map((l) => ({ ...l })); f.elements.labor_guide.value = s.laborGuide; draw(); };
+  $("qAdd").onclick = () => { lines.push({ label: "", amount: "" }); draw(); $("qLines").querySelector(`[data-i="${lines.length - 1}"]`).focus(); };
+  draw();
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const o = readOpts(), body = { package: o.pkg, acres: o.acres, overgrown: o.overgrown, addOns: o.addOns, lines: lines.map((l) => ({ label: l.label, amount: Number(l.amount) })),
+      labor_guide: f.elements.labor_guide.value, valid_days: f.elements.valid_days.value, note: f.elements.note.value };
+    if (lines.some((l) => !String(l.label).trim() || !isFinite(Number(l.amount)) || l.amount === "")) { toast("Every line needs a description and an amount."); return; }
+    try { await send("quote/" + id, "POST", body); toast("Quote saved. Now send it."); openQuote(id); } catch (er) { toast(er.message); }
+  };
+  if (r.status !== "quoted" || !q) return;
+  const subject = `Your Curb Appeal quote: ${String(r.property_address || "").split(",")[0]} (Ref ${r.ref})`;
+  const text = `Hi ${first(r.name)},
+
+Thanks for your Curb Appeal request for ${r.property_address}. Here's your quote:
+
+${q.lines.map((l) => `- ${l.label}: ${usd(l.amount)}`).join("\n")}
+Total: ${usd(q.total)}
+${q.note ? "\n" + q.note + "\n" : ""}
+To approve and pay securely, open your private booking page:
+${orderUrl}
+
+This quote is good through ${fmtLong(q.expires)}. Once you approve, we'll confirm your date (you asked for ${[a.date1, a.date2].filter(Boolean).map(fmtLong).join(" or ")}). We don't schedule work on Saturdays.
+
+Questions? Call or text 214-702-1519.
+
+Harvey Searcy
+House Lot & Land Sales Co. LLC
+214-702-1519`;
+  const mark = async (via) => { try { await send(`quote/${id}/sent`, "POST", { via }); $("qSent").textContent = "Last sent " + fmtWhen(new Date().toISOString()); } catch (er) { toast(er.message); } };
+  $("qGmail").onclick = () => {
+    const u = "https://mail.google.com/mail/?authuser=houselotandland@gmail.com&view=cm&fs=1&to=" + encodeURIComponent(r.email || "") + "&su=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(text);
+    open(u, "_blank", "noopener"); mark("email"); toast("Gmail opened with the quote. Review it and click Send.");
+  };
+  $("qCopy").onclick = async () => { await navigator.clipboard.writeText(`Subject: ${subject}\n\n${text}`); mark("email"); toast("Email text copied"); };
+  $("qLink").onclick = async () => { await navigator.clipboard.writeText(orderUrl); toast("Link copied"); };
+}
 
 // ---------------- links ----------------
 async function links() {

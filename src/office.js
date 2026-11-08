@@ -8,6 +8,7 @@
 // one property per address, one contact per phone/email, one deal per property per track.
 
 import { propertyKey, phoneKey, emailKey, fmtPhone, TRACKS, CLOSED_STAGES } from "../js/hub-keys.js";
+import { CURB, CURB_QUOTE } from "../js/services-catalog.js";
 
 const JSONH = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: JSONH });
@@ -151,9 +152,10 @@ export async function handleOfficeApi(request, env, url) {
       const workers = (await db.prepare("SELECT status, COUNT(*) AS n FROM workers GROUP BY status").all()).results;
       const recent = (await db.prepare(`SELECT a.*, p.address, p.name AS pname FROM activities a LEFT JOIN properties p ON p.id = a.property_id ORDER BY a.at DESC LIMIT 15`).all()).results;
       const counts = (await db.prepare("SELECT (SELECT COUNT(*) FROM properties) AS properties, (SELECT COUNT(*) FROM contacts) AS contacts, (SELECT COUNT(*) FROM deals) AS deals").first());
-      const openSvc = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE status IN ('requested','paid','scheduled','quote_requested','awaiting_payment')").first()).n;
+      const openSvc = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE status IN ('requested','quoted','paid','scheduled','quote_requested','awaiting_payment')").first()).n;
+      const quoteNeeded = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE service = 'curb' AND status = 'requested' AND amount IS NULL AND paid_at IS NULL").first()).n;
       const newLoans = (await db.prepare("SELECT COUNT(*) AS n FROM loan_apps WHERE status IN ('new','reviewing')").first().catch(() => ({ n: 0 }))).n;
-      return json({ ok: true, user: u.email, deals, due, workers, recent, counts, openSvc, newLoans, tracks: TRACKS });
+      return json({ ok: true, user: u.email, deals, due, workers, recent, counts, openSvc, quoteNeeded, newLoans, tracks: TRACKS });
     }
     if (m === "GET" && path === "deals") {
       const w = [], v = [];
@@ -320,6 +322,45 @@ export async function handleOfficeApi(request, env, url) {
       if ("status" in b && ["scheduled", "done", "no-show", "cancelled"].includes(b.status)) { set.push("status = ?"); vals.push(b.status); }
       if (!set.length) return json({ ok: true });
       await db.prepare(`UPDATE worker_jobs SET ${set.join(", ")}, updated_at = ? WHERE id = ?`).bind(...vals, t, seg[1]).run();
+      return json({ ok: true });
+    }
+    // ---- quotes: price Curb Appeal jobs (lots over 2 acres, or a lot-size correction) and send the customer a pay link
+    if (m === "GET" && path === "quotes") {
+      const rows = (await db.prepare(`SELECT id, ref, token, created_at, status, item, label, name, email, phone, consent, property_address, amount, answers, extra FROM service_requests
+        WHERE service = 'curb' AND status IN ('requested','quoted') AND paid_at IS NULL ORDER BY created_at DESC LIMIT 200`).all()).results;
+      return json({ ok: true, rows: rows.map((r) => ({ ...r, answers: parse(r.answers) || {}, extra: parse(r.extra) || {} })) });
+    }
+    if (m === "GET" && seg[0] === "quote" && seg[1] && !seg[2]) {
+      const r = await db.prepare("SELECT * FROM service_requests WHERE id = ? AND service = 'curb'").bind(seg[1]).first();
+      if (!r) return json({ ok: false, message: "Not found." }, 404);
+      return json({ ok: true, request: { ...r, answers: parse(r.answers) || {}, extra: parse(r.extra) || {}, ip_hash: undefined, user_agent: undefined }, origin: url.origin });
+    }
+    if (m === "POST" && seg[0] === "quote" && seg[1] && !seg[2]) {
+      const r = await db.prepare("SELECT * FROM service_requests WHERE id = ? AND service = 'curb'").bind(seg[1]).first();
+      if (!r) return json({ ok: false, message: "Not found." }, 404);
+      if (r.paid_at || !["requested", "quoted"].includes(r.status)) return json({ ok: false, message: "This booking is already paid or closed; it can't be re-quoted here." }, 409);
+      const lines = (Array.isArray(b.lines) ? b.lines : []).slice(0, 25).map((l) => ({ label: clean(l.label, 160), amount: num(l.amount) })).filter((l) => l.label && l.amount != null);
+      if (!lines.length) return json({ ok: false, message: "Add at least one line." }, 400);
+      const total = Math.round(lines.reduce((t, l) => t + l.amount, 0) * 100) / 100;
+      if (!(total > 0) || total > 100000) return json({ ok: false, message: "The total must be between $1 and $100,000." }, 400);
+      const days = Math.min(60, Math.max(1, Math.round(num(b.valid_days) || CURB_QUOTE.validDays)));
+      const exp = new Date(today() + "T12:00:00Z"); exp.setUTCDate(exp.getUTCDate() + days);
+      const pkg = CURB[b.package] ? b.package : r.item;
+      const extra = parse(r.extra) || {};
+      const prev = extra.quoteDoc;
+      extra.quoteDoc = { lines, total, note: clean(b.note, 1500), acres: num(b.acres), overgrown: !!b.overgrown, addOns: Array.isArray(b.addOns) ? b.addOns.slice(0, 10) : [],
+        laborGuide: num(b.labor_guide), expires: exp.toISOString().slice(0, 10), created_at: t, by: u.email, version: prev ? (prev.version || 1) + 1 : 1 };
+      extra.quoteHistory = [...(extra.quoteHistory || []), ...(prev ? [{ total: prev.total, created_at: prev.created_at, sent_at: prev.sent_at || null }] : [])].slice(-10);
+      await db.prepare(`UPDATE service_requests SET status = 'quoted', item = ?, label = ?, amount = ?, quote_amount = ?, extra = ?, stripe_session = NULL, updated_at = ? WHERE id = ?`)
+        .bind(pkg, `Curb Appeal ${CURB[pkg].name} package (quote)`, total, total, JSON.stringify(extra), t, r.id).run();
+      return json({ ok: true, total, expires: extra.quoteDoc.expires, orderUrl: `${url.origin}/order/${r.token}` });
+    }
+    if (m === "POST" && seg[0] === "quote" && seg[1] && seg[2] === "sent") {
+      const r = await db.prepare("SELECT extra FROM service_requests WHERE id = ? AND status = 'quoted'").bind(seg[1]).first();
+      if (!r) return json({ ok: false, message: "Save the quote first." }, 400);
+      const extra = parse(r.extra) || {};
+      if (extra.quoteDoc) { extra.quoteDoc.sent_at = t; extra.quoteDoc.sent_via = clean(b.via, 20) || "email"; }
+      await db.prepare("UPDATE service_requests SET extra = ?, updated_at = ? WHERE id = ?").bind(JSON.stringify(extra), t, seg[1]).run();
       return json({ ok: true });
     }
     if (m === "GET" && path === "open-services") {

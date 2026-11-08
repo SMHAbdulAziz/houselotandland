@@ -45,6 +45,8 @@ export const CURB_LOT = {
   a2: { label: "1 to 2 acres", price: 349, overgrown: 249 },
   big: { label: "Over 2 acres", price: null, overgrown: null }, // custom quote
 };
+// Quote helper defaults (back office). Lots over 2 acres: the 1-2 acre price plus a rate per extra acre (rounded up).
+export const CURB_QUOTE = { perAcreOver2: 149, overgrownPerAcreOver2: 99, validDays: 14 };
 export const CURB_LABOR_SHARE = 0.47; // crew payout guide for lot and overgrown charges (Deal Desk only)
 export const CURB_ADDONS = {
   backyard: { label: "Backyard beds and shrubs too", price: 149 },
@@ -124,6 +126,20 @@ export function curbTotal(pkg, addOns = [], lot = "q1", overgrown = false) {
 export function curbLaborGuide(pkg, lot = "q1", overgrown = false) {
   const p = CURB[pkg], l = CURB_LOT[lot] || CURB_LOT.q1; if (!p || l.price == null) return null;
   return Math.round(p.laborGuide + (l.price + (overgrown ? l.overgrown : 0)) * CURB_LABOR_SHARE);
+}
+// Suggested quote lines for a Curb Appeal job of any size (back office). Harvey edits them before sending.
+export function curbQuoteSuggest({ pkg, acres, overgrown = false, addOns = [] }) {
+  const p = CURB[pkg]; if (!p) return { lines: [], total: 0, laborGuide: 0 };
+  const a = Math.max(0, Number(acres) || 0), extra = Math.max(0, Math.ceil(a - 2 - 1e-9));
+  const tier = a <= 0.25 ? CURB_LOT.q1 : a <= 0.5 ? CURB_LOT.q2 : a <= 1 ? CURB_LOT.a1 : CURB_LOT.a2;
+  const lotPrice = a > 2 ? CURB_LOT.a2.price + extra * CURB_QUOTE.perAcreOver2 : tier.price;
+  const ogPrice = !overgrown ? 0 : a > 2 ? CURB_LOT.a2.overgrown + extra * CURB_QUOTE.overgrownPerAcreOver2 : tier.overgrown;
+  const acreTxt = a ? `${+a.toFixed(2)} acre${a === 1 ? "" : "s"}` : "lot size not set";
+  const lines = [{ label: `${p.name} package`, amount: p.price }];
+  if (lotPrice) lines.push({ label: `Lot size: ${acreTxt} (mow, trim and blow the whole lot)`, amount: lotPrice });
+  if (ogPrice) lines.push({ label: "Overgrown grass (over 12 inches)", amount: ogPrice });
+  for (const k of addOns) if (CURB_ADDONS[k]) lines.push({ label: CURB_ADDONS[k].label, amount: CURB_ADDONS[k].price });
+  return { lines, total: lines.reduce((t, l) => t + l.amount, 0), laborGuide: Math.round(p.laborGuide + (lotPrice + ogPrice) * CURB_LABOR_SHARE) };
 }
 export function homesteadTotal(addOns = []) {
   return HOMESTEAD.price + addOns.filter((a) => HOMESTEAD.addOns[a]).reduce((s, a) => s + HOMESTEAD.addOns[a].price, 0);
