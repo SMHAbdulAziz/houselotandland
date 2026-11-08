@@ -60,7 +60,7 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
   `GET /api/hours` gives open/closed plus the spoken closed notice; the AI phone line's tool `check_business_hours` calls it on every call. The power-washing bid scan skips Saturdays.
 - Consent first: never call or text anyone without recorded consent; texts only through the bridge.
 - Offers and agreements are never sent without Harvey's click on the desk.
-- Real agreements stay locked (`settings.agreements_approved = 'false'`) until Harvey confirms attorney approval. Test envelopes (`test = 1`) always work.
+- Attorney approval (Harvey, Nov 8, 2026, approved as drafted): seller agreements, Homestead Trust and Contract Drafting templates, Terms of Use. `settings.agreements_approved` and `legal_templates_approved` are now 'true'. Any later wording change needs the attorney again; set the flag back to 'false' if a template changes before review. Test envelopes (`test = 1`) always work.
 - A locked envelope's document never changes; template edits apply to new envelopes only.
 - Wholesaler disclosure (Texas Occupations Code §1101.0045) stays on offer pages and in every agreement.
 - Buyer entity wording: "House Lot & Land Sales Co. LLC, a Texas-based limited liability company".
