@@ -241,7 +241,9 @@ function quoteSection(env, r, token, money, shab, url) {
   if (expired) action = `<div class="note warn">This quote expired on ${esc(fmtDay(q.expires))}. Call or text 214-702-1519 and we'll update it.</div>`;
   else if (shab.closed) action = `<div class="note warn">We're closed for Shabbat. You can approve and pay ${esc(fmtTime(shab.opensAt))} Central time.</div>`;
   else if (q.approved_at) action = `<div class="note">You approved this quote on ${esc(fmtDay(q.approved_at.slice(0, 10)))}. ${r.extra.test ? "Test: nothing was charged." : "We'll email you a secure invoice and confirm your date."}</div>`;
-  else if (r.extra.test) action = `<form method="post" action="/api/order/${esc(token)}/approve"><button class="btn" type="submit">Approve and pay ${money(r.amount)} (test: no charge)</button></form>
+  else if (r.extra.test && stripeTestMode(env)) action = `<form method="post" action="/api/order/${esc(token)}/approve"><button class="btn" type="submit">Approve and pay ${money(r.amount)}</button></form>
+    <p class="muted">Test quote, Stripe test mode: no real charge. Pay with card 4242 4242 4242 4242, any future date, any CVC and ZIP.</p>`;
+  else if (r.extra.test) action = `<form method="post" action="/api/order/${esc(token)}/approve"><button class="btn" type="submit">Approve ${money(r.amount)} (test: no charge)</button></form>
     <p class="muted">Test quote: approving records the approval without sending you to Stripe.</p>`;
   else action = `<form method="post" action="/api/order/${esc(token)}/approve"><button class="btn" type="submit">${env.STRIPE_SECRET_KEY ? `Approve and pay ${money(r.amount)}` : `Approve this quote`}</button></form>
     <p class="muted">${env.STRIPE_SECRET_KEY ? "Secure card payment through Stripe. We'll confirm your date within one business day after you pay." : "We'll email you a secure invoice after you approve, then confirm your date within one business day."}</p>`;
@@ -260,7 +262,8 @@ async function approveQuote(request, env, url, token) {
   const q = r.extra.quoteDoc || {}, today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
   if (r.status !== "quoted" || !(r.amount > 0) || (q.expires && q.expires < today)) return back();
   const now = new Date().toISOString();
-  if (!env.STRIPE_SECRET_KEY || r.extra.test) {
+  // Test quotes go through Stripe only while the key is a test-mode key (no real money); with a live key they just record the approval.
+  if (!env.STRIPE_SECRET_KEY || (r.extra.test && !stripeTestMode(env))) {
     q.approved_at = q.approved_at || now; r.extra.quoteDoc = q;
     await env.DB.prepare("UPDATE service_requests SET extra = ?, updated_at = ? WHERE id = ?").bind(JSON.stringify(r.extra), now, r.id).run();
     return back("?approved=1");
@@ -279,6 +282,8 @@ async function approveQuote(request, env, url, token) {
     return Response.redirect(s.url, 303);
   } catch { return back("?canceled=1"); }
 }
+
+function stripeTestMode(env) { return /^(sk|rk)_test_/.test(env.STRIPE_SECRET_KEY || ""); }
 
 async function checkoutLink(env, r) {
   try { const s = await stripe(env, "GET", `/v1/checkout/sessions/${encodeURIComponent(r.stripe_session)}`); if (s.url && s.status === "open") return s.url; } catch {}
