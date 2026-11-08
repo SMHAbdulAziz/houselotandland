@@ -583,8 +583,8 @@ async function salesSummary(db) {
 }
 
 // ---------------- texting gateway ----------------
-// The gateway (House Lot & Land Messaging Bridge) only sends approved templates, enforces opt-outs and quiet hours,
-// and only QUEUES: Harvey releases each text on the Android. Needs var BRIDGE_URL and secret BRIDGE_TOKEN
+// The gateway (House Lot & Land Messaging Bridge) only sends approved templates and enforces opt-outs and quiet hours.
+// send_now: Harvey's click is the release; the Mac mini sends it from the Android right away (no one touches the phone). Needs var BRIDGE_URL and secret BRIDGE_TOKEN
 // (set by Harvey in Cloudflare; same value as PHONE_BRIDGE_TOKEN in the bridge's .env). Endpoint: POST /api/phone-bridge/send-template.
 const TEXT_TEMPLATES = { w9_request: { kind: "worker" } };
 async function gatewayText(env, db, b, u, t) {
@@ -607,18 +607,19 @@ async function gatewayText(env, db, b, u, t) {
   try {
     const res = await fetch(env.BRIDGE_URL.replace(/\/$/, "") + "/api/phone-bridge/send-template", { method: "POST",
       headers: { "content-type": "application/json", authorization: "Bearer " + env.BRIDGE_TOKEN },
-      body: JSON.stringify({ to, template_id: b.template, lang, variables: vars, ref, consent, idempotency_key: `${b.template}:${ref}:${day}` }) });
+      body: JSON.stringify({ to, template_id: b.template, lang, variables: vars, ref, consent, idempotency_key: `${b.template}:${ref}:${day}`, send_now: true }) });
     const j = await res.json().catch(() => ({}));
     const why = { outside_send_window: "Outside texting hours (9 AM to 8 PM, Sundays from noon). Try again then.", opted_out: "This number opted out of texts.",
       daily_limit: "Today's text limit is reached.", rate_limit: "Too many texts in the last minute; try again shortly.", invalid_number: "That phone number isn't valid.",
       template_not_found: "The gateway doesn't have this message template." };
     if (res.status === 401 || res.status === 503) { status = "failed"; error = "The gateway refused the site's key. Check BRIDGE_TOKEN in Cloudflare."; }
+    else if (j.refused_reason === "send_failed") { status = "failed"; error = j.message || "The phone didn't send it."; bridgeId = j.message_id || null; }
     else if (!res.ok || j.ok === false || j.status === "refused") { status = "refused"; error = why[j.refused_reason] || j.message || j.error || `Gateway error ${res.status}`; }
-    else bridgeId = j.message_id || j.id || null;
+    else { bridgeId = j.message_id || j.id || null; status = j.status === "sent" ? "sent" : j.duplicate ? "duplicate" : "queued"; }
   } catch (e) { status = "failed"; error = "Couldn't reach the gateway (is the Mac on?)"; }
   await db.prepare("INSERT INTO outbound_texts (id, at, to_phone, kind, ref_id, template, lang, status, bridge_id, error, by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
     .bind(id, t, to, tpl.kind, b.id, b.template, lang, status, bridgeId, error, u.email).run();
-  if (status !== "queued") return { ok: false, message: error };
+  if (!["sent", "queued", "duplicate"].includes(status)) return { ok: false, message: error };
   if (b.template === "w9_request") await db.prepare("UPDATE workers SET w9 = 'requested', w9_at = ?, updated_at = ? WHERE id = ? AND COALESCE(w9,'') != 'received'").bind(t, t, b.id).run();
-  return { ok: true, message: "Text queued. Release it from the Android." };
+  return { ok: true, message: status === "sent" ? "Text sent from the business phone." : status === "duplicate" ? "Already texted today; not sent again." : "Text queued on the gateway." };
 }
