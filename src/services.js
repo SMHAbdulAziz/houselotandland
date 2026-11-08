@@ -94,7 +94,7 @@ async function createOrder(request, env, url) {
     const addOns = (Array.isArray(b.addOns) ? b.addOns : []).filter((x) => CURB_ADDONS[x]);
     const lot = CURB_LOT[b.lot] ? b.lot : "q1", L = CURB_LOT[lot], quote = L.price == null, overgrown = b.overgrown === true && !quote;
     item = b.package; label = `Curb Appeal ${CURB[b.package].name} package${quote ? " (quote)" : ""}`; amount = curbTotal(b.package, addOns, lot, overgrown);
-    extra.addOns = addOns; extra.lot = lot; extra.overgrown = overgrown; extra.quote = quote; extra.laborGuide = curbLaborGuide(b.package, lot, overgrown);
+    extra.addOns = addOns; extra.lot = lot; extra.overgrown = overgrown; extra.quote = quote; extra.laborGuide = curbLaborGuide(b.package, lot, overgrown, addOns);
     answers.lot = L.label;
     status = "requested";
   } else if (service === "watch") {

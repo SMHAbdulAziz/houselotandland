@@ -49,9 +49,9 @@ export const CURB_LOT = {
 export const CURB_QUOTE = { perAcreOver2: 149, overgrownPerAcreOver2: 99, validDays: 14 };
 export const CURB_LABOR_SHARE = 0.47; // crew payout guide for lot and overgrown charges (Deal Desk only)
 export const CURB_ADDONS = {
-  backyard: { label: "Backyard beds and shrubs too", price: 149 },
-  fence: { label: "Pressure wash wood fence (up to 100 ft)", price: 129 },
-  windows: { label: "Exterior window washing (1 story)", price: 119 },
+  backyard: { label: "Backyard beds and shrubs too", price: 149, laborGuide: 70 },
+  fence: { label: "Pressure wash wood fence (up to 100 ft)", price: 129, laborGuide: 61 },
+  windows: { label: "Exterior window washing (1 story)", price: 119, laborGuide: 56 },
 };
 // Work we don't do (needs a Texas license or specialty insurance).
 export const CURB_EXCLUDED = ["Irrigation repair", "Electrical work", "Pesticide or herbicide application for hire", "Tree work near power lines", "Roof work"];
@@ -123,9 +123,11 @@ export function curbTotal(pkg, addOns = [], lot = "q1", overgrown = false) {
   const p = CURB[pkg], l = CURB_LOT[lot] || CURB_LOT.q1; if (!p || l.price == null) return null;
   return p.price + l.price + (overgrown ? l.overgrown : 0) + addOns.filter((a) => CURB_ADDONS[a]).reduce((s, a) => s + CURB_ADDONS[a].price, 0);
 }
-export function curbLaborGuide(pkg, lot = "q1", overgrown = false) {
+// Crew payout guide = package guide + 47% of lot/overgrown charges + each add-on's own guide (also 47%, rounded).
+const addOnLabor = (addOns = []) => addOns.reduce((t, k) => t + (CURB_ADDONS[k] ? CURB_ADDONS[k].laborGuide || 0 : 0), 0);
+export function curbLaborGuide(pkg, lot = "q1", overgrown = false, addOns = []) {
   const p = CURB[pkg], l = CURB_LOT[lot] || CURB_LOT.q1; if (!p || l.price == null) return null;
-  return Math.round(p.laborGuide + (l.price + (overgrown ? l.overgrown : 0)) * CURB_LABOR_SHARE);
+  return Math.round(p.laborGuide + (l.price + (overgrown ? l.overgrown : 0)) * CURB_LABOR_SHARE + addOnLabor(addOns));
 }
 // Suggested quote lines for a Curb Appeal job of any size (back office). Harvey edits them before sending.
 export function curbQuoteSuggest({ pkg, acres, overgrown = false, addOns = [] }) {
@@ -139,7 +141,7 @@ export function curbQuoteSuggest({ pkg, acres, overgrown = false, addOns = [] })
   if (lotPrice) lines.push({ label: `Lot size: ${acreTxt} (mow, trim and blow the whole lot)`, amount: lotPrice });
   if (ogPrice) lines.push({ label: "Overgrown grass (over 12 inches)", amount: ogPrice });
   for (const k of addOns) if (CURB_ADDONS[k]) lines.push({ label: CURB_ADDONS[k].label, amount: CURB_ADDONS[k].price });
-  return { lines, total: lines.reduce((t, l) => t + l.amount, 0), laborGuide: Math.round(p.laborGuide + (lotPrice + ogPrice) * CURB_LABOR_SHARE) };
+  return { lines, total: lines.reduce((t, l) => t + l.amount, 0), laborGuide: Math.round(p.laborGuide + (lotPrice + ogPrice) * CURB_LABOR_SHARE + addOnLabor(addOns)) };
 }
 export function homesteadTotal(addOns = []) {
   return HOMESTEAD.price + addOns.filter((a) => HOMESTEAD.addOns[a]).reduce((s, a) => s + HOMESTEAD.addOns[a].price, 0);
