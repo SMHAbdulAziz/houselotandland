@@ -695,16 +695,17 @@ House Lot & Land Sales Co. LLC
 }
 
 // ---------------- W-9 requests (secure third-party link; tax IDs never touch this site) ----------------
-let w9Link = null;
+let w9Link = null, texting = false;
 async function w9Section(w) {
-  if (w9Link === null) { try { w9Link = (await api("settings")).w9_link || ""; } catch { w9Link = ""; } }
+  if (w9Link === null) { try { const st = await api("settings"); w9Link = st.w9_link || ""; texting = !!st.texting; } catch { w9Link = ""; } }
   const st = w.w9 || "not requested", pill = st === "received" ? "ok" : st === "requested" ? "warn" : "bad";
   return `<section class="card"><div class="head"><h3>W-9 (tax form)</h3><span class="pill ${pill}">${esc(st)}${w.w9_at && st !== "not requested" ? " · " + fmtDate(w.w9_at) : ""}</span></div>
     ${w9Link ? `<p class="hint" style="margin-top:0">Sends your secure W-9 link: <a href="${esc(w9Link)}" target="_blank" rel="noopener">${esc(w9Link.replace(/^https:\/\//, "").slice(0, 60))} ↗</a> · <button class="btn small" type="button" id="w9Change">Change link</button></p>
       <p>${w.email ? `<button class="btn gold" type="button" id="w9Mail">Email W-9 request${w.lang === "es" ? " (Spanish)" : ""}</button>` : `<span class="hint">No email on file. </span>`}
+        ${w.consent ? `<button class="btn" type="button" id="w9Gw" ${texting ? "" : 'disabled title="Texting gateway not connected yet"'}>Text via phone gateway</button>` : ""}
         <button class="btn" type="button" id="w9Text">Copy text message</button>
         ${st !== "received" ? `<button class="btn" type="button" id="w9Got">Mark W-9 received</button>` : `<button class="btn small" type="button" id="w9Reset">Request again</button>`}</p>
-      <p class="hint">${w.consent ? "OK to text: paste the message into a text from your business phone." : "No text consent on file: email only."} When the worker submits, the W-9 service notifies you; check it there, then click “Mark W-9 received”.</p>`
+      <p class="hint">${w.consent ? (texting ? "OK to text: “Text via phone gateway” queues it on the Android for you to release." : "OK to text. The phone gateway isn't connected to the site yet; copy the message for now.") : "No text consent on file: email only."} When the worker submits, the W-9 service notifies you; check it there, then click “Mark W-9 received”.</p>`
     : `<div class="note"><b>Set up your secure W-9 link once</b>, then every worker gets it with one click.<br>
       Recommended: TaxBandits “W-9 SmartCollect Link” (workers e-sign on TaxBandits; it checks the tax ID with the IRS and carries over to your 1099-NECs). Sign in at taxbandits.com → Form W-9 → Request W-9 → SmartCollect Link → copy the link. Any other secure W-9 service link works too.</div>
       <form id="w9Set" class="grid"><label class="wide">Secure W-9 link<input name="w9_link" placeholder="https://…" autocomplete="off"></label><div class="wide"><button class="btn gold">Save link</button></div></form>`}
@@ -746,6 +747,7 @@ function wireW9(w, refresh) {
     open("https://mail.google.com/mail/?authuser=houselotandland@gmail.com&view=cm&fs=1&to=" + encodeURIComponent(w.email) + "&su=" + encodeURIComponent(x.subject) + "&body=" + encodeURIComponent(x.text), "_blank", "noopener");
     if (w.w9 !== "received") mark("requested", "Gmail opened. Review and click Send. Marked W-9 requested."); };
   const tx = $("w9Text"); if (tx) tx.onclick = async () => { await navigator.clipboard.writeText(w9Message(w).sms); if (w.w9 !== "received") mark("requested", "Text copied. Marked W-9 requested."); else toast("Text copied"); };
+  const gw = $("w9Gw"); if (gw) gw.onclick = async () => { gw.disabled = true; try { const r = await send("text", "POST", { template: "w9_request", id: w.id }); toast(r.message); refresh(); } catch (er) { toast(er.message); gw.disabled = false; } };
   const got = $("w9Got"); if (got) got.onclick = () => mark("received", "W-9 marked received");
   const rs = $("w9Reset"); if (rs) rs.onclick = () => mark("not requested", "Reset. Send the request again.");
 }

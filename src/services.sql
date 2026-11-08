@@ -33,3 +33,9 @@ CREATE TABLE IF NOT EXISTS service_payments (
 );
 CREATE INDEX IF NOT EXISTS service_payments_at ON service_payments(at);
 CREATE INDEX IF NOT EXISTS service_payments_req ON service_payments(request_id);
+-- Texts the back office queued through the House Lot & Land messaging gateway (Android, queue-only: Harvey releases each one).
+CREATE TABLE IF NOT EXISTS outbound_texts (
+  id TEXT PRIMARY KEY, at TEXT NOT NULL, to_phone TEXT NOT NULL, kind TEXT NOT NULL, ref_id TEXT, template TEXT NOT NULL, lang TEXT,
+  status TEXT NOT NULL, bridge_id TEXT, error TEXT, by TEXT
+);
+CREATE INDEX IF NOT EXISTS outbound_texts_ref ON outbound_texts(kind, ref_id, at);

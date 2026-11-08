@@ -451,8 +451,10 @@ export async function handleOfficeApi(request, env, url) {
     // ---- office settings (W-9 request link)
     if (m === "GET" && path === "settings") {
       const rows = (await db.prepare("SELECT key, value FROM settings WHERE key IN ('w9_link')").all()).results;
-      return json({ ok: true, ...Object.fromEntries(rows.map((r) => [r.key, r.value])) });
+      return json({ ok: true, ...Object.fromEntries(rows.map((r) => [r.key, r.value])), texting: !!(env.BRIDGE_URL && env.BRIDGE_TOKEN) });
     }
+    // ---- texts through the private gateway (msg.houselotandland.org → Harvey's Android; queued, he releases them)
+    if (m === "POST" && path === "text") return json(await gatewayText(env, db, b, u, t));
     if (m === "PUT" && path === "settings") {
       if ("w9_link" in b) {
         const v = clean(b.w9_link, 500) || "";
@@ -578,4 +580,41 @@ async function salesSummary(db) {
     openJobs: openJobs.length, unpaid: unpaid.length, unpaidAmt: unpaid.reduce((t, r) => t + (r.amount || 0), 0), crewOwed: crewOwed.s, crewOwedN: crewOwed.n,
     byService, upcoming, needsSched, recentPays,
   };
+}
+
+// ---------------- texting gateway ----------------
+// The gateway (House Lot & Land Messaging Bridge) only sends approved templates, enforces opt-outs and quiet hours,
+// and only QUEUES: Harvey releases each text on the Android. Needs var BRIDGE_URL and secret BRIDGE_TOKEN
+// (set by Harvey in Cloudflare). Endpoint on the gateway: POST /api/site/send-template (Bearer token).
+const TEXT_TEMPLATES = { w9_request: { kind: "worker" } };
+async function gatewayText(env, db, b, u, t) {
+  if (!env.BRIDGE_URL || !env.BRIDGE_TOKEN) return { ok: false, message: "The texting gateway isn't connected to the site yet." };
+  const tpl = TEXT_TEMPLATES[b.template]; if (!tpl) return { ok: false, message: "Unknown text." };
+  let to, lang, vars, ref, consent;
+  if (tpl.kind === "worker") {
+    const w = await db.prepare("SELECT * FROM workers WHERE id = ?").bind(b.id || "").first();
+    if (!w) return { ok: false, message: "Worker not found." };
+    if (!w.consent) return { ok: false, message: "No text consent on file for this worker. Email them instead." };
+    const link = (await db.prepare("SELECT value FROM settings WHERE key = 'w9_link'").first() || {}).value;
+    if (b.template === "w9_request" && !link) return { ok: false, message: "Save your secure W-9 link first." };
+    to = w.phone_key ? "+1" + w.phone_key : null; lang = w.lang === "es" ? "es" : "en"; ref = w.ref || w.id;
+    vars = { first_name: String(w.name || "").trim().split(/\s+/)[0] || "", link };
+    consent = { source: "work-with-us application", at: w.created_at, text: w.consent_text || "" };
+  }
+  if (!to) return { ok: false, message: "No valid phone number on file." };
+  const id = newId("tx"), day = t.slice(0, 10);
+  let status = "queued", bridgeId = null, error = null;
+  try {
+    const res = await fetch(env.BRIDGE_URL.replace(/\/$/, "") + "/api/site/send-template", { method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer " + env.BRIDGE_TOKEN },
+      body: JSON.stringify({ to, template_id: b.template, lang, variables: vars, ref, consent, idempotency_key: `${b.template}:${ref}:${day}` }) });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || j.ok === false) { status = "refused"; error = j.message || j.error || `Gateway error ${res.status}`; }
+    else bridgeId = j.id || j.message_id || null;
+  } catch (e) { status = "failed"; error = "Couldn't reach the gateway (is the Mac on?)"; }
+  await db.prepare("INSERT INTO outbound_texts (id, at, to_phone, kind, ref_id, template, lang, status, bridge_id, error, by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    .bind(id, t, to, tpl.kind, b.id, b.template, lang, status, bridgeId, error, u.email).run();
+  if (status !== "queued") return { ok: false, message: error };
+  if (b.template === "w9_request") await db.prepare("UPDATE workers SET w9 = 'requested', w9_at = ?, updated_at = ? WHERE id = ? AND COALESCE(w9,'') != 'received'").bind(t, t, b.id).run();
+  return { ok: true, message: "Text queued. Release it from the Android." };
 }
