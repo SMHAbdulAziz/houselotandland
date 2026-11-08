@@ -24,3 +24,12 @@ CREATE TABLE IF NOT EXISTS service_docs (
   id TEXT PRIMARY KEY, request_id TEXT NOT NULL, doc_type TEXT NOT NULL, title TEXT, answers TEXT, created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS service_docs_req ON service_docs(request_id, created_at);
+-- Every payment received for a service order: Stripe checkouts, subscription invoices (renewals) and manual
+-- payments Harvey records in the back office (cash, Zelle, check). Revenue reports read this table; test = 1 is excluded.
+CREATE TABLE IF NOT EXISTS service_payments (
+  id TEXT PRIMARY KEY, request_id TEXT NOT NULL, at TEXT NOT NULL, amount REAL NOT NULL,
+  kind TEXT NOT NULL,                    -- checkout | invoice | manual | refund
+  method TEXT, stripe_id TEXT UNIQUE, note TEXT, test INTEGER NOT NULL DEFAULT 0, by TEXT
+);
+CREATE INDEX IF NOT EXISTS service_payments_at ON service_payments(at);
+CREATE INDEX IF NOT EXISTS service_payments_req ON service_payments(request_id);

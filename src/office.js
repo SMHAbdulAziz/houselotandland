@@ -9,6 +9,8 @@
 
 import { propertyKey, phoneKey, emailKey, fmtPhone, TRACKS, CLOSED_STAGES } from "../js/hub-keys.js";
 import { CURB, CURB_QUOTE } from "../js/services-catalog.js";
+import { recordPayment, isTestOrder } from "./services.js";
+import { isShabbatDate } from "../js/shabbat.js";
 
 const JSONH = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: JSONH });
@@ -155,7 +157,7 @@ export async function handleOfficeApi(request, env, url) {
       const openSvc = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE status IN ('requested','quoted','paid','scheduled','quote_requested','awaiting_payment')").first()).n;
       const quoteNeeded = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE service = 'curb' AND status IN ('requested','test') AND amount IS NULL AND paid_at IS NULL").first()).n;
       const newLoans = (await db.prepare("SELECT COUNT(*) AS n FROM loan_apps WHERE status IN ('new','reviewing')").first().catch(() => ({ n: 0 }))).n;
-      return json({ ok: true, user: u.email, deals, due, workers, recent, counts, openSvc, quoteNeeded, newLoans, tracks: TRACKS });
+      return json({ ok: true, user: u.email, deals, due, workers, recent, counts, openSvc, quoteNeeded, newLoans, tracks: TRACKS, sales: await salesSummary(db) });
     }
     if (m === "GET" && path === "deals") {
       const w = [], v = [];
@@ -395,6 +397,56 @@ export async function handleOfficeApi(request, env, url) {
         .bind(newId("i"), t, "gmaps", clean(b.list_name, 160), num(b.log_import.rows), num(b.log_import.added), num(b.log_import.merged), num(b.log_import.skipped), source).run();
       return json({ ok: true, added, merged, skipped, errors: errors.slice(0, 20) });
     }
+    // ---- jobs: service orders (field work and sales), scheduling, crew, payments
+    if (m === "GET" && path === "jobs") {
+      const rows = (await db.prepare(`SELECT s.id, s.ref, s.token, s.created_at, s.service, s.item, s.label, s.status, s.name, s.phone, s.email, s.property_address, s.amount, s.amount_paid, s.paid_at,
+          s.mode, s.appointment_at, s.crew, s.answers, s.extra, s.labor_cost,
+          (SELECT COALESCE(SUM(amount),0) FROM service_payments p WHERE p.request_id = s.id) AS paid_total,
+          (SELECT COALESCE(SUM(pay),0) FROM worker_jobs j WHERE j.service_request_id = s.id AND j.status != 'cancelled') AS crew_pay
+        FROM service_requests s ORDER BY COALESCE(s.appointment_at, s.created_at) DESC LIMIT 500`).all()).results;
+      return json({ ok: true, rows: rows.map((r) => ({ ...r, answers: parse(r.answers) || {}, extra: parse(r.extra) || {}, test: isTestOrder(r) })) });
+    }
+    if (m === "GET" && seg[0] === "job-detail" && seg[1]) {
+      const r = await db.prepare("SELECT * FROM service_requests WHERE id = ?").bind(seg[1]).first();
+      if (!r) return json({ ok: false, message: "Not found." }, 404);
+      const jobs = (await db.prepare("SELECT j.*, w.name AS wname, w.phone AS wphone FROM worker_jobs j LEFT JOIN workers w ON w.id = j.worker_id WHERE j.service_request_id = ? ORDER BY j.work_date").bind(r.id).all()).results;
+      const pays = (await db.prepare("SELECT * FROM service_payments WHERE request_id = ? ORDER BY at").bind(r.id).all()).results;
+      const crew = (await db.prepare("SELECT id, name, phone, trades FROM workers WHERE status IN ('approved','active') ORDER BY name").all()).results;
+      return json({ ok: true, request: { ...r, answers: parse(r.answers) || {}, extra: parse(r.extra) || {}, ip_hash: undefined, user_agent: undefined, test: isTestOrder(r) }, jobs, payments: pays, crew, origin: url.origin });
+    }
+    if (m === "PATCH" && seg[0] === "service" && seg[1]) {
+      const r = await db.prepare("SELECT id, service, status FROM service_requests WHERE id = ?").bind(seg[1]).first();
+      if (!r) return json({ ok: false, message: "Not found." }, 404);
+      const set = [], vals = [];
+      const OK = ["requested", "quoted", "awaiting_payment", "paid", "scheduled", "in_progress", "completed", "cancelled", "active", "past_due", "delivered", "quote_requested", "won", "lost", "waitlist"];
+      if ("status" in b) { if (!OK.includes(b.status)) return json({ ok: false, message: "Unknown status." }, 400); set.push("status = ?"); vals.push(b.status); }
+      if ("appointment_at" in b) {
+        const v = clean(b.appointment_at, 40);
+        if (v) {
+          const d = new Date(v); if (isNaN(d)) return json({ ok: false, message: "Bad date." }, 400);
+          if (isShabbatDate(d.toLocaleDateString("en-CA", { timeZone: "America/Chicago" }))) return json({ ok: false, message: "No Saturday work (Shabbat). Pick another day." }, 400);
+          set.push("appointment_at = ?"); vals.push(d.toISOString());
+          if (!("status" in b) && ["requested", "paid", "quoted"].includes(r.status)) { set.push("status = ?"); vals.push("scheduled"); }
+        } else { set.push("appointment_at = ?"); vals.push(null); }
+      }
+      if ("desk_notes" in b) { set.push("desk_notes = ?"); vals.push(clean(b.desk_notes, 4000)); }
+      if ("labor_cost" in b) { set.push("labor_cost = ?"); vals.push(num(b.labor_cost)); }
+      if (!set.length) return json({ ok: true });
+      await db.prepare(`UPDATE service_requests SET ${set.join(", ")}, updated_at = ? WHERE id = ?`).bind(...vals, t, r.id).run();
+      return json({ ok: true });
+    }
+    if (m === "POST" && path === "payment") {
+      const r = await db.prepare("SELECT * FROM service_requests WHERE id = ?").bind(b.request_id || "").first();
+      if (!r) return json({ ok: false, message: "Pick an order." }, 400);
+      const amt = num(b.amount); if (!amt || Math.abs(amt) > 100000) return json({ ok: false, message: "Enter the amount (negative for a refund)." }, 400);
+      const at = b.date && /^\d{4}-\d{2}-\d{2}$/.test(b.date) ? new Date(b.date + "T18:00:00Z").toISOString() : t;
+      await recordPayment(env, { request_id: r.id, at, amount: amt, kind: amt < 0 ? "refund" : "manual", method: clean(b.method, 30) || "cash", note: clean(b.note, 300), test: isTestOrder(r), by: u.email });
+      const tot = (await db.prepare("SELECT COALESCE(SUM(amount),0) AS s FROM service_payments WHERE request_id = ?").bind(r.id).first()).s;
+      const toPaid = amt > 0 && ["requested", "quoted", "awaiting_payment"].includes(r.status) && r.mode !== "subscription";
+      await db.prepare(`UPDATE service_requests SET amount_paid = ?, paid_at = COALESCE(paid_at, ?), status = CASE WHEN ? THEN 'paid' ELSE status END, updated_at = ? WHERE id = ?`)
+        .bind(tot, amt > 0 ? at : null, toPaid ? 1 : 0, t, r.id).run();
+      return json({ ok: true, paid_total: tot });
+    }
     if (m === "GET" && path === "open-services") {
       const rows = (await db.prepare(`SELECT id, ref, service, label, status, name, property_address, appointment_at, crew, answers FROM service_requests
         WHERE service IN ('curb','watch') AND status NOT IN ('test','cancelled','completed') ORDER BY created_at DESC LIMIT 100`).all()).results;
@@ -482,4 +534,34 @@ async function geocode(sp) {
   const street = [a.house_number, a.road].filter(Boolean).join(" ");
   return { ok: true, address: street, exact: !!a.house_number, city: a.city || a.town || a.village || a.hamlet || a.suburb || "", zip: (a.postcode || "").slice(0, 5),
     county: (a.county || "").replace(/ County$/, ""), state: a.state || "", lat: num(j.lat), lng: num(j.lon), display: j.display_name || "" };
+}
+
+// ---------------- services & sales numbers for the overview ----------------
+async function salesSummary(db) {
+  const nowD = new Date(), ymd = nowD.toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+  const monthStart = ymd.slice(0, 8) + "01", yearStart = ymd.slice(0, 5) + "01-01";
+  const d30 = new Date(nowD.getTime() - 30 * 864e5).toISOString();
+  const sum = async (where, ...v) => (await db.prepare(`SELECT COALESCE(SUM(amount),0) AS s, COUNT(*) AS n FROM service_payments WHERE ${where}`).bind(...v).first());
+  const month = await sum("test = 0 AND at >= ?", monthStart), last30 = await sum("test = 0 AND at >= ?", d30), year = await sum("test = 0 AND at >= ?", yearStart);
+  const invoices30 = await sum("test = 0 AND kind = 'invoice' AND at >= ?", d30), testAll = await sum("test = 1");
+  const reqs = (await db.prepare(`SELECT id, ref, service, item, label, status, name, amount, mode, appointment_at, paid_at, extra, answers, property_address FROM service_requests WHERE status NOT IN ('cancelled')`).all()).results
+    .map((r) => ({ ...r, test: isTestOrder(r), extra: undefined, answers: (() => { try { return JSON.parse(r.answers || "{}"); } catch { return {}; } })() }));
+  const real = reqs.filter((r) => !r.test);
+  const subs = real.filter((r) => r.mode === "subscription" && ["active", "past_due"].includes(r.status));
+  const field = (r) => ["curb", "watch"].includes(r.service);
+  const openJobs = real.filter((r) => field(r) && ["requested", "quoted", "paid", "scheduled", "in_progress"].includes(r.status));
+  const byService = {};
+  for (const r of real) { const k = r.service; (byService[k] ||= {}); byService[k][r.status] = (byService[k][r.status] || 0) + 1; }
+  const upcoming = reqs.filter((r) => r.appointment_at && r.appointment_at >= new Date(nowD.getTime() - 12 * 36e5).toISOString() && !["completed", "cancelled"].includes(r.status))
+    .sort((a, b) => a.appointment_at.localeCompare(b.appointment_at)).slice(0, 8);
+  const needsSched = openJobs.filter((r) => !r.appointment_at && ["requested", "paid"].includes(r.status) && r.amount != null).slice(0, 8);
+  const recentPays = (await db.prepare(`SELECT p.*, s.ref, s.label, s.name FROM service_payments p LEFT JOIN service_requests s ON s.id = p.request_id ORDER BY p.at DESC LIMIT 10`).all()).results;
+  const crewOwed = (await db.prepare("SELECT COALESCE(SUM(pay),0) AS s, COUNT(*) AS n FROM worker_jobs WHERE status = 'done' AND paid_at IS NULL").first());
+  const unpaid = real.filter((r) => ["awaiting_payment", "quoted"].includes(r.status) || (r.service === "curb" && r.status === "requested" && !r.paid_at && r.amount != null));
+  return {
+    month: month.s, monthN: month.n, last30: last30.s, year: year.s, invoices30: invoices30.s, invoices30N: invoices30.n, testTotal: testAll.s, testN: testAll.n,
+    subs: subs.length, mrr: subs.reduce((t, r) => t + (r.amount || 0), 0), pastDue: subs.filter((r) => r.status === "past_due").length,
+    openJobs: openJobs.length, unpaid: unpaid.length, unpaidAmt: unpaid.reduce((t, r) => t + (r.amount || 0), 0), crewOwed: crewOwed.s, crewOwedN: crewOwed.n,
+    byService, upcoming, needsSched, recentPays,
+  };
 }

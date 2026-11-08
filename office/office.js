@@ -59,7 +59,7 @@ function shabbatBanner() {
 }
 
 // ---------------- router ----------------
-const VIEWS = { overview, deals, add, import: importView, quotes, workers, links };
+const VIEWS = { overview, deals, add, import: importView, jobs, quotes, workers, links };
 let dealFilter = { track: "", stage: "", q: "", open: "1" };
 async function route() {
   shabbatBanner();
@@ -88,8 +88,8 @@ async function overview() {
       <a class="kpi" href="#quotes"><b>${s.quoteNeeded || 0}</b><span>Curb Appeal quotes to send</span></a>
       <a class="kpi" href="#workers"><b>${wk.applied || 0}</b><span>Worker applications to review</span></a>
       <a class="kpi" href="#workers"><b>${(wk.active || 0) + (wk.approved || 0)}</b><span>Approved and active workers</span></a>
-      <a class="kpi" href="https://claude.ai/artifact/5MAcErFcTQZoe6VCGzbjHs" target="_blank" rel="noopener"><b>${s.openSvc}</b><span>Open service orders ↗</span></a>
     </section>
+    ${salesSection(s.sales)}
     <section class="card"><div class="head"><h2>Pipelines</h2><span class="hint">One property can be on several tracks; it's still one record.</span></div>
       <div class="tracks">${Object.entries(TRACKS).map(([k, tr]) => {
         const rows = byTrack[k] || [], n = rows.reduce((a, r) => a + r.n, 0);
@@ -458,6 +458,122 @@ async function runImport() {
   imp.busy = false; await checkExisting(); drawPreview();
   $("impProg").textContent = `Imported: ${tot.added} new, ${tot.merged} matched existing, ${tot.skipped} skipped.${tot.errors.length ? " Problems: " + tot.errors.slice(0, 3).join("; ") : ""}`;
   toast(`${tot.added} properties added`);
+}
+
+// ---------------- services & sales (overview) ----------------
+const SVC = { curb: "Curb Appeal", watch: "Property Watch", homestead: "Homestead Trust", contracts: "Contract Drafting" };
+const ST_LABEL = { requested: "Requested", quoted: "Quote sent", awaiting_payment: "Awaiting payment", paid: "Paid, to schedule", scheduled: "Scheduled", in_progress: "In progress",
+  completed: "Completed", cancelled: "Cancelled", active: "Active subscription", past_due: "Past due", delivered: "Delivered", quote_requested: "Quote requested", waitlist: "Waitlist", won: "Won", lost: "Lost", test: "Test" };
+const ST_PILL = { requested: "warn", quoted: "warn", awaiting_payment: "warn", paid: "bad", scheduled: "", in_progress: "", completed: "ok", cancelled: "mute", active: "ok", past_due: "bad", delivered: "ok", quote_requested: "warn", waitlist: "mute", test: "mute" };
+const when = (s) => (s ? new Date(s).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
+function salesSection(x) {
+  if (!x) return "";
+  const svcRows = Object.entries(x.byService);
+  return `<section class="card"><div class="head"><h2>Services &amp; sales</h2><a class="hint" href="#jobs">Open the Jobs tab →</a></div>
+    <div class="kpis" style="margin:0 0 14px">
+      <a class="kpi" href="#jobs"><b>${usd(x.month)}</b><span>Paid this month · ${x.monthN} payment${x.monthN === 1 ? "" : "s"}</span></a>
+      <a class="kpi" href="#jobs"><b>${usd(x.last30)}</b><span>Last 30 days · ${usd(x.year)} this year</span></a>
+      <a class="kpi" href="#jobs"><b>${x.subs}</b><span>Active subscriptions · ${usd(x.mrr)}/mo${x.pastDue ? ` · ${x.pastDue} past due` : ""}</span></a>
+      <a class="kpi" href="#jobs"><b>${usd(x.invoices30)}</b><span>Subscription invoices paid (30 days) · ${x.invoices30N}</span></a>
+      <a class="kpi" href="#jobs"><b>${x.openJobs}</b><span>Open jobs · ${x.needsSched.length} to schedule</span></a>
+      <a class="kpi" href="#jobs"><b>${x.unpaid}</b><span>Awaiting payment · ${usd(x.unpaidAmt)}</span></a>
+      <a class="kpi" href="#workers"><b>${usd(x.crewOwed)}</b><span>Crew pay owed · ${x.crewOwedN} job${x.crewOwedN === 1 ? "" : "s"}</span></a>
+    </div>
+    ${x.testN ? `<p class="hint" style="margin:-4px 0 12px">Not counted above: ${x.testN} test payment${x.testN === 1 ? "" : "s"} (${usd(x.testTotal)}) from test orders and Stripe test mode.</p>` : ""}
+    <div class="two">
+      <div><h3>Upcoming jobs</h3><div class="list">${x.upcoming.length ? x.upcoming.map((r) => `<div class="row"><button class="link" data-sr="${esc(r.id)}"><div class="t">${esc(when(r.appointment_at))} · ${esc(r.label)}</div>
+        <div class="s">${esc([r.ref, r.name, r.property_address].filter(Boolean).join(" · "))}${r.test ? " · TEST" : ""}</div></button><span class="pill ${ST_PILL[r.status] || ""}">${esc(ST_LABEL[r.status] || r.status)}</span></div>`).join("") : `<div class="empty">Nothing scheduled.</div>`}
+        ${x.needsSched.length ? `<h3 style="margin-top:14px">Paid or booked, needs a date</h3>${x.needsSched.map((r) => `<div class="row"><button class="link" data-sr="${esc(r.id)}"><div class="t">${esc(r.label)}</div>
+          <div class="s">${esc([r.ref, r.name, r.answers.date1 ? "asked for " + fmtDate(r.answers.date1) : ""].filter(Boolean).join(" · "))}</div></button><span class="pill ${ST_PILL[r.status]}">${esc(ST_LABEL[r.status])}</span></div>`).join("")}` : ""}</div></div>
+      <div><h3>Recent payments</h3><div class="list">${x.recentPays.length ? x.recentPays.map((p) => `<div class="row"><button class="link" data-sr="${esc(p.request_id)}"><div class="t">${usd(p.amount)} · ${esc(p.label || "")}</div>
+        <div class="s">${esc([fmtDate(p.at), p.ref, p.name, p.kind === "invoice" ? "subscription invoice" : p.kind, p.method].filter(Boolean).join(" · "))}</div></button>${p.test ? `<span class="pill mute">Test</span>` : `<span class="pill ok">Paid</span>`}</div>`).join("") : `<div class="empty">No payments yet.</div>`}</div>
+        <h3 style="margin-top:14px">Orders by service</h3>${svcRows.length ? svcRows.map(([k, st]) => `<div class="bar"><span><b>${esc(SVC[k] || k)}</b> · ${Object.entries(st).map(([a, n]) => `${esc(ST_LABEL[a] || a)} ${n}`).join(" · ")}</span><i>${Object.values(st).reduce((a, b) => a + b, 0)}</i></div>`).join("") : `<div class="empty">No orders yet.</div>`}</div>
+    </div></section>`;
+}
+
+// ---------------- jobs ----------------
+let jobFilter = "open";
+const JOB_FILTERS = [["open", "Open"], ["schedule", "Needs a date"], ["upcoming", "Scheduled"], ["unpaid", "Unpaid"], ["subs", "Subscriptions"], ["done", "Completed"], ["all", "All"], ["test", "Tests"]];
+const OPEN_ST = ["requested", "quoted", "awaiting_payment", "paid", "scheduled", "in_progress", "quote_requested"];
+function jobMatch(r, f) {
+  if (f === "test") return r.test; if (r.test && f !== "all") return false;
+  if (f === "all") return true;
+  if (f === "open") return OPEN_ST.includes(r.status);
+  if (f === "schedule") return ["curb", "watch"].includes(r.service) && !r.appointment_at && ["requested", "paid"].includes(r.status) && r.amount != null;
+  if (f === "upcoming") return !!r.appointment_at && ["scheduled", "in_progress", "paid"].includes(r.status);
+  if (f === "unpaid") return ["awaiting_payment", "quoted"].includes(r.status) || (r.status === "requested" && !r.paid_at && r.amount != null);
+  if (f === "subs") return r.mode === "subscription";
+  if (f === "done") return ["completed", "delivered"].includes(r.status);
+  return true;
+}
+async function jobs() {
+  const { rows } = await api("jobs");
+  const list = rows.filter((r) => jobMatch(r, jobFilter));
+  $("view").innerHTML = `<section class="card"><div class="head"><h2>Jobs &amp; service orders</h2><span class="hint">${list.length} shown · click a row to schedule, assign crew or record a payment</span></div>
+    <div class="chips" style="margin-bottom:12px">${JOB_FILTERS.map(([k, l]) => `<button class="chip" data-jf="${k}" aria-pressed="${jobFilter === k}">${esc(l)} <span class="hint">${rows.filter((r) => jobMatch(r, k)).length}</span></button>`).join("")}</div>
+    <div class="tablewrap"><table><thead><tr><th>Ref</th><th>Customer</th><th>Service</th><th>Property</th><th>When</th><th>Crew</th><th>Price · paid</th><th>Status</th></tr></thead><tbody>
+    ${list.map((r) => `<tr class="click" data-sr="${esc(r.id)}"><td><b>${esc(r.ref)}</b><div class="hint">${fmtDate(r.created_at)}${r.test ? " · TEST" : ""}</div></td>
+      <td>${esc(r.name)}<div class="hint">${esc(r.phone || r.email || "")}</div></td><td>${esc(r.label)}</td><td>${esc(r.property_address || "—")}</td>
+      <td>${r.appointment_at ? esc(when(r.appointment_at)) : r.answers.date1 ? `<span class="hint">asked ${fmtDate(r.answers.date1)}</span>` : "—"}</td>
+      <td>${esc(r.crew || "—")}${r.crew_pay ? `<div class="hint">pay ${usd(r.crew_pay)}</div>` : ""}</td>
+      <td>${r.amount != null ? usd(r.amount) + (r.mode === "subscription" ? "/mo" : "") : "quote"}<div class="hint">${r.paid_total ? "paid " + usd(r.paid_total) : "unpaid"}</div></td>
+      <td><span class="pill ${ST_PILL[r.status] || ""}">${esc(ST_LABEL[r.status] || r.status)}</span></td></tr>`).join("")}</tbody></table></div>
+    ${list.length ? "" : `<div class="empty">Nothing here.</div>`}</section>`;
+  $("view").querySelectorAll("[data-jf]").forEach((b) => b.onclick = () => { jobFilter = b.dataset.jf; jobs(); });
+}
+document.addEventListener("click", (e) => { const j = e.target.closest("[data-sr]"); if (j) { e.preventDefault(); openJob(j.dataset.sr); } });
+
+async function openJob(id) {
+  const { request: r, jobs: js, payments: ps, crew, origin } = await api("job-detail/" + id);
+  const a = r.answers, x = r.extra, paid = ps.reduce((t, p) => t + p.amount, 0);
+  const apt = r.appointment_at ? new Date(r.appointment_at) : null;
+  const aptD = apt ? apt.toLocaleDateString("en-CA") : (a.date1 || ""), aptT = apt ? apt.toTimeString().slice(0, 5) : (/^Afternoon/.test(a.window || "") ? "13:00" : "09:00");
+  const details = r.service === "curb" ? [CURB[r.item]?.name && CURB[r.item].name + " package", a.lot, x.overgrown && "overgrown", ...(x.addOns || []).map((k) => CURB_ADDONS[k]?.label || k)].filter(Boolean).join(" · ")
+    : r.service === "watch" ? `${x.estimate?.properties || "?"} properties · ${x.estimate?.visitsPerMonth || "?"} visits/month` : r.label;
+  $("dBody").innerHTML = `<div><h2 id="dTitle">${esc(r.ref)} · ${esc(r.label)}</h2><p class="hint" style="margin:4px 0 0">${esc([r.name, r.phone, r.email, r.consent ? "OK to call/text" : "Email only", r.test ? "TEST" : ""].filter(Boolean).join(" · "))}</p></div>
+    <section class="card"><div class="head"><h3>Order</h3><span class="pill ${ST_PILL[r.status] || ""}">${esc(ST_LABEL[r.status] || r.status)}</span></div>
+      <div class="hint" style="font-size:.95rem;line-height:1.7">${r.property_address ? `<b>${esc(r.property_address)}</b><br>` : ""}${esc(details)}<br>
+      ${a.date1 ? `Asked for ${esc([a.date1, a.date2].filter(Boolean).map(fmtLong).join(" or "))}${a.window ? " · " + esc(a.window) : ""}${a.access ? " · " + esc(a.access) : ""}<br>` : ""}${a.notes ? `Customer notes: ${esc(a.notes)}<br>` : ""}
+      Price ${r.amount != null ? usd(r.amount) + (r.mode === "subscription" ? "/month" : "") : "not set (quote)"} · paid ${usd(paid)}${r.labor_cost ? ` · crew cost ${usd(r.labor_cost)}` : x.laborGuide ? ` · payout guide ${usd(x.laborGuide)}` : ""}</div>
+      <p style="margin:10px 0 0"><a class="btn small" target="_blank" rel="noopener" href="${esc(origin)}/order/${esc(r.token)}">Customer page ↗</a>
+        ${r.property_address ? `<a class="btn small" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.property_address)}">Map ↗</a>` : ""}
+        ${r.service === "curb" && ["requested", "quoted", "test"].includes(r.status) && !r.paid_at ? `<a class="btn small" href="#quotes" data-q="${esc(r.id)}">Quote / re-price</a>` : ""}</p></section>
+    <section class="card"><div class="head"><h3>Schedule and status</h3><span class="hint">No Saturdays</span></div>
+      <form id="jForm" class="grid"><label>Date<input type="date" name="d" value="${esc(aptD)}" min="${today()}"></label><label>Time<input type="time" name="t" value="${esc(aptT)}" step="900"></label>
+        <label>Status<select name="status">${Object.entries(ST_LABEL).filter(([k]) => k !== "test").map(([k, l]) => `<option value="${k}" ${k === r.status ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
+        <label>Actual crew cost ($)<input name="labor_cost" inputmode="decimal" value="${esc(r.labor_cost ?? "")}"></label>
+        <label class="wide">Office notes (not shown to the customer)<textarea name="desk_notes">${esc(r.desk_notes || "")}</textarea></label>
+        <div class="wide"><button class="btn gold">Save</button> ${r.appointment_at ? `<button class="btn small" type="button" id="jClear">Clear date</button>` : ""}
+          <span class="hint">Setting a date moves a paid or requested job to Scheduled. The customer's page shows the date; tell them too.</span></div></form></section>
+    <section class="card"><div class="head"><h3>Crew</h3><span class="hint">${crew.length} approved or active workers</span></div>
+      <div class="list">${js.map((j) => `<div class="row"><div><div class="t">${esc(j.wname || "Worker")} · ${fmtDate(j.work_date)}${j.pay != null ? " · " + usd(j.pay) : ""}</div><div class="s">${esc([j.title, j.wphone].filter(Boolean).join(" · "))}</div></div>
+        <div class="acts"><span class="pill ${j.paid_at ? "ok" : j.status === "done" ? "bad" : "mute"}">${j.paid_at ? "Paid " + fmtDate(j.paid_at) : j.status === "done" ? "Done, unpaid" : esc(j.status)}</span>
+        ${j.status === "scheduled" ? `<button class="btn small" data-wj="${esc(j.id)}" data-st="done">Mark done</button>` : ""}${!j.paid_at && j.status === "done" ? `<button class="btn small" data-wj="${esc(j.id)}" data-paid="1">Mark paid</button>` : ""}</div></div>`).join("") || `<p class="hint">No crew assigned.</p>`}</div>
+      ${crew.length ? `<form id="cForm" class="grid" style="margin-top:10px"><label>Worker<select name="worker_id">${crew.map((w) => `<option value="${esc(w.id)}">${esc(w.name)}</option>`).join("")}</select></label>
+        <label>Work date<input type="date" name="work_date" value="${esc(aptD)}" min="${today()}"></label><label>Pay ($)<input name="pay" inputmode="decimal" value="${esc(x.laborGuide ?? "")}"></label>
+        <div class="wide"><button class="btn">Assign</button></div></form>` : `<p class="hint">Approve workers in “Workers &amp; crews” to assign them here.</p>`}</section>
+    <section class="card"><div class="head"><h3>Payments</h3><span class="hint">Stripe payments and subscription invoices are recorded automatically</span></div>
+      <div class="list">${ps.map((p) => `<div class="row"><div><div class="t">${usd(p.amount)} · ${esc(p.kind === "invoice" ? "subscription invoice" : p.kind)}${p.method ? " · " + esc(p.method) : ""}</div><div class="s">${esc([fmtDate(p.at), p.note, p.by].filter(Boolean).join(" · "))}</div></div>${p.test ? `<span class="pill mute">Test</span>` : ""}</div>`).join("") || `<p class="hint">No payments yet.</p>`}</div>
+      <form id="pForm" class="grid" style="margin-top:10px"><label>Amount ($)<input name="amount" inputmode="decimal" placeholder="${r.amount != null ? esc(Math.max(0, r.amount - paid)) : ""}"></label>
+        <label>Method<select name="method"><option>cash</option><option>Zelle</option><option>check</option><option>card</option><option>Cash App</option><option>other</option></select></label>
+        <label>Date<input type="date" name="date" value="${today()}"></label><label class="wide">Note<input name="note" placeholder="Invoice #, check #… (negative amount = refund)"></label>
+        <div class="wide"><button class="btn">Record payment</button></div></form></section>`;
+  $("drawer").hidden = false;
+  const reopen = () => { openJob(id); if (location.hash.startsWith("#jobs")) jobs(); };
+  $("jForm").onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); const body = { status: f.status, labor_cost: f.labor_cost, desk_notes: f.desk_notes };
+    if (f.d) { if (new Date(f.d + "T12:00:00Z").getUTCDay() === 6) { toast("No Saturday work (Shabbat). Pick another day."); return; }
+      body.appointment_at = new Date(`${f.d}T${f.t || "09:00"}`).toISOString(); if (f.status === r.status && ["requested", "paid", "quoted"].includes(r.status)) delete body.status; }
+    try { await send("service/" + id, "PATCH", body); toast("Saved"); reopen(); } catch (er) { toast(er.message); } };
+  if ($("jClear")) $("jClear").onclick = async () => { try { await send("service/" + id, "PATCH", { appointment_at: "" }); toast("Date cleared"); reopen(); } catch (er) { toast(er.message); } };
+  if ($("cForm")) $("cForm").onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
+    if (f.work_date && new Date(f.work_date + "T12:00:00Z").getUTCDay() === 6) { toast("No Saturday work (Shabbat). Pick another day."); return; }
+    try { await send("job", "POST", { ...f, service_request_id: id, title: `${r.label}, ${r.property_address || r.ref}` }); toast("Crew assigned"); reopen(); } catch (er) { toast(er.message); } };
+  $("pForm").onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
+    try { await send("payment", "POST", { ...f, request_id: id }); toast("Payment recorded"); reopen(); } catch (er) { toast(er.message); } };
+  $("dBody").querySelectorAll("[data-wj]").forEach((b) => b.onclick = async () => {
+    const body = b.dataset.paid ? { paid_at: today(), pay_method: prompt("Paid how? (cash, Zelle, check…)", "cash") || "cash" } : { status: b.dataset.st };
+    try { await send("job/" + b.dataset.wj, "PATCH", body); toast("Saved"); reopen(); } catch (er) { toast(er.message); } });
+  const q = $("dBody").querySelector("[data-q]"); if (q) q.onclick = (e) => { e.preventDefault(); location.hash = "quotes"; openQuote(id); };
 }
 
 // ---------------- quotes (Curb Appeal) ----------------

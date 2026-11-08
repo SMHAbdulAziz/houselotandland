@@ -158,10 +158,23 @@ async function refreshPayment(env, r, sessionId) {
   } catch { return r; }
 }
 
+export function isTestOrder(r) {
+  const x = typeof r.extra === "string" ? parse(r.extra) || {} : r.extra || {};
+  return r.status === "test" || x.test === true || /^test\b/i.test(String(r.name || "").trim()) ? 1 : 0;
+}
+// One row per payment (Stripe session or invoice id is unique, so webhook retries never double count).
+export async function recordPayment(env, p) {
+  if (!(Number(p.amount) !== 0) || !p.request_id) return;
+  await env.DB.prepare(`INSERT OR IGNORE INTO service_payments (id, request_id, at, amount, kind, method, stripe_id, note, test, by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind("pay_" + crypto.randomUUID(), p.request_id, p.at || new Date().toISOString(), Number(p.amount), p.kind || "manual", p.method || null, p.stripe_id || null, p.note || null, p.test ? 1 : 0, p.by || null).run();
+}
+
 async function markPaid(env, id, s) {
   const now = new Date().toISOString();
-  const r = await env.DB.prepare("SELECT service, status FROM service_requests WHERE id = ?").bind(id).first();
+  const r = await env.DB.prepare("SELECT service, status, name, extra FROM service_requests WHERE id = ?").bind(id).first();
   if (!r) return;
+  // Subscriptions are recorded from invoice.paid (first month and every renewal); one-time checkouts here.
+  if (s.mode !== "subscription" && s.amount_total) await recordPayment(env, { request_id: id, at: now, amount: s.amount_total / 100, kind: "checkout", method: "card", stripe_id: s.id, test: isTestOrder(r) || (s.livemode === false ? 1 : 0) });
   const next = r.service === "contracts" && s.mode === "subscription" ? "active" : r.service === "curb" ? "paid" : "paid";
   await env.DB.prepare(`UPDATE service_requests SET status = CASE WHEN status IN ('test','cancelled') THEN status ELSE ? END, paid_at = COALESCE(paid_at, ?),
       stripe_customer = COALESCE(?, stripe_customer), stripe_subscription = COALESCE(?, stripe_subscription), amount_paid = ?, updated_at = ? WHERE id = ?`)
@@ -394,6 +407,10 @@ async function stripeWebhook(request, env) {
     await env.DB.prepare("UPDATE service_requests SET status = 'past_due', updated_at = ? WHERE stripe_subscription = ?").bind(new Date().toISOString(), o.subscription).run();
   } else if (evt.type === "invoice.paid" && o && o.subscription) {
     await env.DB.prepare("UPDATE service_requests SET status = 'active', updated_at = ? WHERE stripe_subscription = ? AND status = 'past_due'").bind(new Date().toISOString(), o.subscription).run();
+    const ref = (o.subscription_details && o.subscription_details.metadata && o.subscription_details.metadata.ref) || (o.lines && o.lines.data && o.lines.data[0] && o.lines.data[0].metadata && o.lines.data[0].metadata.ref) || null;
+    const r = await env.DB.prepare("SELECT id, status, name, extra FROM service_requests WHERE stripe_subscription = ? OR (? IS NOT NULL AND ref = ?) LIMIT 1").bind(o.subscription, ref, ref).first();
+    if (r && o.amount_paid > 0) await recordPayment(env, { request_id: r.id, at: new Date((o.status_transitions && o.status_transitions.paid_at || evt.created) * 1000).toISOString(),
+      amount: o.amount_paid / 100, kind: "invoice", method: "card", stripe_id: o.id, note: o.billing_reason === "subscription_create" ? "First month" : "Renewal", test: isTestOrder(r) || (o.livemode === false ? 1 : 0) });
   }
   return new Response("ok");
 }
