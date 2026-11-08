@@ -178,7 +178,7 @@ async function orderPage(env, token, url) {
   const canceled = url.searchParams.get("canceled");
   const shab = shabbatStatus();
   let body = `<p class="muted">Reference <b>${esc(r.ref)}</b> · ${esc(r.label)}${r.amount != null ? ` · ${money(r.amount)}${r.mode === "subscription" ? "/month" : ""}` : ""}</p>`;
-  if (r.status === "test") body += `<div class="note warn">Test order: documents are stamped TEST and nothing is charged.</div>`;
+  if (r.status === "test" || r.extra.test) body += `<div class="note warn">Test order: ${r.service === "curb" ? "no crew is sent" : "documents are stamped TEST"} and nothing is charged.</div>`;
   if (canceled && !paid) body += `<div class="note warn">Payment was cancelled. You can try again below or call 214-702-1519.</div>`;
 
   if (r.status === "waitlist") {
@@ -209,10 +209,11 @@ async function orderPage(env, token, url) {
       in_progress: `Your crew is on the job today. We'll send before-and-after photos when they finish.`,
       completed: `Your job is complete. If anything was missed, call 214-702-1519 and we'll come back and make it right.`,
       cancelled: `This booking was cancelled. Questions? Call 214-702-1519.`,
+      test: r.amount == null ? `Test quote request. Open it in the back office (Quotes tab) to build and send the quote.` : `Test booking. Nothing is charged and no crew is sent.`,
     })[r.status] || `Status: ${esc(curbStatus(r))}`;
     const dates = [a.date1, a.date2].filter(Boolean).map(fmtDay).join(" or ");
     const row = (k, v) => (v ? `<div><span>${k}</span><b>${v}</b></div>` : "");
-    body += `<p><b>Status: ${esc(curbStatus(r))}</b></p><p>${msg}</p>
+    body += `<p><b>Status: ${esc(curbStatus(r))}</b></p>${msg ? `<p>${msg}</p>` : ""}
       <div class="kv">${row("Property", esc(r.property_address))}${r.appointment_at ? row("Scheduled", esc(fmtWhen(r.appointment_at))) : row("Requested dates", esc(dates))}
       ${row("Lot size", esc(a.lot))}${row("Time window", esc(a.window))}${row("Access", esc(a.access))}${row("Total", r.amount == null ? "Custom quote" : money(r.amount))}${row("Paid", isPaid ? money(r.amount_paid ?? r.amount) : "Not yet")}</div>
       <h3>What's included</h3>
@@ -239,7 +240,9 @@ function quoteSection(env, r, token, money, shab, url) {
   let action;
   if (expired) action = `<div class="note warn">This quote expired on ${esc(fmtDay(q.expires))}. Call or text 214-702-1519 and we'll update it.</div>`;
   else if (shab.closed) action = `<div class="note warn">We're closed for Shabbat. You can approve and pay ${esc(fmtTime(shab.opensAt))} Central time.</div>`;
-  else if (q.approved_at) action = `<div class="note">You approved this quote on ${esc(fmtDay(q.approved_at.slice(0, 10)))}. We'll email you a secure invoice and confirm your date.</div>`;
+  else if (q.approved_at) action = `<div class="note">You approved this quote on ${esc(fmtDay(q.approved_at.slice(0, 10)))}. ${r.extra.test ? "Test: nothing was charged." : "We'll email you a secure invoice and confirm your date."}</div>`;
+  else if (r.extra.test) action = `<form method="post" action="/api/order/${esc(token)}/approve"><button class="btn" type="submit">Approve and pay ${money(r.amount)} (test: no charge)</button></form>
+    <p class="muted">Test quote: approving records the approval without sending you to Stripe.</p>`;
   else action = `<form method="post" action="/api/order/${esc(token)}/approve"><button class="btn" type="submit">${env.STRIPE_SECRET_KEY ? `Approve and pay ${money(r.amount)}` : `Approve this quote`}</button></form>
     <p class="muted">${env.STRIPE_SECRET_KEY ? "Secure card payment through Stripe. We'll confirm your date within one business day after you pay." : "We'll email you a secure invoice after you approve, then confirm your date within one business day."}</p>`;
   return `<h2>Your quote is ready</h2><p>Hi ${esc(first(r.name))}, here's your price for <b>${esc(r.property_address)}</b>.</p>
@@ -257,7 +260,7 @@ async function approveQuote(request, env, url, token) {
   const q = r.extra.quoteDoc || {}, today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
   if (r.status !== "quoted" || !(r.amount > 0) || (q.expires && q.expires < today)) return back();
   const now = new Date().toISOString();
-  if (!env.STRIPE_SECRET_KEY) {
+  if (!env.STRIPE_SECRET_KEY || r.extra.test) {
     q.approved_at = q.approved_at || now; r.extra.quoteDoc = q;
     await env.DB.prepare("UPDATE service_requests SET extra = ?, updated_at = ? WHERE id = ?").bind(JSON.stringify(r.extra), now, r.id).run();
     return back("?approved=1");

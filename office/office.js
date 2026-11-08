@@ -1,5 +1,5 @@
 // Back office app (served only behind Cloudflare Access; data from /api/office/*).
-import { TRACKS, CLOSED_STAGES } from "/js/hub-keys.js";
+import { TRACKS, CLOSED_STAGES, propertyKey } from "/js/hub-keys.js";
 import { shabbatStatus, fmtTime } from "/js/shabbat.js";
 import { CURB, CURB_LOT, CURB_ADDONS, CURB_QUOTE, curbQuoteSuggest } from "/js/services-catalog.js";
 
@@ -59,7 +59,7 @@ function shabbatBanner() {
 }
 
 // ---------------- router ----------------
-const VIEWS = { overview, deals, add, quotes, workers, links };
+const VIEWS = { overview, deals, add, import: importView, quotes, workers, links };
 let dealFilter = { track: "", stage: "", q: "", open: "1" };
 async function route() {
   shabbatBanner();
@@ -293,12 +293,183 @@ document.addEventListener("submit", async (e) => {
 document.addEventListener("click", (e) => { if (e.target.id === "newW") { $("view").insertAdjacentHTML("beforeend", `<section class="card"><div class="head"><h2>Add a worker</h2></div>${workerForm(null)}</section>`); e.target.disabled = true; } }, true);
 
 
+// ---------------- import (Google Maps saved lists) ----------------
+let imp = { rows: [], list: "", busy: false };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// "3917 Holliday Rd, Dallas, TX 75211, USA" -> street / city / zip
+function splitAddr(s) {
+  const parts = String(s || "").split(",").map((x) => x.trim()).filter(Boolean).filter((x) => !/^(USA|United States)$/i.test(x));
+  const o = { address: parts[0] || "", city: "", zip: "" };
+  const last = parts[parts.length - 1] || "", zm = last.match(/\b(\d{5})(?:-\d{4})?\b/);
+  if (zm) o.zip = zm[1];
+  if (parts.length >= 3) o.city = parts[parts.length - 2]; else if (parts.length === 2 && !zm) o.city = parts[1];
+  if (parts.length === 2 && zm) o.city = parts[1].replace(/\b[A-Z]{2}\b\s*\d{5}.*$/, "").trim();
+  return o;
+}
+const looksStreet = (s) => /^\d+[A-Za-z]?\s+\S+/.test(String(s || "").trim());
+function coordsIn(s) {
+  const t = decodeURIComponent(String(s || ""));
+  const m = t.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || t.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || t.match(/[?&](?:q|query|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/) ||
+    t.match(/\/(?:search|place)\/(-?\d+\.\d+),\s*\+?(-?\d+\.\d+)/) || t.match(/^\s*\(?(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})\)?\s*$/);
+  if (!m) return null;
+  const lat = +m[1], lng = +m[2];
+  return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+}
+function makeRow(o) {
+  const r = { name: o.name || "", address: "", city: "", zip: "", county: "", lat: o.lat ?? null, lng: o.lng ?? null, note: o.note || "", link: o.link || "", on: true, state: "" };
+  const src = o.address || (looksStreet(o.name) ? o.name : "");
+  if (src) Object.assign(r, splitAddr(src));
+  if (r.name && r.address && r.name.split(",")[0].trim().toLowerCase() === r.address.toLowerCase()) r.name = "";
+  return r;
+}
+function parseLines(text) {
+  return String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const c = coordsIn(l);
+    if (c) return makeRow({ ...c, link: /^https?:/.test(l) ? l : "" });
+    if (/^https?:/.test(l)) { const pm = decodeURIComponent(l).match(/\/maps\/place\/([^/@]+)/); return makeRow({ name: pm ? pm[1].replace(/\+/g, " ") : "", link: l }); }
+    return makeRow({ address: l });
+  });
+}
+function parseCsv(text) {
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"' && text[i + 1] === '"') { f += '"'; i++; } else if (c === '"') q = false; else f += c; }
+    else if (c === '"') q = true; else if (c === ",") { row.push(f); f = ""; } else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(f); rows.push(row); row = []; f = ""; } else f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows.filter((r) => r.some((x) => x.trim()));
+}
+function parseTakeout(name, text) {
+  if (/\.json$/i.test(name) || /^\s*[{[]/.test(text)) {
+    const j = JSON.parse(text), feats = j.features || [];
+    return feats.map((ft) => { const pr = ft.properties || {}, loc = pr.location || {}, g = (ft.geometry || {}).coordinates || [];
+      return makeRow({ name: loc.name || pr.Title || pr.name || "", address: loc.address || pr.address || "", lat: g[1] ?? null, lng: g[0] ?? null, note: pr.Comment || pr.note || "", link: pr.google_maps_url || pr.url || "" }); });
+  }
+  const rows = parseCsv(text); if (!rows.length) return [];
+  const head = rows[0].map((h) => h.trim().toLowerCase()), ix = (n) => head.indexOf(n);
+  const hasHead = ix("title") >= 0 || ix("url") >= 0;
+  const T = hasHead ? ix("title") : 0, N = hasHead ? ix("note") : 1, U = hasHead ? ix("url") : 2, C = hasHead ? ix("comment") : -1;
+  return rows.slice(hasHead ? 1 : 0).map((r) => {
+    const title = (r[T] || "").trim(), url = (r[U] || "").trim(), c = coordsIn(url) || coordsIn(title);
+    return makeRow({ name: title, lat: c?.lat, lng: c?.lng, note: [r[N], C >= 0 ? r[C] : ""].filter((x) => x && x.trim()).join(" · "), link: url });
+  });
+}
+const keyOf = (r) => propertyKey({ address: r.address, city: r.city, zip: r.zip, name: r.name });
+function rowState(r) {
+  if (r.state === "exists") return ["mute", "Already on file"];
+  if (!looksStreet(r.address) && r.lat != null && !r.approx) return ["bad", "Pin only: find its address"];
+  if (!looksStreet(r.address) && !(r.name && r.city)) return ["bad", "Needs an address"];
+  if (r.approx) return ["warn", "Nearest street (check it)"];
+  return ["ok", "Ready"];
+}
+async function checkExisting() {
+  const keys = [...new Set(imp.rows.map(keyOf).filter(Boolean))];
+  if (!keys.length) return;
+  try { const { found } = await send("import/check", "POST", { keys }); imp.rows.forEach((r) => { r.state = found[keyOf(r)] ? "exists" : ""; }); } catch {}
+}
+async function importView() {
+  $("view").innerHTML = `<section class="card"><div class="head"><h2>Import a Google Maps list</h2><span class="hint">Addresses already on file are matched, never duplicated.</span></div>
+    <div class="chips" style="margin-bottom:12px"><button class="chip" data-src="link" aria-pressed="true">Share link</button><button class="chip" data-src="paste" aria-pressed="false">Paste</button><button class="chip" data-src="file" aria-pressed="false">Takeout file</button></div>
+    <form id="srcLink" class="grid"><label class="wide">List share link<input name="url" placeholder="https://maps.app.goo.gl/…" autocomplete="off"></label>
+      <p class="hint wide" style="margin:0">In Google Maps: Saved → open the list → Share → make sure it's shared with anyone with the link → Copy link.</p>
+      <div class="wide"><button class="btn gold">Load list</button></div></form>
+    <form id="srcPaste" class="grid" hidden><label class="wide">One per line: street addresses, coordinates (32.7767, -96.7970) or Google Maps links<textarea name="text" rows="7" placeholder="3917 Holliday Rd, Dallas, TX 75211&#10;32.71234, -96.65432&#10;https://maps.google.com/?q=32.7,-96.8"></textarea></label>
+      <div class="wide"><button class="btn gold">Load lines</button></div></form>
+    <form id="srcFile" class="grid" hidden><label class="wide">Google Takeout file (Saved lists .csv, or Saved Places .json)<input type="file" name="file" accept=".csv,.json,text/csv,application/json"></label>
+      <p class="hint wide" style="margin:0">takeout.google.com → Deselect all → check “Saved” (and “Maps (your places)” for starred places) → export, then pick the list's .csv from the download.</p>
+      <div class="wide"><button class="btn gold">Load file</button></div></form>
+    <p id="impMsg" class="hint"></p></section><div id="impPreview"></div>`;
+  $("view").querySelectorAll("[data-src]").forEach((b) => b.onclick = () => {
+    $("view").querySelectorAll("[data-src]").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    $("srcLink").hidden = b.dataset.src !== "link"; $("srcPaste").hidden = b.dataset.src !== "paste"; $("srcFile").hidden = b.dataset.src !== "file";
+  });
+  const loaded = async (rows, list) => { imp = { rows, list, busy: false }; await checkExisting(); drawPreview(); $("impMsg").textContent = `${rows.length} places loaded.`; };
+  $("srcLink").onsubmit = async (e) => { e.preventDefault(); $("impMsg").textContent = "Reading the list from Google…";
+    try { const r = await send("import/gmaps-link", "POST", { url: e.target.url.value.trim() }); await loaded(r.rows, r.list_name); }
+    catch (er) { $("impMsg").textContent = er.message; } };
+  $("srcPaste").onsubmit = async (e) => { e.preventDefault(); await loaded(parseLines(e.target.text.value), "Pasted list"); };
+  $("srcFile").onsubmit = async (e) => { e.preventDefault(); const fl = e.target.file.files[0]; if (!fl) { toast("Pick a file first."); return; }
+    try { await loaded(parseTakeout(fl.name, await fl.text()), fl.name.replace(/\.(csv|json)$/i, "")); } catch (er) { $("impMsg").textContent = "Couldn't read that file: " + er.message; } };
+  if (imp.rows.length) drawPreview();
+}
+function drawPreview() {
+  const rows = imp.rows, pins = rows.filter((r) => r.on && r.lat != null && !looksStreet(r.address) && !r.approx).length;
+  const fwd = rows.filter((r) => r.on && looksStreet(r.address) && !r.zip).length;
+  const ready = rows.filter((r) => r.on && r.state !== "exists" && rowState(r)[0] !== "bad").length;
+  $("impPreview").innerHTML = `<section class="card"><div class="head"><h2>${esc(imp.list || "Preview")}</h2><span class="hint">${rows.length} places · ${rows.filter((r) => r.state === "exists").length} already on file</span></div>
+    <div class="grid" style="margin-bottom:10px">
+      <label>Add to track<select id="impTrack"><option value="">No track (just the property)</option>${Object.entries(TRACKS).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("")}</select></label>
+      <label>Type<select id="impType"><option value="">Not set</option>${TYPES.map((t) => `<option>${t}</option>`).join("")}</select></label>
+      <label class="wide">Source label<input id="impSource" value="${esc("Google Maps list: " + (imp.list || ""))}"></label></div>
+    <p><button class="btn" type="button" id="impGeo" ${pins + fwd ? "" : "disabled"}>Find street addresses (${pins} pins${fwd ? `, ${fwd} missing ZIP` : ""})</button>
+      <button class="btn gold" type="button" id="impGo" ${ready ? "" : "disabled"}>Import ${ready} new</button> <span class="hint" id="impProg"></span></p>
+    <div class="tablewrap"><table><thead><tr><th></th><th>Name</th><th>Street address</th><th>City</th><th>ZIP</th><th>County</th><th>Pin</th><th>Status</th></tr></thead><tbody>
+    ${rows.map((r, i) => { const [c, t] = rowState(r); return `<tr><td><input type="checkbox" data-on="${i}" ${r.on ? "checked" : ""} aria-label="Include"></td>
+      <td><input data-i="${i}" data-k="name" value="${esc(r.name)}" style="min-width:140px">${r.note ? `<div class="hint">${esc(r.note)}</div>` : ""}</td>
+      <td><input data-i="${i}" data-k="address" value="${esc(r.address)}" style="min-width:180px"></td><td><input data-i="${i}" data-k="city" value="${esc(r.city)}" style="width:110px"></td>
+      <td><input data-i="${i}" data-k="zip" value="${esc(r.zip)}" style="width:70px" inputmode="numeric"></td><td><input data-i="${i}" data-k="county" value="${esc(r.county)}" style="width:90px"></td>
+      <td>${r.lat != null ? `<a href="https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lng}" target="_blank" rel="noopener">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)} ↗</a>` : "—"}</td>
+      <td><span class="pill ${c}">${esc(t)}</span></td></tr>`; }).join("")}</tbody></table></div></section>`;
+  const tb = $("impPreview");
+  tb.querySelectorAll("[data-on]").forEach((c) => c.onchange = () => { rows[c.dataset.on].on = c.checked; drawPreview(); });
+  tb.querySelectorAll("input[data-i]").forEach((el) => el.onchange = async () => { const r = rows[el.dataset.i]; r[el.dataset.k] = el.value.trim(); r.approx = false; await checkExisting(); drawPreview(); });
+  $("impGeo").onclick = geocodeRows;
+  $("impGo").onclick = runImport;
+}
+async function geocodeRows() {
+  if (imp.busy) return; imp.busy = true;
+  const todo = imp.rows.filter((r) => r.on && ((r.lat != null && !looksStreet(r.address) && !r.approx) || (looksStreet(r.address) && !r.zip)));
+  let n = 0;
+  for (const r of todo) {
+    $("impProg").textContent = `Looking up ${++n} of ${todo.length}… (about 1 per second)`;
+    try {
+      const qs = r.lat != null && !looksStreet(r.address) ? `lat=${r.lat}&lng=${r.lng}` : `q=${encodeURIComponent([r.address, r.city, "TX"].filter(Boolean).join(", "))}`;
+      const g = await api("geocode?" + qs);
+      if (!looksStreet(r.address)) {
+        if (!r.name && r.address) r.name = r.address;
+        r.address = g.address || r.address; r.approx = !g.exact;
+        // No house number: keep the pin in the name so two pins on the same road stay separate properties.
+        if (!g.exact && r.lat != null) r.name = `${r.name && !/^dropped pin$/i.test(r.name) ? r.name + " · " : ""}pin ${(+r.lat).toFixed(5)}, ${(+r.lng).toFixed(5)}`;
+      }
+      r.city = r.city || g.city; r.zip = r.zip || g.zip; r.county = r.county || g.county;
+      if (r.lat == null && g.lat != null) { r.lat = g.lat; r.lng = g.lng; }
+    } catch {}
+    await sleep(1100);
+  }
+  imp.busy = false; await checkExisting(); drawPreview();
+  $("impProg").textContent = "Done. Rows marked “Nearest street” had no house number; check those against the map.";
+}
+async function runImport() {
+  if (imp.busy) return;
+  const rows = imp.rows.filter((r) => r.on && r.state !== "exists" && rowState(r)[0] !== "bad");
+  if (!rows.length) return;
+  imp.busy = true;
+  const track = $("impTrack").value, prop_type = $("impType").value, source = $("impSource").value.trim();
+  const tot = { added: 0, merged: 0, skipped: 0, errors: [] };
+  for (let i = 0; i < rows.length; i += 25) {
+    $("impProg").textContent = `Importing ${Math.min(i + 25, rows.length)} of ${rows.length}…`;
+    try {
+      const r = await send("import/properties", "POST", { rows: rows.slice(i, i + 25), track, prop_type, source, list_name: imp.list });
+      tot.added += r.added; tot.merged += r.merged; tot.skipped += r.skipped; tot.errors.push(...r.errors);
+    } catch (er) { tot.errors.push(er.message); break; }
+  }
+  try { await send("import/properties", "POST", { rows: [], source, list_name: imp.list, log_import: { rows: rows.length, ...tot } }); } catch {}
+  imp.busy = false; await checkExisting(); drawPreview();
+  $("impProg").textContent = `Imported: ${tot.added} new, ${tot.merged} matched existing, ${tot.skipped} skipped.${tot.errors.length ? " Problems: " + tot.errors.slice(0, 3).join("; ") : ""}`;
+  toast(`${tot.added} properties added`);
+}
+
 // ---------------- quotes (Curb Appeal) ----------------
 const CADS = [["Dallas", "https://www.dallascad.org/SearchAddr.aspx"], ["Tarrant", "https://www.tad.org/"], ["Collin", "https://www.collincad.org/"], ["Denton", "https://www.dentoncad.com/"],
   ["Rockwall", "https://www.rockwallcad.com/"], ["Kaufman", "https://www.kaufman-cad.org/"], ["Ellis", "https://www.elliscad.com/"], ["Johnson", "https://www.johnsoncad.com/"]];
 const first = (n) => String(n || "").trim().split(/\s+/)[0] || "there";
 const fmtLong = (s) => (s ? new Date(String(s).slice(0, 10) + "T12:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }) : "");
 function quoteState(r) {
+  const [c, t] = quoteState1(r);
+  return r.status === "test" || r.extra.test ? [c, "TEST · " + t] : [c, t];
+}
+function quoteState1(r) {
   const q = r.extra.quoteDoc;
   if (r.status === "quoted" && q) {
     if (q.expires < today()) return ["bad", "Quote expired " + fmtDate(q.expires)];
@@ -310,7 +481,7 @@ function quoteState(r) {
 }
 async function quotes() {
   const { rows } = await api("quotes");
-  const need = rows.filter((r) => r.status === "requested" && r.amount == null);
+  const need = rows.filter((r) => ["requested", "test"].includes(r.status) && r.amount == null);
   const rest = rows.filter((r) => !need.includes(r));
   const tr = (r) => { const [c, t] = quoteState(r); return `<tr class="click" data-quote="${esc(r.id)}"><td><b>${esc(r.ref)}</b><div class="hint">${fmtDate(r.created_at)}</div></td>
     <td>${esc(r.name)}<div class="hint">${esc(r.phone || r.email || "")}</div></td><td>${esc(r.property_address)}</td>

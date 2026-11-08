@@ -153,7 +153,7 @@ export async function handleOfficeApi(request, env, url) {
       const recent = (await db.prepare(`SELECT a.*, p.address, p.name AS pname FROM activities a LEFT JOIN properties p ON p.id = a.property_id ORDER BY a.at DESC LIMIT 15`).all()).results;
       const counts = (await db.prepare("SELECT (SELECT COUNT(*) FROM properties) AS properties, (SELECT COUNT(*) FROM contacts) AS contacts, (SELECT COUNT(*) FROM deals) AS deals").first());
       const openSvc = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE status IN ('requested','quoted','paid','scheduled','quote_requested','awaiting_payment')").first()).n;
-      const quoteNeeded = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE service = 'curb' AND status = 'requested' AND amount IS NULL AND paid_at IS NULL").first()).n;
+      const quoteNeeded = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE service = 'curb' AND status IN ('requested','test') AND amount IS NULL AND paid_at IS NULL").first()).n;
       const newLoans = (await db.prepare("SELECT COUNT(*) AS n FROM loan_apps WHERE status IN ('new','reviewing')").first().catch(() => ({ n: 0 }))).n;
       return json({ ok: true, user: u.email, deals, due, workers, recent, counts, openSvc, quoteNeeded, newLoans, tracks: TRACKS });
     }
@@ -327,7 +327,7 @@ export async function handleOfficeApi(request, env, url) {
     // ---- quotes: price Curb Appeal jobs (lots over 2 acres, or a lot-size correction) and send the customer a pay link
     if (m === "GET" && path === "quotes") {
       const rows = (await db.prepare(`SELECT id, ref, token, created_at, status, item, label, name, email, phone, consent, property_address, amount, answers, extra FROM service_requests
-        WHERE service = 'curb' AND status IN ('requested','quoted') AND paid_at IS NULL ORDER BY created_at DESC LIMIT 200`).all()).results;
+        WHERE service = 'curb' AND status IN ('requested','quoted','test') AND paid_at IS NULL ORDER BY created_at DESC LIMIT 200`).all()).results;
       return json({ ok: true, rows: rows.map((r) => ({ ...r, answers: parse(r.answers) || {}, extra: parse(r.extra) || {} })) });
     }
     if (m === "GET" && seg[0] === "quote" && seg[1] && !seg[2]) {
@@ -338,7 +338,7 @@ export async function handleOfficeApi(request, env, url) {
     if (m === "POST" && seg[0] === "quote" && seg[1] && !seg[2]) {
       const r = await db.prepare("SELECT * FROM service_requests WHERE id = ? AND service = 'curb'").bind(seg[1]).first();
       if (!r) return json({ ok: false, message: "Not found." }, 404);
-      if (r.paid_at || !["requested", "quoted"].includes(r.status)) return json({ ok: false, message: "This booking is already paid or closed; it can't be re-quoted here." }, 409);
+      if (r.paid_at || !["requested", "quoted", "test"].includes(r.status)) return json({ ok: false, message: "This booking is already paid or closed; it can't be re-quoted here." }, 409);
       const lines = (Array.isArray(b.lines) ? b.lines : []).slice(0, 25).map((l) => ({ label: clean(l.label, 160), amount: num(l.amount) })).filter((l) => l.label && l.amount != null);
       if (!lines.length) return json({ ok: false, message: "Add at least one line." }, 400);
       const total = Math.round(lines.reduce((t, l) => t + l.amount, 0) * 100) / 100;
@@ -347,12 +347,13 @@ export async function handleOfficeApi(request, env, url) {
       const exp = new Date(today() + "T12:00:00Z"); exp.setUTCDate(exp.getUTCDate() + days);
       const pkg = CURB[b.package] ? b.package : r.item;
       const extra = parse(r.extra) || {};
+      if (r.status === "test") extra.test = true; // test bookings stay tests: no charge when approved
       const prev = extra.quoteDoc;
       extra.quoteDoc = { lines, total, note: clean(b.note, 1500), acres: num(b.acres), overgrown: !!b.overgrown, addOns: Array.isArray(b.addOns) ? b.addOns.slice(0, 10) : [],
         laborGuide: num(b.labor_guide), expires: exp.toISOString().slice(0, 10), created_at: t, by: u.email, version: prev ? (prev.version || 1) + 1 : 1 };
       extra.quoteHistory = [...(extra.quoteHistory || []), ...(prev ? [{ total: prev.total, created_at: prev.created_at, sent_at: prev.sent_at || null }] : [])].slice(-10);
       await db.prepare(`UPDATE service_requests SET status = 'quoted', item = ?, label = ?, amount = ?, quote_amount = ?, extra = ?, stripe_session = NULL, updated_at = ? WHERE id = ?`)
-        .bind(pkg, `Curb Appeal ${CURB[pkg].name} package (quote)`, total, total, JSON.stringify(extra), t, r.id).run();
+        .bind(pkg, `Curb Appeal ${CURB[pkg].name} package (quote)${extra.test ? " TEST" : ""}`, total, total, JSON.stringify(extra), t, r.id).run();
       return json({ ok: true, total, expires: extra.quoteDoc.expires, orderUrl: `${url.origin}/order/${r.token}` });
     }
     if (m === "POST" && seg[0] === "quote" && seg[1] && seg[2] === "sent") {
@@ -363,6 +364,37 @@ export async function handleOfficeApi(request, env, url) {
       await db.prepare("UPDATE service_requests SET extra = ?, updated_at = ? WHERE id = ?").bind(JSON.stringify(extra), t, seg[1]).run();
       return json({ ok: true });
     }
+    // ---- bulk import: Google Maps saved lists (shared link, pasted lines or Takeout file), street addresses for pins
+    if (m === "POST" && path === "import/gmaps-link") return json(await gmapsList(clean(b.url, 2000)));
+    if (m === "GET" && path === "geocode") return json(await geocode(url.searchParams));
+    if (m === "POST" && path === "import/check") {
+      const keys = (Array.isArray(b.keys) ? b.keys : []).filter((k) => typeof k === "string" && k).slice(0, 500);
+      const found = {};
+      for (let i = 0; i < keys.length; i += 90) {
+        const part = keys.slice(i, i + 90);
+        const rows = (await db.prepare(`SELECT id, addr_key FROM properties WHERE addr_key IN (${part.map(() => "?").join(",")})`).bind(...part).all()).results;
+        for (const r of rows) found[r.addr_key] = r.id;
+      }
+      return json({ ok: true, found });
+    }
+    if (m === "POST" && path === "import/properties") {
+      const rows = (Array.isArray(b.rows) ? b.rows : []).slice(0, 50);
+      const track = TRACKS[b.track] ? b.track : null, source = clean(b.source, 120) || "Google Maps list";
+      let added = 0, merged = 0, skipped = 0; const errors = [];
+      for (const r of rows) {
+        try {
+          const p = await upsertProperty(db, { address: r.address, name: r.name, city: r.city, zip: r.zip, county: r.county, prop_type: b.prop_type || null, lat: r.lat, lng: r.lng,
+            data: { import: { source, list: clean(b.list_name, 160), note: clean(r.note, 500), gmaps: clean(r.link, 500), at: t } } }, t);
+          p.merged ? merged++ : added++;
+          let d = null;
+          if (track) d = await upsertDeal(db, { property_id: p.id, track, next_touch: today(), source, source_app: "gmaps", notes: clean(r.note, 1000) }, t);
+          await logActivity(db, { property_id: p.id, deal_id: d && d.id, kind: "import", summary: `${p.merged ? "Matched on import" : "Imported"} from ${source}${d ? ` · ${TRACKS[track].label}` : ""}`, by: u.email, source: "office" }, t);
+        } catch (e) { skipped++; errors.push(`${r.address || r.name || "row"}: ${e.message}`); }
+      }
+      if (b.log_import) await db.prepare("INSERT INTO hub_imports (id, at, source, file, rows, added, merged, skipped, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(newId("i"), t, "gmaps", clean(b.list_name, 160), num(b.log_import.rows), num(b.log_import.added), num(b.log_import.merged), num(b.log_import.skipped), source).run();
+      return json({ ok: true, added, merged, skipped, errors: errors.slice(0, 20) });
+    }
     if (m === "GET" && path === "open-services") {
       const rows = (await db.prepare(`SELECT id, ref, service, label, status, name, property_address, appointment_at, crew, answers FROM service_requests
         WHERE service IN ('curb','watch') AND status NOT IN ('test','cancelled','completed') ORDER BY created_at DESC LIMIT 100`).all()).results;
@@ -372,4 +404,82 @@ export async function handleOfficeApi(request, env, url) {
   } catch (e) {
     return json({ ok: false, message: e && e.message && e.message.length < 200 ? e.message : "Something went wrong." }, 400);
   }
+}
+
+// ---------------- Google Maps saved lists ----------------
+// Shared list links (maps.app.goo.gl/… or google.com/maps/placelists/list/…) are read through the same unofficial
+// endpoint the Maps page uses. Google can change or block it without notice; the back office falls back to
+// pasted lines or a Google Takeout file.
+const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
+async function gmapsList(link) {
+  const fail = (message) => ({ ok: false, message });
+  if (!/^https:\/\/(maps\.app\.goo\.gl|goo\.gl|(www\.)?google\.[a-z.]+\/maps)\//i.test(link || "")) return fail("Paste the list's share link (maps.app.goo.gl/… or google.com/maps/…).");
+  let at = link, cookies = [];
+  for (let i = 0; i < 6; i++) {
+    const m = at.match(/!2s(-?[\w-]{8,})!/) || at.match(/\/placelists\/list\/(-?[\w-]{8,})/);
+    if (m && /google\./.test(at)) break;
+    const res = await fetch(at, { redirect: "manual", headers: { "user-agent": i ? UA : "Mozilla/5.0" } });
+    const sc = res.headers.get("set-cookie"); if (sc) cookies.push(...sc.split(/,(?=\s*\w+=)/).map((c) => c.split(";")[0].trim()));
+    const loc = res.headers.get("location");
+    if (!loc) break;
+    at = new URL(loc, at).toString();
+  }
+  const dec = decodeURIComponent(at);
+  const idm = dec.match(/!2s(-?[\w-]{8,})!/) || dec.match(/\/placelists\/list\/(-?[\w-]{8,})/) || dec.match(/!1s(-?[\w-]{16,})!/);
+  if (!idm) return fail("That link didn't lead to a saved list. In Google Maps open the list, tap Share, and copy the link.");
+  const id = idm[1], tok = (dec.match(/[?&]token=([\w-]+)/) || [])[1];
+  const page = `https://www.google.com/maps/placelists/list/${id}${tok ? "?token=" + tok : ""}`;
+  const sess = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16)))).replace(/[+/=]/g, "");
+  const variants = [
+    `!1m4!1s${id}!2e1!3m1!1e1!2e2!3e2!4i500!6m3!1s${sess}!15i204459!28e2!13s${encodeURIComponent(page)}!16b1`,
+    `!1m4!1s${id}!2e1!3m1!1e1!2e2!3e2!4i500!16b1`,
+    `!2e2!3e2!4i500!6m3!1s${sess}!15i204459!28e2!13s${encodeURIComponent(page)}!16b1`,
+  ];
+  let data = null, lastStatus = 0;
+  for (const pb of variants) {
+    const res = await fetch(`https://www.google.com/maps/preview/entitylist/getlist?authuser=0&hl=en&gl=us&pb=${pb}`, { headers: { "user-agent": UA, ...(cookies.length ? { cookie: cookies.join("; ") } : {}) } });
+    lastStatus = res.status;
+    if (!res.ok) continue;
+    try { data = JSON.parse((await res.text()).replace(/^\)\]\}'\s*/, "")); } catch { data = null; }
+    if (data && Array.isArray(data[0]) && Array.isArray(data[0][8])) break;
+    data = null;
+  }
+  if (!data) return fail(`Google didn't return the list (status ${lastStatus || "none"}). Make sure the list is shared ("Anyone with the link"), or use "Paste" or "Takeout file" below.`);
+  const places = parseGmapsItems(data[0][8]);
+  return { ok: true, list_name: typeof data[0][4] === "string" ? data[0][4] : "Google Maps list", rows: places };
+}
+export function parseGmapsItems(items) {
+  const out = [];
+  for (const it of items || []) {
+    if (!Array.isArray(it)) continue;
+    const info = Array.isArray(it[1]) ? it[1] : [];
+    const name = typeof it[2] === "string" ? it[2] : "";
+    let address = typeof info[4] === "string" ? info[4] : "";
+    if (!address) { const st = info.find((x) => typeof x === "string" && /\d/.test(x) && x.includes(",")); if (st) address = st; }
+    let lat = null, lng = null;
+    const ll = Array.isArray(info[5]) ? info[5].filter((x) => typeof x === "number") : [];
+    if (ll.length >= 2) { lat = ll[ll.length - 2]; lng = ll[ll.length - 1]; }
+    if (!(Math.abs(lat) <= 90 && Math.abs(lng) <= 180)) { lat = null; lng = null; }
+    const note = typeof it[3] === "string" ? it[3] : "";
+    if (!name && !address && lat == null) continue;
+    out.push({ name, address, lat, lng, note, link: lat != null ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : "" });
+  }
+  return out;
+}
+
+// Street address for a pin (reverse) or details for a typed address (forward), via OpenStreetMap Nominatim.
+// Their policy: at most 1 request a second and a real contact, so the back office sends them one at a time.
+async function geocode(sp) {
+  const lat = num(sp.get("lat")), lng = num(sp.get("lng")), q = clean(sp.get("q"), 300);
+  const base = "https://nominatim.openstreetmap.org/";
+  const u = lat != null && lng != null ? `${base}reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${lat}&lon=${lng}` : q ? `${base}search?format=jsonv2&addressdetails=1&limit=1&countrycodes=us&q=${encodeURIComponent(q)}` : null;
+  if (!u) return { ok: false, message: "Nothing to look up." };
+  const res = await fetch(u, { headers: { "user-agent": "HouseLotLand-BackOffice/1.0 (houselotandland+website@gmail.com)", "accept-language": "en" } });
+  if (!res.ok) return { ok: false, message: `Address lookup failed (${res.status}).` };
+  let j = await res.json(); if (Array.isArray(j)) j = j[0];
+  if (!j || !j.address) return { ok: false, message: "No address found." };
+  const a = j.address;
+  const street = [a.house_number, a.road].filter(Boolean).join(" ");
+  return { ok: true, address: street, exact: !!a.house_number, city: a.city || a.town || a.village || a.hamlet || a.suburb || "", zip: (a.postcode || "").slice(0, 5),
+    county: (a.county || "").replace(/ County$/, ""), state: a.state || "", lat: num(j.lat), lng: num(j.lon), display: j.display_name || "" };
 }

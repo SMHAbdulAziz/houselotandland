@@ -14,7 +14,9 @@ export async function submit(payload, ui) {
     if (j.checkoutUrl) { location.href = j.checkoutUrl; return j; }
     ui.form.hidden = true;
     ui.done.querySelector("[data-ref]").textContent = j.ref;
-    const link = ui.done.querySelector("[data-order]"); if (link) link.href = j.orderUrl;
+    // The button starts as href="#", which the site's smooth-scroll script intercepts; a fresh copy drops that handler.
+    const link = ui.done.querySelector("[data-order]");
+    if (link) { const fresh = link.cloneNode(true); fresh.href = j.orderUrl; link.replaceWith(fresh); }
     const note = ui.done.querySelector("[data-note]"); if (note && j.payNote) note.textContent = j.payNote;
     ui.done.hidden = false; ui.done.scrollIntoView({ behavior: "smooth", block: "center" });
     return j;
