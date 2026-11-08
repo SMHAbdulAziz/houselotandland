@@ -60,17 +60,20 @@
       <div class="px-wrap">
         <div class="px-eyebrow">Packages</div>
         <h2 class="px-h2">Choose your package</h2>
-        <p class="px-lead">Prices cover a typical North Texas lot up to a quarter acre. Larger lots and extras are add-ons below.</p>
+        <p class="px-lead">Prices cover a typical North Texas lot up to a quarter acre. Pick your lot size below; lots over 2 acres get a custom quote.</p>
         <div class="px-grid" id="pkgs"></div>
 
         <form class="pf" id="cForm" novalidate style="margin-top:28px">
           <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+          <h3>Lot size</h3>
+          <p class="fine" style="margin:0 0 8px;font-size:.88rem;color:#64748b">The whole lot is mowed, trimmed and blown. We check the lot size with the county appraisal district before we confirm; if it's different, we'll tell you the new price first and you can cancel at no charge.</p>
+          <div id="lots"></div>
+          <label class="check" id="ogWrap"><input type="checkbox" name="overgrown"> <span id="ogText">Grass is overgrown (over 12 inches)</span></label>
           <h3>Add-ons</h3>
           <div id="addons"></div>
           <h3>Property and schedule</h3>
           <div class="row">
             <label class="f full"><span class="req">Property address, city, ZIP</span><input name="property_address"></label>
-            <label class="f"><span>Lot size</span><select name="lot"><option>Under 1/4 acre</option><option>1/4 to 1/2 acre</option><option>1/2 to 1 acre</option><option>Over 1 acre</option></select></label>
             <label class="f"><span>The property is</span><select name="occupied"><option>Vacant</option><option>Owner-occupied</option><option>Tenant-occupied</option><option>Listed for sale</option></select></label>
             <label class="f"><span class="req">First choice date</span><input name="date1" type="date"></label>
             <label class="f"><span>Second choice date</span><input name="date2" type="date"></label>
@@ -165,21 +168,31 @@
   </footer>
   <script src="js/main.js"></script>
   <script type="module">
-    import { CURB, CURB_ADDONS, CURB_EXCLUDED, curbTotal } from "./js/services-catalog.js";
+    import { CURB, CURB_LOT, CURB_ADDONS, CURB_EXCLUDED, curbTotal } from "./js/services-catalog.js";
     import { usd, status, submit } from "./js/service-form.js";
     const $ = (id) => document.getElementById(id), f = $("cForm");
     let pick = new URLSearchParams(location.search).get("package") || "showcase";
     $("pkgs").innerHTML = Object.entries(CURB).map(([k, p]) => '<article class="px-box pkg" data-pkg="' + k + '" tabindex="0" role="button" aria-pressed="false">' + (k === "showcase" ? '<span class="badge">Most popular</span>' : '') +
       '<h3>' + p.name + '</h3><div class="price">$' + p.price + '</div><div class="meta">' + p.hours + '</div><ul>' + p.items.map((i) => '<li>' + i + '</li>').join('') + '</ul><div class="pick"><span>Select</span></div></article>').join("");
     $("addons").innerHTML = Object.entries(CURB_ADDONS).map(([k, a]) => '<label class="check"><input type="checkbox" name="ao_' + k + '"> <span>' + a.label + ': +$' + a.price + '</span></label>').join("");
+    $("lots").innerHTML = Object.entries(CURB_LOT).map(([k, l], i) => '<label class="check"><input type="radio" name="lot" value="' + k + '"' + (i === 0 ? " checked" : "") + '> <span>' + l.label + ': ' + (l.price == null ? "we'll quote it" : l.price ? "+$" + l.price : "included") + '</span></label>').join("");
+    const lot = () => (f.elements.lot && f.elements.lot.value) || "q1";
+    const og = () => f.elements.overgrown.checked && CURB_LOT[lot()].price != null;
     $("excluded").textContent = CURB_EXCLUDED.join(", ").toLowerCase();
     const addOns = () => Object.keys(CURB_ADDONS).filter((k) => f.elements["ao_" + k].checked);
     const sync = () => {
       document.querySelectorAll(".pkg").forEach((el) => { const on = el.dataset.pkg === pick; el.classList.toggle("on", on); el.setAttribute("aria-pressed", on); el.querySelector(".pick span").textContent = on ? "Selected" : "Select"; });
-      $("cTotal").textContent = usd(curbTotal(pick, addOns()));
+      const L = CURB_LOT[lot()], quote = L.price == null;
+      $("ogWrap").hidden = quote;
+      $("ogText").textContent = "Grass is overgrown (over 12 inches): +$" + (L.overgrown || 0);
+      $("cTotal").textContent = quote ? "Custom quote" : usd(curbTotal(pick, addOns(), lot(), og()));
+      $("payNowWrap").hidden = quote || !payOk;
+      if (quote && f.elements.pay) f.elements.pay.value = "later";
+      $("cBtn").textContent = quote ? "Request a quote" : "Request my booking";
     };
     $("pkgs").addEventListener("click", (e) => { const c = e.target.closest(".pkg"); if (c) { pick = c.dataset.pkg; sync(); } });
     $("pkgs").addEventListener("keydown", (e) => { const c = e.target.closest(".pkg"); if (c && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pick = c.dataset.pkg; sync(); } });
+    let payOk = false;
     f.addEventListener("change", sync); sync();
     // Earliest bookable date: two days after today (Central time). The server checks this too.
     const minDay = (() => { const t = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" }); const d = new Date(t + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 2); return d.toISOString().slice(0, 10); })();
@@ -194,7 +207,7 @@
       if (sat) { $("cMsg").className = "msg err"; $("cMsg").textContent = "We don't schedule work on Saturdays (Shabbat). Please choose another day."; }
       else if (/Saturdays/.test($("cMsg").textContent)) $("cMsg").textContent = "";
     }));
-    const st = await status(); if (!st.payments) $("payNowWrap").hidden = true;
+    const st = await status(); payOk = !!st.payments; sync();
     f.addEventListener("submit", (e) => {
       e.preventDefault();
       const a = Object.fromEntries(new FormData(f));
@@ -204,8 +217,8 @@
       if (early) { $("cMsg").className = "msg err"; $("cMsg").textContent = "Please choose dates on or after " + minLabel + ". We need at least two days to schedule a crew."; f.elements[early].focus(); return; }
       const sat = ["date1", "date2"].find((k) => a[k] && new Date(a[k] + "T12:00:00Z").getUTCDay() === 6);
       if (sat) { $("cMsg").className = "msg err"; $("cMsg").textContent = "We don't schedule work on Saturdays (Shabbat). Please choose another day."; f.elements[sat].focus(); return; }
-      const answers = {}; ["lot", "occupied", "date1", "date2", "window", "access", "notes", "role"].forEach((k) => answers[k] = a[k] || "");
-      submit({ service: "curb", package: pick, addOns: addOns(), website: a.website, name: a.name, email: a.email, phone: a.phone, property_address: a.property_address, answers,
+      const answers = {}; ["occupied", "date1", "date2", "window", "access", "notes", "role"].forEach((k) => answers[k] = a[k] || "");
+      submit({ service: "curb", package: pick, addOns: addOns(), lot: lot(), overgrown: og(), website: a.website, name: a.name, email: a.email, phone: a.phone, property_address: a.property_address, answers,
         payNow: a.pay === "now", consent: $("consent").checked, consent_text: $("consentText").textContent.trim() }, { btn: $("cBtn"), msg: $("cMsg"), form: f, done: $("done") });
     });
   </script>

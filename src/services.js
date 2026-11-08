@@ -10,7 +10,7 @@
 // Without STRIPE_SECRET_KEY, orders are saved as awaiting_payment and Harvey invoices them.
 // Legal documents stay DRAFT (and real customers join a waitlist) until settings.legal_templates_approved = 'true'.
 
-import { HOMESTEAD, CURB, CURB_ADDONS, CONTRACT_PLANS, DOCS, watchQuote, curbTotal, homesteadTotal, WATCH } from "../js/services-catalog.js";
+import { HOMESTEAD, CURB, CURB_LOT, CURB_ADDONS, curbLaborGuide, CONTRACT_PLANS, DOCS, watchQuote, curbTotal, homesteadTotal, WATCH } from "../js/services-catalog.js";
 import { homesteadDocs, contractDoc, printable, esc, DISCLAIMER } from "./legaldocs.js";
 import { shabbatStatus, isShabbatDate, fmtTime } from "../js/shabbat.js";
 
@@ -90,7 +90,10 @@ async function createOrder(request, env, url) {
     for (const d of [answers.date1, answers.date2].filter(Boolean))
       if (isShabbatDate(d)) return json({ success: false, message: "We don't schedule work on Saturdays (Shabbat). Please choose another day." }, 400, request);
     const addOns = (Array.isArray(b.addOns) ? b.addOns : []).filter((x) => CURB_ADDONS[x]);
-    item = b.package; label = `Curb Appeal ${CURB[b.package].name} package`; amount = curbTotal(b.package, addOns); extra.addOns = addOns;
+    const lot = CURB_LOT[b.lot] ? b.lot : "q1", L = CURB_LOT[lot], quote = L.price == null, overgrown = b.overgrown === true && !quote;
+    item = b.package; label = `Curb Appeal ${CURB[b.package].name} package${quote ? " (quote)" : ""}`; amount = curbTotal(b.package, addOns, lot, overgrown);
+    extra.addOns = addOns; extra.lot = lot; extra.overgrown = overgrown; extra.quote = quote; extra.laborGuide = curbLaborGuide(b.package, lot, overgrown);
+    answers.lot = L.label;
     status = "requested";
   } else if (service === "watch") {
     const q = watchQuote({ properties: answers.properties, frequency: answers.frequency, core: answers.core !== "no", addOns: Array.isArray(b.addOns) ? b.addOns : [] });
@@ -113,7 +116,7 @@ async function createOrder(request, env, url) {
 
   const orderUrl = `${url.origin}/order/${token}`;
   let checkoutUrl = null, payNote = null;
-  const payNow = status === "awaiting_payment" || (service === "curb" && status === "requested" && b.payNow === true);
+  const payNow = status === "awaiting_payment" || (service === "curb" && status === "requested" && b.payNow === true && amount != null);
   if (payNow) {
     if (env.STRIPE_SECRET_KEY) {
       try {
@@ -194,7 +197,9 @@ async function orderPage(env, token, url) {
     const isPaid = !!r.paid_at || r.amount_paid != null;
     const paidLine = isPaid ? `Your payment of <b>${money(r.amount_paid ?? r.amount)}</b> was received${r.paid_at ? ` on ${esc(fmtDay(r.paid_at.slice(0, 10)))}` : ""}.` : "";
     const msg = ({
-      requested: `Thanks, ${nm}. We received your booking request. We'll ${reach} within one business day to confirm your date and time. ${isPaid ? paidLine : "Once your date is confirmed, we'll send a secure link to pay."}`,
+      requested: r.extra.quote && r.amount == null
+        ? `Thanks, ${nm}. Because your lot is over 2 acres, we'll review the property and ${reach} within one business day with a price. Nothing is booked or charged until you approve it.`
+        : `Thanks, ${nm}. We received your booking request. We'll ${reach} within one business day to confirm your date and time. ${isPaid ? paidLine : "Once your date is confirmed, we'll send a secure link to pay."}`,
       paid: `Thanks, ${nm}. ${paidLine} We'll ${reach} within one business day to confirm your date and time.`,
       scheduled: `You're all set, ${nm}. Your crew is scheduled for <b>${esc(fmtWhen(r.appointment_at))}</b>. ${isPaid ? paidLine : ""}`,
       in_progress: `Your crew is on the job today. We'll send before-and-after photos when they finish.`,
@@ -205,9 +210,9 @@ async function orderPage(env, token, url) {
     const row = (k, v) => (v ? `<div><span>${k}</span><b>${v}</b></div>` : "");
     body += `<p><b>Status: ${esc(curbStatus(r))}</b></p><p>${msg}</p>
       <div class="kv">${row("Property", esc(r.property_address))}${r.appointment_at ? row("Scheduled", esc(fmtWhen(r.appointment_at))) : row("Requested dates", esc(dates))}
-      ${row("Time window", esc(a.window))}${row("Access", esc(a.access))}${row("Total", money(r.amount))}${row("Paid", isPaid ? money(r.amount_paid ?? r.amount) : "Not yet")}</div>
+      ${row("Lot size", esc(a.lot))}${row("Time window", esc(a.window))}${row("Access", esc(a.access))}${row("Total", r.amount == null ? "Custom quote" : money(r.amount))}${row("Paid", isPaid ? money(r.amount_paid ?? r.amount) : "Not yet")}</div>
       <h3>What's included</h3>
-      <ul>${(p ? p.items : []).map((x) => `<li>${esc(x)}</li>`).join("")}${(r.extra.addOns || []).map((x) => `<li>${esc(CURB_ADDONS[x] ? CURB_ADDONS[x].label : x)}</li>`).join("")}</ul>
+      <ul>${(p ? p.items : []).map((x) => `<li>${esc(x)}</li>`).join("")}${r.extra.lot && CURB_LOT[r.extra.lot] && r.extra.lot !== "q1" ? `<li>Lot size: ${esc(CURB_LOT[r.extra.lot].label)}</li>` : ""}${r.extra.overgrown ? "<li>Overgrown grass (over 12 inches)</li>" : ""}${(r.extra.addOns || []).map((x) => `<li>${esc(CURB_ADDONS[x] ? CURB_ADDONS[x].label : x === "extraLot" ? "Lot over 1/4 acre" : x)}</li>`).join("")}</ul>
       <p class="muted">Bookmark this page: it's your private link to this booking. Questions? Call 214-702-1519.</p>`;
   } else if (r.service === "watch") {
     const q = r.extra.estimate || {};

@@ -36,8 +36,17 @@ export const CURB = {
     items: ["Everything in Showcase", "Paint front door and touch up front trim", "New house numbers and doormat", "Plant 2 flats of seasonal color", "Replace or repaint mailbox", "One trailer load of haul-off (junk, limbs, old fencing)"],
   },
 };
+// Lot size: package prices cover up to 1/4 acre. Mowing, trimming and blowing cover the whole lot, so the price
+// steps up by size; over 2 acres is quoted after we review the property. "overgrown" = grass over 12 inches.
+export const CURB_LOT = {
+  q1: { label: "Up to 1/4 acre", price: 0, overgrown: 79 },
+  q2: { label: "1/4 to 1/2 acre", price: 99, overgrown: 79 },
+  a1: { label: "1/2 to 1 acre", price: 199, overgrown: 149 },
+  a2: { label: "1 to 2 acres", price: 349, overgrown: 249 },
+  big: { label: "Over 2 acres", price: null, overgrown: null }, // custom quote
+};
+export const CURB_LABOR_SHARE = 0.47; // crew payout guide for lot and overgrown charges (Deal Desk only)
 export const CURB_ADDONS = {
-  extraLot: { label: "Lot over 1/4 acre", price: 99 },
   backyard: { label: "Backyard beds and shrubs too", price: 149 },
   fence: { label: "Pressure wash wood fence (up to 100 ft)", price: 129 },
   windows: { label: "Exterior window washing (1 story)", price: 119 },
@@ -107,9 +116,14 @@ export function watchQuote({ properties, frequency, core, addOns = [] } = {}) {
   return { properties: n, visitsPerMonth: v, discount: disc, perVisit, monthlyPerProperty: Math.round((monthlyPer + utilities) * 100) / 100, monthly, onboarding };
 }
 
-export function curbTotal(pkg, addOns = []) {
-  const p = CURB[pkg]; if (!p) return null;
-  return p.price + addOns.filter((a) => CURB_ADDONS[a]).reduce((s, a) => s + CURB_ADDONS[a].price, 0);
+// Returns null when the job must be quoted (lot over 2 acres) or the package is unknown.
+export function curbTotal(pkg, addOns = [], lot = "q1", overgrown = false) {
+  const p = CURB[pkg], l = CURB_LOT[lot] || CURB_LOT.q1; if (!p || l.price == null) return null;
+  return p.price + l.price + (overgrown ? l.overgrown : 0) + addOns.filter((a) => CURB_ADDONS[a]).reduce((s, a) => s + CURB_ADDONS[a].price, 0);
+}
+export function curbLaborGuide(pkg, lot = "q1", overgrown = false) {
+  const p = CURB[pkg], l = CURB_LOT[lot] || CURB_LOT.q1; if (!p || l.price == null) return null;
+  return Math.round(p.laborGuide + (l.price + (overgrown ? l.overgrown : 0)) * CURB_LABOR_SHARE);
 }
 export function homesteadTotal(addOns = []) {
   return HOMESTEAD.price + addOns.filter((a) => HOMESTEAD.addOns[a]).reduce((s, a) => s + HOMESTEAD.addOns[a].price, 0);
