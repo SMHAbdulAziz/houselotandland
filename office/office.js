@@ -118,31 +118,103 @@ function dueRow(d) {
 }
 
 // ---------------- deals ----------------
+// Deals list: sort by column, quick filters, rows per page, select and bulk-update (same tools as the Import tab).
+const dv = { sort: { key: "", dir: 1 }, page: 0, quick: "all", sel: new Set(), rows: [] };
+let dealPageSize = (() => { try { const v = localStorage.getItem("hll_deals_page"); return v === null ? 25 : +v; } catch { return 25; } })();
+const DEAL_SORT = { property: (d) => label(d).replace(/^\d+\s*/, "") + " " + String(parseInt(label(d)) || 0).padStart(7, "0"), place: (d) => [d.state, d.city].join(" "),
+  stage: (d) => (TRACKS[d.track]?.label || "") + String((TRACKS[d.track]?.stages || []).indexOf(d.stage)).padStart(2, "0"), owner: (d) => d.cname || "",
+  asking: (d) => d.asking == null ? "" : String(Math.round(d.asking)).padStart(12, "0"), touch: (d) => d.next_touch || "", added: (d) => d.created_at || "" };
+const DEAL_QUICK = [["all", "All"], ["due", "Follow-up due"], ["notouch", "No next touch"], ["noowner", "No owner"], ["noprice", "No asking price"]];
+function dealQuick(d, q) {
+  if (q === "due") return d.next_touch && d.next_touch <= today() && !CLOSED_STAGES.has(d.stage);
+  if (q === "notouch") return !d.next_touch;
+  if (q === "noowner") return !d.cname && !d.cphone && !d.cemail;
+  if (q === "noprice") return d.asking == null;
+  return true;
+}
 async function deals() {
   const p = new URLSearchParams(Object.entries(dealFilter).filter(([, v]) => v));
   const { rows } = await api("deals?" + p);
-  const tr = TRACKS[dealFilter.track];
+  dv.rows = rows; const ids = new Set(rows.map((d) => d.id)); [...dv.sel].forEach((id) => { if (!ids.has(id)) dv.sel.delete(id); });
+  drawDeals();
+}
+function drawDeals() {
+  const rows = dv.rows, tr = TRACKS[dealFilter.track];
+  let list = rows.filter((d) => dealQuick(d, dv.quick));
+  const k = dv.sort.key;
+  if (k) list = list.slice().sort((a, b) => { const x = String(DEAL_SORT[k](a) || ""), y = String(DEAL_SORT[k](b) || "");
+    if (!x && y) return 1; if (x && !y) return -1; return x.localeCompare(y, undefined, { numeric: true, sensitivity: "base" }) * dv.sort.dir; });
+  const size = dealPageSize || list.length || 1, pages = Math.max(1, Math.ceil(list.length / size));
+  dv.page = Math.min(Math.max(0, dv.page), pages - 1);
+  const start = dealPageSize ? dv.page * size : 0, shown = dealPageSize ? list.slice(start, start + size) : list;
+  const sel = rows.filter((d) => dv.sel.has(d.id)), selTrack = [...new Set(sel.map((d) => d.track))];
+  const stageTrack = TRACKS[dealFilter.track] ? dealFilter.track : selTrack.length === 1 ? selTrack[0] : "";
+  const th = (key, l) => `<th><button class="link sort" data-dsort="${key}" title="Sort">${l}${dv.sort.key === key ? (dv.sort.dir > 0 ? " ▲" : " ▼") : ""}</button></th>`;
+  const allShown = shown.length && shown.every((d) => dv.sel.has(d.id));
   $("view").innerHTML = `<section class="card">
-    <div class="head"><h2>Deals</h2><span class="hint">${rows.length} shown${dealFilter.q ? ` for “${esc(dealFilter.q)}”` : ""}</span></div>
+    <div class="head"><h2>Deals</h2><span class="hint">${rows.length} on file${list.length !== rows.length ? ` · ${list.length} match` : ""}${dealFilter.q ? ` for “${esc(dealFilter.q)}”` : ""} · ${dv.sel.size} selected</span></div>
     <div class="chips" style="margin-bottom:8px">${[["", "All tracks"], ...Object.entries(TRACKS).map(([k, v]) => [k, v.label])].map(([k, l]) => `<button class="chip" data-t="${k}" aria-pressed="${dealFilter.track === k}">${esc(l)}</button>`).join("")}
       <button class="chip" data-open aria-pressed="${dealFilter.open === "1"}">Open only</button></div>
-    ${tr ? `<div class="chips" style="margin-bottom:12px">${["", ...tr.stages].map((st) => `<button class="chip" data-st="${esc(st)}" aria-pressed="${dealFilter.stage === st}">${esc(st || "Any stage")}</button>`).join("")}</div>` : ""}
-    <div class="tablewrap"><table><thead><tr><th>Property</th><th>Track · stage</th><th>Owner</th><th>Also on</th><th>Asking / value</th><th>Next touch</th></tr></thead>
-    <tbody>${rows.map((d) => `<tr class="click" data-prop="${esc(d.property_id)}"><td><b>${esc(label(d))}</b><div class="hint">${esc([d.prop_type, [d.city, d.state].filter(Boolean).join(", "), d.county && d.county + " Co."].filter(Boolean).join(" · "))}</div></td>
+    ${tr ? `<div class="chips" style="margin-bottom:8px">${["", ...tr.stages].map((st) => `<button class="chip" data-st="${esc(st)}" aria-pressed="${dealFilter.stage === st}">${esc(st || "Any stage")}</button>`).join("")}</div>` : ""}
+    <div class="chips" style="margin-bottom:10px">${DEAL_QUICK.map(([k, l]) => `<button class="chip" data-dq="${k}" aria-pressed="${dv.quick === k}">${esc(l)} <span class="hint">${rows.filter((d) => dealQuick(d, k)).length}</span></button>`).join("")}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">
+      <button class="btn small" type="button" id="dAll">Select all ${list.length}</button>
+      <button class="btn small" type="button" id="dNone" ${dv.sel.size ? "" : "disabled"}>Select none</button>
+      <span class="hint">With ${dv.sel.size} selected:</span>
+      <select id="dStage" ${dv.sel.size && stageTrack ? "" : "disabled"} title="${stageTrack ? "" : "Pick one track above (or select deals from one track) to change stages"}" style="width:auto">
+        <option value="">Set stage…</option>${stageTrack ? TRACKS[stageTrack].stages.map((s) => `<option>${esc(s)}</option>`).join("") : ""}</select>
+      <input type="date" id="dTouch" ${dv.sel.size ? "" : "disabled"} title="Set next touch" style="width:auto">
+      <button class="btn small gold" type="button" id="dApply" disabled>Apply</button>
+      <span class="hint" id="dProg"></span>
+      <span style="flex:1"></span>
+      <label class="hint" style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select id="dSize" style="width:auto">${[25, 50, 100, 0].map((n) => `<option value="${n}" ${dealPageSize === n ? "selected" : ""}>${n || "All"}</option>`).join("")}</select></label>
+      ${pages > 1 ? `<button class="btn small" type="button" id="dPrev" ${dv.page ? "" : "disabled"}>‹ Prev</button><span class="hint">Page ${dv.page + 1} of ${pages}</span><button class="btn small" type="button" id="dNext" ${dv.page < pages - 1 ? "" : "disabled"}>Next ›</button>` : ""}
+    </div>
+    <div class="tablewrap"><table><thead><tr><th><input type="checkbox" id="dPageAll" ${allShown ? "checked" : ""} aria-label="Select this page"></th>${th("property", "Property")}${th("place", "City · state")}${th("stage", "Track · stage")}${th("owner", "Owner")}<th>Also on</th>${th("asking", "Asking / value")}${th("touch", "Next touch")}${th("added", "Added")}</tr></thead>
+    <tbody>${shown.map((d) => `<tr class="click" data-prop="${esc(d.property_id)}"><td class="nosel"><input type="checkbox" data-dsel="${esc(d.id)}" ${dv.sel.has(d.id) ? "checked" : ""} aria-label="Select"></td>
+      <td><b>${esc(label(d))}</b><div class="hint">${esc([d.prop_type, d.county && d.county + " Co."].filter(Boolean).join(" · "))}</div></td>
+      <td>${esc([d.city, d.state].filter(Boolean).join(", ") || "—")}</td>
       <td><span class="pill">${esc(TRACKS[d.track]?.label)}</span> ${esc(d.stage)}${d.ref ? `<div class="hint">${esc(d.ref)}</div>` : ""}</td>
       <td>${esc(d.cname || "—")}${d.cphone ? `<div class="hint">${esc(d.cphone)}</div>` : ""}${d.opt_out ? ` <span class="pill bad">Do not contact</span>` : d.litigator ? ` <span class="pill bad">Mail only</span>` : ""}</td>
       <td>${(d.tracks || "").split(",").filter((t) => t && t !== d.track).map((t) => `<span class="pill mute">${esc(TRACKS[t]?.label || t)}</span>`).join(" ") || "—"}</td>
       <td>${d.asking ? usd(d.asking) : "—"}${d.value ? `<div class="hint">value ${usd(d.value)}</div>` : ""}</td>
-      <td>${d.next_touch ? `<span class="pill ${!CLOSED_STAGES.has(d.stage) && d.next_touch < today() ? "bad" : "mute"}">${fmtDate(d.next_touch)}</span>` : "—"}</td></tr>`).join("")}</tbody></table></div>
-    ${rows.length ? "" : `<div class="empty">No deals match. Try “All tracks”, turn off “Open only”, or add a property.</div>`}</section>`;
-  $("view").querySelectorAll("[data-t]").forEach((b) => b.onclick = () => { dealFilter.track = b.dataset.t; dealFilter.stage = ""; deals(); });
-  $("view").querySelectorAll("[data-st]").forEach((b) => b.onclick = () => { dealFilter.stage = b.dataset.st; deals(); });
-  $("view").querySelector("[data-open]").onclick = () => { dealFilter.open = dealFilter.open ? "" : "1"; deals(); };
+      <td>${d.next_touch ? `<span class="pill ${!CLOSED_STAGES.has(d.stage) && d.next_touch < today() ? "bad" : "mute"}">${fmtDate(d.next_touch)}</span>` : "—"}</td>
+      <td class="hint">${d.created_at ? fmtDate(d.created_at.slice(0, 10)) : ""}</td></tr>`).join("")}</tbody></table></div>
+    ${list.length ? `<p class="hint" style="margin-top:8px">Showing ${start + 1}–${start + shown.length} of ${list.length}</p>` : `<div class="empty">No deals match. Try “All tracks”, turn off “Open only”, or add a property.</div>`}</section>`;
+  const v = $("view");
+  v.querySelectorAll("[data-t]").forEach((b) => b.onclick = () => { dealFilter.track = b.dataset.t; dealFilter.stage = ""; dv.page = 0; deals(); });
+  v.querySelectorAll("[data-st]").forEach((b) => b.onclick = () => { dealFilter.stage = b.dataset.st; dv.page = 0; deals(); });
+  v.querySelector("[data-open]").onclick = () => { dealFilter.open = dealFilter.open ? "" : "1"; dv.page = 0; deals(); };
+  v.querySelectorAll("[data-dq]").forEach((b) => b.onclick = () => { dv.quick = b.dataset.dq; dv.page = 0; drawDeals(); });
+  v.querySelectorAll("[data-dsort]").forEach((b) => b.onclick = () => { const k = b.dataset.dsort; dv.sort = dv.sort.key === k ? (dv.sort.dir > 0 ? { key: k, dir: -1 } : { key: "", dir: 1 }) : { key: k, dir: 1 }; drawDeals(); });
+  v.querySelectorAll("[data-dsel]").forEach((c) => c.onchange = () => { c.checked ? dv.sel.add(c.dataset.dsel) : dv.sel.delete(c.dataset.dsel); drawDeals(); });
+  $("dPageAll").onchange = (e) => { shown.forEach((d) => e.target.checked ? dv.sel.add(d.id) : dv.sel.delete(d.id)); drawDeals(); };
+  $("dAll").onclick = () => { list.forEach((d) => dv.sel.add(d.id)); drawDeals(); };
+  $("dNone").onclick = () => { dv.sel.clear(); drawDeals(); };
+  $("dSize").onchange = (e) => { dealPageSize = +e.target.value; dv.page = 0; try { localStorage.setItem("hll_deals_page", String(dealPageSize)); } catch {} drawDeals(); };
+  if ($("dPrev")) { $("dPrev").onclick = () => { dv.page--; drawDeals(); }; $("dNext").onclick = () => { dv.page++; drawDeals(); }; }
+  const ready = () => { $("dApply").disabled = !dv.sel.size || (!$("dStage").value && !$("dTouch").value); };
+  $("dStage").onchange = ready; $("dTouch").oninput = ready;
+  $("dApply").onclick = async () => {
+    const stage = $("dStage").value, touch = $("dTouch").value;
+    const todo = rows.filter((d) => dv.sel.has(d.id)); let n = 0, skipped = 0;
+    $("dApply").disabled = true;
+    for (const d of todo) {
+      const body = {};
+      if (stage && TRACKS[d.track].stages.includes(stage)) body.stage = stage; else if (stage) skipped++;
+      if (touch) body.next_touch = touch;
+      if (!Object.keys(body).length) continue;
+      $("dProg").textContent = `Updating ${++n} of ${todo.length}…`;
+      try { await send("deal/" + d.id, "PATCH", body); } catch (er) { toast(er.message); break; }
+    }
+    toast(`${n} deal${n === 1 ? "" : "s"} updated${skipped ? ` (${skipped} on another track kept their stage)` : ""}`);
+    dv.sel.clear(); deals();
+  };
 }
 
 // ---------------- property drawer ----------------
 document.addEventListener("click", (e) => {
-  const p = e.target.closest("[data-prop]"); if (p) { e.preventDefault(); openProperty(p.dataset.prop); }
+  const p = e.target.closest("[data-prop]"); if (p && !e.target.closest(".nosel")) { e.preventDefault(); openProperty(p.dataset.prop); }
   const w = e.target.closest("[data-worker]"); if (w) { e.preventDefault(); openWorker(w.dataset.worker); }
 });
 $("dClose").onclick = () => ($("drawer").hidden = true);

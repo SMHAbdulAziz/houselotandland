@@ -172,7 +172,7 @@ export async function handleOfficeApi(request, env, url) {
       if (url.searchParams.get("open") === "1") w.push(`d.stage NOT IN (${[...CLOSED_STAGES].map(() => "?").join(",")})`), v.push(...CLOSED_STAGES);
       const q = clean(url.searchParams.get("q"), 80);
       if (q) { w.push("(p.address LIKE ? OR p.name LIKE ? OR p.city LIKE ? OR c.name LIKE ? OR c.phone_key LIKE ? OR d.ref LIKE ?)"); const like = `%${q}%`; v.push(like, like, like, like, `%${q.replace(/\D/g, "") || "~"}%`, like); }
-      const rows = (await db.prepare(`${DEAL_SELECT} ${w.length ? "WHERE " + w.join(" AND ") : ""} ORDER BY COALESCE(d.next_touch, '9999'), d.updated_at DESC LIMIT 500`).bind(...v).all()).results;
+      const rows = (await db.prepare(`${DEAL_SELECT} ${w.length ? "WHERE " + w.join(" AND ") : ""} ORDER BY COALESCE(d.next_touch, '9999'), d.updated_at DESC LIMIT 5000`).bind(...v).all()).results;
       return json({ ok: true, rows });
     }
     if (m === "GET" && path === "search") {
