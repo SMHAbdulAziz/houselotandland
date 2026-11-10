@@ -505,7 +505,7 @@ export async function handleOfficeApi(request, env, url) {
     }
     // ---- office settings (W-9 request link)
     if (m === "GET" && path === "settings") {
-      const rows = (await db.prepare("SELECT key, value FROM settings WHERE key IN ('w9_link')").all()).results;
+      const rows = (await db.prepare("SELECT key, value FROM settings WHERE key IN ('w9_link', 'mail_address')").all()).results;
       return json({ ok: true, ...Object.fromEntries(rows.map((r) => [r.key, r.value])), texting: !!(env.BRIDGE_URL && env.BRIDGE_TOKEN) });
     }
     // ---- texts through the private gateway (msg.houselotandland.org → Harvey's Android; queued, he releases them)
@@ -515,6 +515,10 @@ export async function handleOfficeApi(request, env, url) {
         const v = clean(b.w9_link, 500) || "";
         if (v && !/^https:\/\/[^\s]+$/.test(v)) return json({ ok: false, message: "Paste the full secure link (starting with https://)." }, 400);
         await db.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('w9_link', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at").bind(v, t).run();
+      }
+      if ("mail_address" in b) { // printed at the bottom of owner emails (CAN-SPAM)
+        const v = clean(b.mail_address, 200) || "";
+        await db.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('mail_address', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at").bind(v, t).run();
       }
       return json({ ok: true });
     }

@@ -5,6 +5,7 @@ const stateSelect = (name, cur, attrs = "") => `<select name="${name}" ${attrs}>
 const cityLine = (p) => [p.city, [p.state, p.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
 import { shabbatStatus, fmtTime } from "/js/shabbat.js";
 import { CURB, CURB_LOT, CURB_ADDONS, CURB_QUOTE, curbQuoteSuggest } from "/js/services-catalog.js";
+import { OWNER_TEMPLATES, renderOwnerEmail } from "/office/owner-email.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -165,6 +166,7 @@ async function openProperty(id) {
         <form id="addContact" class="grid" style="margin-top:10px"><label>Name<input name="name"></label><label>Phone<input name="phone" inputmode="tel"></label><label>Email<input name="email" type="email"></label>
         <label>Role<select name="role"><option>owner</option><option>co-owner</option><option>heir</option><option>executor</option><option>spouse</option><option>broker</option><option>agent</option><option>tenant</option><option>other</option></select></label>
         <div class="wide"><button class="btn gold">Add contact</button></div></form></details></section>
+    ${ownerEmailSection(p, ds, contacts)}
     <section class="card"><div class="head"><h3>Property details</h3></div>
       <form id="propForm" class="grid">
         ${[["name", "Name (parks, complexes)"], ["address", "Street address"], ["city", "City"]].map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(p[k] ?? "")}"></label>`).join("")}
@@ -193,6 +195,7 @@ async function openProperty(id) {
   });
   $("addContact").onsubmit = async (e) => { e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target));
     try { const r = await send("contact", "POST", { ...fd, property_id: id }); toast(r.merged ? "Matched an existing contact and linked it" : "Contact added"); openProperty(id); } catch (er) { toast(er.message); } };
+  wireOwnerEmail(p, ds, contacts);
   $("propForm").onsubmit = async (e) => { e.preventDefault();
     try { await send("property/" + id, "PATCH", Object.fromEntries(new FormData(e.target))); toast("Saved"); openProperty(id); }
     catch (er) { toast(er.message); if (er.data && er.data.existing) openProperty(er.data.existing); } };
@@ -212,6 +215,58 @@ function dealCard(d) {
 function dashLink(d) {
   const L = { wholesale: LINKS[0][1][0], subto: LINKS[0][1][1], creative: LINKS[0][1][2] }[d.track];
   return L ? `<a class="btn small" href="${L[1]}" target="_blank" rel="noopener">Open ${esc(L[0])} ↗</a>` : "";
+}
+
+// ---------------- owner / family email drafts (office/owner-email.js) ----------------
+let mailAddress = null;
+const propLine = (p) => [p.address || p.name, p.city, [p.state, p.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+function ownerEmailSection(p, ds, contacts) {
+  const tracks = ds.map((d) => d.track);
+  const first = Object.entries(OWNER_TEMPLATES).find(([, t]) => tracks.includes(t.track));
+  const withEmail = contacts.filter((c) => c.email);
+  const heir = contacts.find((c) => /heir|executor|spouse/.test(c.role || "")) || withEmail[0] || null;
+  const owner = contacts.find((c) => (c.role || "owner") === "owner" && c !== heir) || null;
+  const blocked = contacts.length && contacts.every((c) => c.opt_out);
+  return `<section class="card" id="oeCard"><div class="head"><h3>Email the owner or family</h3><span class="hint">Opens a draft in Gmail; nothing sends until you press Send</span></div>
+    ${blocked ? `<p class="hint"><span class="pill bad">Do not contact</span> Every contact on this property opted out, so drafts are turned off.</p>` : `
+    <form id="oeForm" class="grid">
+      <label class="wide">Template<select name="tpl">${Object.entries(OWNER_TEMPLATES).map(([k, t]) => `<option value="${k}" ${first && first[0] === k ? "selected" : ""}>${esc(TRACKS[t.track].label)}: ${esc(t.label)}</option>`).join("")}</select></label>
+      <label>Language<select name="lang"><option value="en">English</option><option value="es" ${heir && heir.lang === "es" ? "selected" : ""}>Spanish</option></select></label>
+      <label>Send to (email)<input name="to" type="email" list="oeEmails" value="${esc(heir ? heir.email || "" : "")}"><datalist id="oeEmails">${withEmail.map((c) => `<option value="${esc(c.email)}">${esc(c.name || "")}</option>`).join("")}</datalist></label>
+      <label>Recipient's name<input name="recipient" value="${esc(heir && heir !== owner && /heir|executor|spouse/.test(heir.role || "") ? heir.name || "" : "")}" placeholder="Blank: “To the family of …”"></label>
+      <label>Late owner's name<input name="late" value="${esc(owner ? owner.name || "" : (!heir || !/heir|executor|spouse/.test(heir.role || "") ? (heir && heir.name) || "" : ""))}" placeholder="As on the county records"></label>
+      <label class="wide">Subject<input name="subject"></label>
+      <label class="wide">Message<textarea name="body" rows="16" style="font-family:inherit"></textarea></label>
+      <label class="wide" id="oeAddrWrap" hidden>Your mailing address (required at the bottom of marketing emails; saved for next time)<input name="mail" placeholder="1030 Oxbow Lane, Dallas, TX 75241"></label>
+      <div class="wide acts"><button class="btn gold" type="button" id="oeGmail">Open draft in Gmail</button><button class="btn" type="button" id="oeCopy">Copy text</button><span class="hint" id="oeMsg"></span></div>
+    </form>`}</section>`;
+}
+async function wireOwnerEmail(p, ds, contacts) {
+  const f = $("oeForm"); if (!f) return;
+  if (mailAddress === null) { try { mailAddress = (await api("settings")).mail_address || ""; } catch { mailAddress = ""; } }
+  $("oeAddrWrap").hidden = !!mailAddress;
+  const fill = () => {
+    const v = Object.fromEntries(new FormData(f));
+    const r = renderOwnerEmail(v.tpl, v.lang, { recipient: v.recipient, lateOwner: v.late, property: propLine(p), propertyShort: p.address || p.name || "", mailAddress: mailAddress || v.mail || "" });
+    f.subject.value = r.subject; f.body.value = r.body;
+  };
+  fill();
+  ["tpl", "lang", "recipient", "late", "mail"].forEach((k) => f[k].addEventListener("change", fill));
+  const done = async (how) => {
+    if (!mailAddress && f.mail.value.trim()) { try { await send("settings", "PUT", { mail_address: f.mail.value.trim() }); mailAddress = f.mail.value.trim(); } catch {} }
+    const t = OWNER_TEMPLATES[f.tpl.value], d = ds.find((x) => x.track === t.track);
+    try { await send("activity", "POST", { property_id: p.id, deal_id: d ? d.id : null, contact_id: (contacts.find((c) => c.email === f.to.value.trim()) || {}).id || null, kind: "email",
+      summary: `${how}: “${f.subject.value}” (${t.label}${f.lang.value === "es" ? ", Spanish" : ""})${f.to.value ? " to " + f.to.value.trim() : ""}` }); } catch {}
+  };
+  $("oeGmail").onclick = async () => {
+    if (!f.to.value.trim()) { $("oeMsg").textContent = "Add the email address first (or use Copy text)."; return; }
+    if (!mailAddress && !f.mail.value.trim()) { $("oeMsg").textContent = "Add your mailing address first."; return; }
+    open("https://mail.google.com/mail/?authuser=houselotandland@gmail.com&view=cm&fs=1&to=" + encodeURIComponent(f.to.value.trim()) + "&su=" + encodeURIComponent(f.subject.value) + "&body=" + encodeURIComponent(f.body.value), "_blank", "noopener");
+    await done("Email drafted in Gmail"); $("oeMsg").textContent = "Draft opened in Gmail and logged in the history.";
+  };
+  $("oeCopy").onclick = async () => {
+    try { await navigator.clipboard.writeText(f.subject.value + "\n\n" + f.body.value); $("oeMsg").textContent = "Copied."; await done("Email text copied"); } catch { $("oeMsg").textContent = "Couldn't copy; select the text and copy it."; }
+  };
 }
 
 // ---------------- add property ----------------
