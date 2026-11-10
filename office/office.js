@@ -75,6 +75,7 @@ $("searchForm").addEventListener("submit", (e) => { e.preventDefault(); dealFilt
 
 // ---------------- overview ----------------
 async function overview() {
+  fillFileCounties(); // background: counties for properties on file that lack one
   const s = await api("summary");
   $("who").textContent = s.user;
   const byTrack = {};
@@ -376,13 +377,13 @@ async function importView() {
       <div class="wide"><button class="btn gold">Load file</button></div></form>
     <form id="srcOnfile" class="grid" hidden><p class="hint wide" style="margin:0">Properties already in the master list that aren't on any track, or have no property type yet. Sort and select them below, then add them to a track or set their type in bulk.</p>
       <div class="wide"><button class="btn gold">Load properties</button></div></form>
-    <p id="impMsg" class="hint"></p></section><div id="impPreview"></div>`;
+    <p id="impMsg" class="hint"></p><p id="countyFill" class="hint"></p></section><div id="impPreview"></div>`;
   $("view").querySelectorAll("[data-src]").forEach((b) => b.onclick = () => {
     $("view").querySelectorAll("[data-src]").forEach((x) => x.setAttribute("aria-pressed", x === b));
     $("srcLink").hidden = b.dataset.src !== "link"; $("srcPaste").hidden = b.dataset.src !== "paste"; $("srcFile").hidden = b.dataset.src !== "file"; $("srcOnfile").hidden = b.dataset.src !== "onfile";
   });
   const loaded = async (rows, list, src) => { imp = { ...imp, rows: rows.map((r, n) => ({ ...r, uid: n + 1 })), list, src, busy: false, filter: "all", page: 0, sort: { key: "", dir: 1 } };
-    await checkExisting(); drawPreview(); $("impMsg").textContent = `${rows.length} places loaded.`; };
+    await checkExisting(); drawPreview(); $("impMsg").textContent = `${rows.length} places loaded.`; autoCounties(); };
   $("srcLink").onsubmit = async (e) => { e.preventDefault(); $("impMsg").textContent = "Reading the list from Google…";
     try { const r = await send("import/gmaps-link", "POST", { url: e.target.url.value.trim() }); await loaded(r.rows.map(makeRow), r.list_name, "link"); }
     catch (er) { $("impMsg").textContent = er.message; } };
@@ -395,6 +396,30 @@ async function importView() {
   $("srcFile").onsubmit = async (e) => { e.preventDefault(); const fl = e.target.file.files[0]; if (!fl) { toast("Pick a file first."); return; }
     try { await loaded(parseTakeout(fl.name, await fl.text()), fl.name.replace(/\.(csv|json)$/i, ""), "file"); } catch (er) { $("impMsg").textContent = "Couldn't read that file: " + er.message; } };
   if (imp.rows.length) drawPreview();
+  fillFileCounties();
+}
+// Counties fill in by themselves: list rows as soon as a list loads, and properties already on file in the background.
+async function autoCounties() {
+  const todo = imp.rows.filter((r) => !r.county && (r.lat != null || looksStreet(r.address)));
+  for (let i = 0; i < todo.length; i += 25) {
+    const part = todo.slice(i, i + 25);
+    const pr = $("impProg"); if (pr) pr.textContent = `Finding counties… ${Math.min(i + 25, todo.length)} of ${todo.length}`;
+    try { const { counties } = await send("counties", "POST", { items: part.map((r) => ({ key: r.uid, lat: r.lat, lng: r.lng, address: r.address, city: r.city, zip: r.zip })) });
+      part.forEach((r) => { if (counties[r.uid] && !r.county) r.county = counties[r.uid]; }); } catch { break; }
+    if (location.hash.startsWith("#import") && !document.activeElement?.matches?.("#impPreview input")) drawPreview();
+  }
+  const pr = $("impProg"); if (pr && todo.length) pr.textContent = `Counties filled: ${todo.filter((r) => r.county).length} of ${todo.length}.`;
+}
+let fillingCounties = false;
+async function fillFileCounties() {
+  if (fillingCounties) return; fillingCounties = true;
+  try {
+    for (let k = 0; k < 40; k++) {
+      const r = await send("import/fill-counties", "POST", {});
+      const el = $("countyFill"); if (el) el.textContent = r.left ? `Filling in counties for properties on file… ${r.left} left` : "";
+      if (!r.left || !r.checked) break;
+    }
+  } catch {} finally { fillingCounties = false; const el = $("countyFill"); if (el) el.textContent = ""; }
 }
 // Filters, sorting, paging and selection for the import list (and for "on file, no track or type").
 const IMP_FILTERS = [["all", "All"], ["new", "New"], ["onfile", "On file"], ["notrack", "On file, no track"], ["notype", "No type"], ["needs", "Needs address"]];
@@ -508,6 +533,7 @@ async function geocodeRows() {
   }
   imp.busy = false; await checkExisting(); drawPreview();
   $("impProg").textContent = "Done. Rows marked “Nearest street” had no house number; check those against the map.";
+  autoCounties();
 }
 async function runImport() {
   if (imp.busy) return;

@@ -373,6 +373,26 @@ export async function handleOfficeApi(request, env, url) {
     // ---- bulk import: Google Maps saved lists (shared link, pasted lines or Takeout file), street addresses for pins
     if (m === "POST" && path === "import/gmaps-link") return json(await gmapsList(clean(b.url, 2000)));
     if (m === "GET" && path === "geocode") return json(await geocode(url.searchParams));
+    // Counties: up to 25 lookups per call ({key, lat, lng, address, city, zip}) -> {key: county}
+    if (m === "POST" && path === "counties") {
+      const items = (Array.isArray(b.items) ? b.items : []).slice(0, 25), out = {};
+      await pool(items, 6, async (it) => { out[it.key] = await countyFor(it); });
+      return json({ ok: true, counties: out });
+    }
+    // Fill missing counties on properties already on file, 40 at a time (the Import tab calls this until none are left)
+    if (m === "POST" && path === "import/fill-counties") {
+      const rows = (await db.prepare(`SELECT id, address, city, zip, lat, lng FROM properties WHERE (county IS NULL OR county = '')
+        AND (lat IS NOT NULL OR (address IS NOT NULL AND address != '')) AND (data IS NULL OR data NOT LIKE '%"county_lookup":"none"%') LIMIT 40`).all()).results;
+      let filled = 0;
+      await pool(rows, 6, async (r) => {
+        const c = await countyFor(r);
+        if (c) { await db.prepare("UPDATE properties SET county = ?, updated_at = ? WHERE id = ?").bind(c, t, r.id).run(); filled++; }
+        else await db.prepare(`UPDATE properties SET data = json_set(COALESCE(data, '{}'), '$.county_lookup', 'none') WHERE id = ?`).bind(r.id).run();
+      });
+      const left = (await db.prepare(`SELECT COUNT(*) AS n FROM properties WHERE (county IS NULL OR county = '') AND (lat IS NOT NULL OR (address IS NOT NULL AND address != ''))
+        AND (data IS NULL OR data NOT LIKE '%"county_lookup":"none"%')`).first()).n;
+      return json({ ok: true, checked: rows.length, filled, left });
+    }
     if (m === "POST" && path === "import/check") {
       await repairOneLineAddresses(db, t);
       const keys = (Array.isArray(b.keys) ? b.keys : []).filter((k) => typeof k === "string" && k).slice(0, 2000);
@@ -676,3 +696,25 @@ async function repairOneLineAddresses(db, t) {
   for (let i = 0; i < stmts.length; i += 50) await db.batch(stmts.slice(i, i + 50));
   return stmts.length;
 }
+
+// ---------------- counties (U.S. Census Bureau geocoder: free, no key) ----------------
+// From a map pin when there is one (exact), else from the street address. Returns the county name without "County", or "".
+async function countyFor(r) {
+  const base = "https://geocoding.geo.census.gov/geocoder/geographies/";
+  const tail = "&benchmark=Public_AR_Current&vintage=Current_Current&layers=Counties&format=json";
+  const pick = (g) => { const c = g && (g.Counties || g["Counties"]); return c && c[0] ? String(c[0].BASENAME || c[0].NAME || "").replace(/ County$/, "") : ""; };
+  const get = async (u) => { try { const res = await fetch(u, { signal: AbortSignal.timeout(9000), headers: { "user-agent": "HouseLotLand-BackOffice/1.0" } }); return res.ok ? await res.json() : null; } catch { return null; } };
+  const lat = num(r.lat), lng = num(r.lng);
+  if (lat != null && lng != null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+    const j = await get(`${base}coordinates?x=${lng}&y=${lat}${tail}`);
+    const c = j && j.result && pick(j.result.geographies); if (c) return c;
+  }
+  const one = [r.address, r.city, "TX", r.zip].filter(Boolean).join(", ");
+  if (r.address && /\d/.test(r.address)) {
+    const j = await get(`${base}onelineaddress?address=${encodeURIComponent(one)}${tail}`);
+    const m = j && j.result && j.result.addressMatches && j.result.addressMatches[0];
+    const c = m && pick(m.geographies); if (c) return c;
+  }
+  return "";
+}
+async function pool(items, n, fn) { let i = 0; await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) await fn(items[i++]); })); }
