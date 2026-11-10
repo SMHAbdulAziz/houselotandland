@@ -32,6 +32,21 @@ export function propertyKey({ address, city, zip, name } = {}) {
   const n = String(name || address || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
   return n ? `name:${n}|${c}` : "";
 }
+/**
+ * One-line address -> parts. "3917 Holliday Rd, Dallas, TX 75211, USA" -> { address: "3917 Holliday Rd", city: "Dallas", zip: "75211", state: "TX" }.
+ * Shared by the back office (imports) and the Worker (repairs and server-side imports).
+ */
+export function splitAddr(s) {
+  const parts = String(s || "").split(",").map((x) => x.trim()).filter(Boolean).filter((x) => !/^(USA|United States)$/i.test(x));
+  const o = { address: parts[0] || "", city: "", zip: "", state: "" };
+  const last = parts[parts.length - 1] || "", zm = last.match(/\b(\d{5})(?:-\d{4})?\b/), sm = last.match(/\b([A-Z]{2})\b/);
+  if (zm) o.zip = zm[1];
+  if (sm && parts.length >= 2) o.state = sm[1];
+  if (parts.length >= 3) o.city = parts[parts.length - 2]; else if (parts.length === 2 && !zm && !/^[A-Z]{2}$/.test(parts[1])) o.city = parts[1];
+  if (parts.length === 2 && zm) o.city = parts[1].replace(/\b[A-Z]{2}\b\s*\d{5}.*$/, "").trim();
+  if (/^[A-Z]{2}$/.test(o.city)) o.city = "";
+  return o;
+}
 /** Last 10 digits of a US phone, or "" when it isn't a phone number. */
 export function phoneKey(p) {
   const d = String(p || "").replace(/\D/g, "");

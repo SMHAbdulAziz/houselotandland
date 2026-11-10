@@ -82,3 +82,4 @@ textarea{min-height:70px;resize:vertical}
 .note{background:var(--warnbg);color:#78350f;border-radius:10px;padding:10px 12px;font-size:.88rem}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom));background:var(--ink);color:#fff;padding:9px 16px;border-radius:9px;z-index:40;font-size:.9rem;max-width:calc(100% - 32px)}
 @media(max-width:600px){.who{display:none}.card{padding:14px}}
+th button.sort{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-transform:inherit;letter-spacing:inherit;white-space:nowrap}

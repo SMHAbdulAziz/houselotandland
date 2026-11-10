@@ -1,5 +1,5 @@
 // Back office app (served only behind Cloudflare Access; data from /api/office/*).
-import { TRACKS, CLOSED_STAGES, propertyKey } from "/js/hub-keys.js";
+import { TRACKS, CLOSED_STAGES, propertyKey, splitAddr } from "/js/hub-keys.js";
 import { shabbatStatus, fmtTime } from "/js/shabbat.js";
 import { CURB, CURB_LOT, CURB_ADDONS, CURB_QUOTE, curbQuoteSuggest } from "/js/services-catalog.js";
 
@@ -297,18 +297,9 @@ document.addEventListener("click", (e) => { if (e.target.id === "newW") { $("vie
 
 
 // ---------------- import (Google Maps saved lists) ----------------
-let imp = { rows: [], list: "", busy: false };
+let imp = { rows: [], list: "", busy: false, src: "", sort: { key: "", dir: 1 }, filter: "all", page: 0 };
+let impPageSize = (() => { try { return +localStorage.getItem("hll_imp_page") || 25; } catch { return 25; } })();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-// "3917 Holliday Rd, Dallas, TX 75211, USA" -> street / city / zip
-function splitAddr(s) {
-  const parts = String(s || "").split(",").map((x) => x.trim()).filter(Boolean).filter((x) => !/^(USA|United States)$/i.test(x));
-  const o = { address: parts[0] || "", city: "", zip: "" };
-  const last = parts[parts.length - 1] || "", zm = last.match(/\b(\d{5})(?:-\d{4})?\b/);
-  if (zm) o.zip = zm[1];
-  if (parts.length >= 3) o.city = parts[parts.length - 2]; else if (parts.length === 2 && !zm) o.city = parts[1];
-  if (parts.length === 2 && zm) o.city = parts[1].replace(/\b[A-Z]{2}\b\s*\d{5}.*$/, "").trim();
-  return o;
-}
 const looksStreet = (s) => /^\d+[A-Za-z]?\s+\S+/.test(String(s || "").trim());
 function coordsIn(s) {
   const t = decodeURIComponent(String(s || ""));
@@ -360,7 +351,7 @@ function parseTakeout(name, text) {
 }
 const keyOf = (r) => propertyKey({ address: r.address, city: r.city, zip: r.zip, name: r.name });
 function rowState(r) {
-  if (r.state === "exists") return ["mute", "Already on file"];
+  if (r.state === "exists") return (r.tracks || []).length ? ["mute", "On file · " + r.tracks.map((k) => TRACKS[k]?.label || k).join(", ")] : ["warn", "On file · no track"];
   if (!looksStreet(r.address) && r.lat != null && !r.approx) return ["bad", "Pin only: find its address"];
   if (!looksStreet(r.address) && !(r.name && r.city)) return ["bad", "Needs an address"];
   if (r.approx) return ["warn", "Nearest street (check it)"];
@@ -369,11 +360,12 @@ function rowState(r) {
 async function checkExisting() {
   const keys = [...new Set(imp.rows.map(keyOf).filter(Boolean))];
   if (!keys.length) return;
-  try { const { found } = await send("import/check", "POST", { keys }); imp.rows.forEach((r) => { r.state = found[keyOf(r)] ? "exists" : ""; }); } catch {}
+  try { const { found } = await send("import/check", "POST", { keys });
+    imp.rows.forEach((r) => { const f = found[keyOf(r)]; if (f) { r.state = "exists"; r.pid = f.id; r.ptype = f.type; r.tracks = f.tracks; } else if (imp.src !== "onfile") { r.state = ""; r.pid = null; r.ptype = ""; r.tracks = []; } }); } catch {}
 }
 async function importView() {
   $("view").innerHTML = `<section class="card"><div class="head"><h2>Import a Google Maps list</h2><span class="hint">Addresses already on file are matched, never duplicated.</span></div>
-    <div class="chips" style="margin-bottom:12px"><button class="chip" data-src="link" aria-pressed="true">Share link</button><button class="chip" data-src="paste" aria-pressed="false">Paste</button><button class="chip" data-src="file" aria-pressed="false">Takeout file</button></div>
+    <div class="chips" style="margin-bottom:12px"><button class="chip" data-src="link" aria-pressed="true">Share link</button><button class="chip" data-src="paste" aria-pressed="false">Paste</button><button class="chip" data-src="file" aria-pressed="false">Takeout file</button><button class="chip" data-src="onfile" aria-pressed="false">On file, no track or type</button></div>
     <form id="srcLink" class="grid"><label class="wide">List share link<input name="url" placeholder="https://maps.app.goo.gl/…" autocomplete="off"></label>
       <p class="hint wide" style="margin:0">In Google Maps: Saved → open the list → Share → make sure it's shared with anyone with the link → Copy link.</p>
       <div class="wide"><button class="btn gold">Load list</button></div></form>
@@ -382,43 +374,117 @@ async function importView() {
     <form id="srcFile" class="grid" hidden><label class="wide">Google Takeout file (Saved lists .csv, or Saved Places .json)<input type="file" name="file" accept=".csv,.json,text/csv,application/json"></label>
       <p class="hint wide" style="margin:0">takeout.google.com → Deselect all → check “Saved” (and “Maps (your places)” for starred places) → export, then pick the list's .csv from the download.</p>
       <div class="wide"><button class="btn gold">Load file</button></div></form>
+    <form id="srcOnfile" class="grid" hidden><p class="hint wide" style="margin:0">Properties already in the master list that aren't on any track, or have no property type yet. Sort and select them below, then add them to a track or set their type in bulk.</p>
+      <div class="wide"><button class="btn gold">Load properties</button></div></form>
     <p id="impMsg" class="hint"></p></section><div id="impPreview"></div>`;
   $("view").querySelectorAll("[data-src]").forEach((b) => b.onclick = () => {
     $("view").querySelectorAll("[data-src]").forEach((x) => x.setAttribute("aria-pressed", x === b));
-    $("srcLink").hidden = b.dataset.src !== "link"; $("srcPaste").hidden = b.dataset.src !== "paste"; $("srcFile").hidden = b.dataset.src !== "file";
+    $("srcLink").hidden = b.dataset.src !== "link"; $("srcPaste").hidden = b.dataset.src !== "paste"; $("srcFile").hidden = b.dataset.src !== "file"; $("srcOnfile").hidden = b.dataset.src !== "onfile";
   });
-  const loaded = async (rows, list) => { imp = { rows, list, busy: false }; await checkExisting(); drawPreview(); $("impMsg").textContent = `${rows.length} places loaded.`; };
+  const loaded = async (rows, list, src) => { imp = { ...imp, rows: rows.map((r, n) => ({ ...r, uid: n + 1 })), list, src, busy: false, filter: "all", page: 0, sort: { key: "", dir: 1 } };
+    await checkExisting(); drawPreview(); $("impMsg").textContent = `${rows.length} places loaded.`; };
   $("srcLink").onsubmit = async (e) => { e.preventDefault(); $("impMsg").textContent = "Reading the list from Google…";
-    try { const r = await send("import/gmaps-link", "POST", { url: e.target.url.value.trim() }); await loaded(r.rows, r.list_name); }
+    try { const r = await send("import/gmaps-link", "POST", { url: e.target.url.value.trim() }); await loaded(r.rows.map(makeRow), r.list_name, "link"); }
     catch (er) { $("impMsg").textContent = er.message; } };
-  $("srcPaste").onsubmit = async (e) => { e.preventDefault(); await loaded(parseLines(e.target.text.value), "Pasted list"); };
+  $("srcPaste").onsubmit = async (e) => { e.preventDefault(); await loaded(parseLines(e.target.text.value), "Pasted list", "paste"); };
+  $("srcOnfile").onsubmit = async (e) => { e.preventDefault(); $("impMsg").textContent = "Loading…";
+    try { const { rows } = await api("import/unassigned");
+      await loaded(rows.map((r) => ({ name: r.name, address: r.address, city: r.city, zip: r.zip, county: r.county, lat: r.lat, lng: r.lng, note: [r.list, r.note].filter(Boolean).join(" · "),
+        on: false, state: "exists", pid: r.id, ptype: r.type, tracks: r.tracks, link: "" })), "On file, no track or type", "onfile");
+      imp.filter = "all"; drawPreview(); } catch (er) { $("impMsg").textContent = er.message; } };
   $("srcFile").onsubmit = async (e) => { e.preventDefault(); const fl = e.target.file.files[0]; if (!fl) { toast("Pick a file first."); return; }
-    try { await loaded(parseTakeout(fl.name, await fl.text()), fl.name.replace(/\.(csv|json)$/i, "")); } catch (er) { $("impMsg").textContent = "Couldn't read that file: " + er.message; } };
+    try { await loaded(parseTakeout(fl.name, await fl.text()), fl.name.replace(/\.(csv|json)$/i, ""), "file"); } catch (er) { $("impMsg").textContent = "Couldn't read that file: " + er.message; } };
   if (imp.rows.length) drawPreview();
 }
+// Filters, sorting, paging and selection for the import list (and for "on file, no track or type").
+const IMP_FILTERS = [["all", "All"], ["new", "New"], ["onfile", "On file"], ["notrack", "On file, no track"], ["notype", "No type"], ["needs", "Needs address"]];
+function impMatch(r, f) {
+  if (f === "new") return r.state !== "exists";
+  if (f === "onfile") return r.state === "exists";
+  if (f === "notrack") return r.state === "exists" && !(r.tracks || []).length;
+  if (f === "notype") return !r.ptype;
+  if (f === "needs") return rowState(r)[0] === "bad";
+  return true;
+}
+const IMP_SORT = { name: (r) => r.name, address: (r) => r.address.replace(/^\d+\s*/, "") + " " + String(parseInt(r.address) || 0).padStart(7, "0"), city: (r) => r.city, zip: (r) => r.zip,
+  county: (r) => r.county, type: (r) => r.ptype || "", status: (r) => rowState(r)[1], order: (r) => String(r.uid).padStart(6, "0") };
+function impView() {
+  let list = imp.rows.filter((r) => impMatch(r, imp.filter));
+  const k = imp.sort.key;
+  if (k) list = list.slice().sort((a, b) => { const x = String(IMP_SORT[k](a) || ""), y = String(IMP_SORT[k](b) || "");
+    if (!x && y) return 1; if (x && !y) return -1; return x.localeCompare(y, undefined, { numeric: true, sensitivity: "base" }) * imp.sort.dir; });
+  const size = impPageSize || list.length || 1, pages = Math.max(1, Math.ceil(list.length / size));
+  if (imp.page >= pages) imp.page = pages - 1;
+  return { list, pages, shown: impPageSize ? list.slice(imp.page * size, imp.page * size + size) : list };
+}
 function drawPreview() {
-  const rows = imp.rows, pins = rows.filter((r) => r.on && r.lat != null && !looksStreet(r.address) && !r.approx).length;
-  const fwd = rows.filter((r) => r.on && looksStreet(r.address) && !r.zip).length;
-  const ready = rows.filter((r) => r.on && r.state !== "exists" && rowState(r)[0] !== "bad").length;
-  $("impPreview").innerHTML = `<section class="card"><div class="head"><h2>${esc(imp.list || "Preview")}</h2><span class="hint">${rows.length} places · ${rows.filter((r) => r.state === "exists").length} already on file</span></div>
+  const rows = imp.rows, sel = rows.filter((r) => r.on);
+  const pins = sel.filter((r) => r.lat != null && !looksStreet(r.address) && !r.approx).length;
+  const fwd = sel.filter((r) => looksStreet(r.address) && !r.zip && r.state !== "exists").length;
+  const ready = sel.filter((r) => r.state !== "exists" && rowState(r)[0] !== "bad").length;
+  const selOnFile = sel.filter((r) => r.state === "exists" && r.pid).length;
+  const { list, pages, shown } = impView();
+  const th = (key, label) => `<th><button class="link sort" data-sort="${key}" title="Sort">${label}${imp.sort.key === key ? (imp.sort.dir > 0 ? " ▲" : " ▼") : ""}</button></th>`;
+  const allShownOn = shown.length && shown.every((r) => r.on);
+  $("impPreview").innerHTML = `<section class="card"><div class="head"><h2>${esc(imp.list || "Preview")}</h2><span class="hint">${rows.length} places · ${rows.filter((r) => r.state === "exists").length} on file · ${sel.length} selected</span></div>
     <div class="grid" style="margin-bottom:10px">
-      <label>Add to track<select id="impTrack"><option value="">No track (just the property)</option>${Object.entries(TRACKS).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("")}</select></label>
-      <label>Type<select id="impType"><option value="">Not set</option>${TYPES.map((t) => `<option>${t}</option>`).join("")}</select></label>
-      <label class="wide">Source label<input id="impSource" value="${esc("Google Maps list: " + (imp.list || ""))}"></label></div>
-    <p><button class="btn" type="button" id="impGeo" ${pins + fwd ? "" : "disabled"}>Find street addresses (${pins} pins${fwd ? `, ${fwd} missing ZIP` : ""})</button>
-      <button class="btn gold" type="button" id="impGo" ${ready ? "" : "disabled"}>Import ${ready} new</button> <span class="hint" id="impProg"></span></p>
-    <div class="tablewrap"><table><thead><tr><th></th><th>Name</th><th>Street address</th><th>City</th><th>ZIP</th><th>County</th><th>Pin</th><th>Status</th></tr></thead><tbody>
-    ${rows.map((r, i) => { const [c, t] = rowState(r); return `<tr><td><input type="checkbox" data-on="${i}" ${r.on ? "checked" : ""} aria-label="Include"></td>
-      <td><input data-i="${i}" data-k="name" value="${esc(r.name)}" style="min-width:140px">${r.note ? `<div class="hint">${esc(r.note)}</div>` : ""}</td>
-      <td><input data-i="${i}" data-k="address" value="${esc(r.address)}" style="min-width:180px"></td><td><input data-i="${i}" data-k="city" value="${esc(r.city)}" style="width:110px"></td>
-      <td><input data-i="${i}" data-k="zip" value="${esc(r.zip)}" style="width:70px" inputmode="numeric"></td><td><input data-i="${i}" data-k="county" value="${esc(r.county)}" style="width:90px"></td>
-      <td>${r.lat != null ? `<a href="https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lng}" target="_blank" rel="noopener">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)} ↗</a>` : "—"}</td>
-      <td><span class="pill ${c}">${esc(t)}</span></td></tr>`; }).join("")}</tbody></table></div></section>`;
+      <label>Add to track<select id="impTrack"><option value="">No track (just the property)</option>${Object.entries(TRACKS).map(([k, v]) => `<option value="${k}" ${imp.track === k ? "selected" : ""}>${esc(v.label)}</option>`).join("")}</select></label>
+      <label>Type<select id="impType"><option value="">Not set</option>${TYPES.map((t) => `<option ${imp.ptype === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      <label class="wide">Source label<input id="impSource" value="${esc(imp.source ?? ("Google Maps list: " + (imp.list || "")))}"></label></div>
+    <p>${imp.src !== "onfile" ? `<button class="btn" type="button" id="impGeo" ${pins + fwd ? "" : "disabled"}>Find street addresses (${pins} pins${fwd ? `, ${fwd} missing ZIP` : ""})</button>
+      <button class="btn gold" type="button" id="impGo" ${ready ? "" : "disabled"}>Import ${ready} new</button>` : ""}
+      <button class="btn ${imp.src === "onfile" ? "gold" : ""}" type="button" id="impAssign" ${selOnFile ? "" : "disabled"} title="Uses the track and type picked above">Apply track/type to ${selOnFile} selected on file</button>
+      <span class="hint" id="impProg"></span></p>
+    <div class="chips" style="margin:6px 0 10px">${IMP_FILTERS.map(([k, l]) => `<button class="chip" data-impf="${k}" aria-pressed="${imp.filter === k}">${esc(l)} <span class="hint">${rows.filter((r) => impMatch(r, k)).length}</span></button>`).join("")}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">
+      <button class="btn small" type="button" id="impAll">Select all ${list.length}${imp.filter !== "all" ? " shown" : ""}</button>
+      <button class="btn small" type="button" id="impNone">Select none</button>
+      <button class="btn small" type="button" id="impRemove" ${sel.length ? "" : "disabled"}>Remove ${sel.length} selected from this list</button>
+      <span style="flex:1"></span>
+      <label class="hint" style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select id="impSize">${[25, 50, 100, 0].map((n) => `<option value="${n}" ${impPageSize === n ? "selected" : ""}>${n || "All"}</option>`).join("")}</select></label>
+      ${pages > 1 ? `<button class="btn small" type="button" id="impPrev" ${imp.page ? "" : "disabled"}>‹ Prev</button><span class="hint">Page ${imp.page + 1} of ${pages}</span><button class="btn small" type="button" id="impNext" ${imp.page < pages - 1 ? "" : "disabled"}>Next ›</button>` : ""}
+    </div>
+    <div class="tablewrap"><table><thead><tr><th><input type="checkbox" id="impPageAll" ${allShownOn ? "checked" : ""} aria-label="Select this page"></th>${th("name", "Name")}${th("address", "Street address")}${th("city", "City")}${th("zip", "ZIP")}${th("county", "County")}${th("type", "Type")}<th>Pin</th>${th("status", "Status")}</tr></thead><tbody>
+    ${shown.map((r) => { const i = rows.indexOf(r), [c, t] = rowState(r); return `<tr><td><input type="checkbox" data-on="${i}" ${r.on ? "checked" : ""} aria-label="Select"></td>
+      <td><input data-i="${i}" data-k="name" value="${esc(r.name)}" style="min-width:140px" ${r.state === "exists" && imp.src === "onfile" ? "readonly" : ""}>${r.note ? `<div class="hint">${esc(r.note)}</div>` : ""}</td>
+      <td><input data-i="${i}" data-k="address" value="${esc(r.address)}" style="min-width:180px" ${imp.src === "onfile" ? "readonly" : ""}></td><td><input data-i="${i}" data-k="city" value="${esc(r.city)}" style="width:110px" ${imp.src === "onfile" ? "readonly" : ""}></td>
+      <td><input data-i="${i}" data-k="zip" value="${esc(r.zip)}" style="width:70px" inputmode="numeric" ${imp.src === "onfile" ? "readonly" : ""}></td><td><input data-i="${i}" data-k="county" value="${esc(r.county)}" style="width:90px" ${imp.src === "onfile" ? "readonly" : ""}></td>
+      <td>${r.ptype ? esc(r.ptype) : `<span class="hint">—</span>`}</td>
+      <td>${r.lat != null ? `<a href="https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lng}" target="_blank" rel="noopener">${(+r.lat).toFixed(5)}, ${(+r.lng).toFixed(5)} ↗</a>` : "—"}</td>
+      <td>${r.pid ? `<button class="link" data-prop="${esc(r.pid)}"><span class="pill ${c}">${esc(t)}</span></button>` : `<span class="pill ${c}">${esc(t)}</span>`}</td></tr>`; }).join("")}</tbody></table></div>
+    ${list.length ? "" : `<div class="empty">Nothing here.</div>`}</section>`;
   const tb = $("impPreview");
-  tb.querySelectorAll("[data-on]").forEach((c) => c.onchange = () => { rows[c.dataset.on].on = c.checked; drawPreview(); });
-  tb.querySelectorAll("input[data-i]").forEach((el) => el.onchange = async () => { const r = rows[el.dataset.i]; r[el.dataset.k] = el.value.trim(); r.approx = false; await checkExisting(); drawPreview(); });
-  $("impGeo").onclick = geocodeRows;
-  $("impGo").onclick = runImport;
+  const keep = () => { imp.track = $("impTrack").value; imp.ptype = $("impType").value; imp.source = $("impSource").value; };
+  ["impTrack", "impType", "impSource"].forEach((id) => $(id).onchange = keep);
+  tb.querySelectorAll("[data-on]").forEach((c) => c.onchange = () => { keep(); rows[c.dataset.on].on = c.checked; drawPreview(); });
+  $("impPageAll").onchange = (e) => { keep(); shown.forEach((r) => { r.on = e.target.checked; }); drawPreview(); };
+  $("impAll").onclick = () => { keep(); list.forEach((r) => { r.on = true; }); drawPreview(); };
+  $("impNone").onclick = () => { keep(); rows.forEach((r) => { r.on = false; }); drawPreview(); };
+  $("impRemove").onclick = () => { keep(); const n = rows.filter((r) => r.on).length; imp.rows = rows.filter((r) => !r.on); toast(`${n} removed from this list (nothing deleted from the master list)`); drawPreview(); };
+  tb.querySelectorAll("[data-impf]").forEach((b) => b.onclick = () => { keep(); imp.filter = b.dataset.impf; imp.page = 0; drawPreview(); });
+  tb.querySelectorAll("[data-sort]").forEach((b) => b.onclick = () => { keep(); const k = b.dataset.sort; imp.sort = imp.sort.key === k ? (imp.sort.dir > 0 ? { key: k, dir: -1 } : { key: "", dir: 1 }) : { key: k, dir: 1 }; drawPreview(); });
+  $("impSize").onchange = (e) => { keep(); impPageSize = +e.target.value; imp.page = 0; try { localStorage.setItem("hll_imp_page", String(impPageSize)); } catch {} drawPreview(); };
+  if ($("impPrev")) { $("impPrev").onclick = () => { keep(); imp.page--; drawPreview(); }; $("impNext").onclick = () => { keep(); imp.page++; drawPreview(); }; }
+  tb.querySelectorAll("input[data-i]:not([readonly])").forEach((el) => el.onchange = async () => { keep(); const r = rows[el.dataset.i]; r[el.dataset.k] = el.value.trim(); r.approx = false; await checkExisting(); drawPreview(); });
+  if ($("impGeo")) $("impGeo").onclick = () => { keep(); geocodeRows(); };
+  if ($("impGo")) $("impGo").onclick = () => { keep(); runImport(); };
+  $("impAssign").onclick = () => { keep(); runAssign(); };
+}
+async function runAssign() {
+  if (imp.busy) return;
+  const track = imp.track || "", prop_type = imp.ptype || "", source = (imp.source || "").trim() || imp.list;
+  if (!track && !prop_type) { toast("Pick a track and/or a type above first."); return; }
+  const rows = imp.rows.filter((r) => r.on && r.state === "exists" && r.pid);
+  if (!rows.length) return;
+  imp.busy = true; let tracked = 0, typed = 0;
+  for (let i = 0; i < rows.length; i += 50) {
+    $("impProg").textContent = `Updating ${Math.min(i + 50, rows.length)} of ${rows.length}…`;
+    try { const r = await send("import/assign", "POST", { ids: rows.slice(i, i + 50).map((x) => x.pid), track, prop_type, source }); tracked += r.tracked; typed += r.typed; }
+    catch (er) { toast(er.message); break; }
+  }
+  rows.forEach((r) => { if (prop_type) r.ptype = prop_type; if (track && !(r.tracks || []).includes(track)) r.tracks = [...(r.tracks || []), track]; r.on = false; });
+  imp.busy = false; drawPreview();
+  $("impProg").textContent = [tracked && `${tracked} added to ${TRACKS[track].label}`, typed && `${typed} set to ${prop_type}`].filter(Boolean).join(" · ") || "Nothing changed.";
 }
 async function geocodeRows() {
   if (imp.busy) return; imp.busy = true;
@@ -448,7 +514,7 @@ async function runImport() {
   const rows = imp.rows.filter((r) => r.on && r.state !== "exists" && rowState(r)[0] !== "bad");
   if (!rows.length) return;
   imp.busy = true;
-  const track = $("impTrack").value, prop_type = $("impType").value, source = $("impSource").value.trim();
+  const track = imp.track || "", prop_type = imp.ptype || "", source = (imp.source ?? $("impSource").value).trim();
   const tot = { added: 0, merged: 0, skipped: 0, errors: [] };
   for (let i = 0; i < rows.length; i += 25) {
     $("impProg").textContent = `Importing ${Math.min(i + 25, rows.length)} of ${rows.length}…`;

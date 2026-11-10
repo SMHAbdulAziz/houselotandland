@@ -7,7 +7,7 @@
 // Data: the "hub" tables (src/hub.sql). Matching keys come from js/hub-keys.js so nothing is duplicated:
 // one property per address, one contact per phone/email, one deal per property per track.
 
-import { propertyKey, phoneKey, emailKey, fmtPhone, TRACKS, CLOSED_STAGES } from "../js/hub-keys.js";
+import { propertyKey, phoneKey, emailKey, fmtPhone, splitAddr, TRACKS, CLOSED_STAGES } from "../js/hub-keys.js";
 import { CURB, CURB_QUOTE } from "../js/services-catalog.js";
 import { recordPayment, isTestOrder } from "./services.js";
 import { isShabbatDate } from "../js/shabbat.js";
@@ -65,6 +65,8 @@ export async function handleOfficePage(request, env, url) {
 
 // ---------------- matching / upserts (also used by the worker apply form and imports) ----------------
 export async function upsertProperty(db, p, t = now()) {
+  // A whole address typed or imported into one field ("123 Main St, Dallas, TX 75201") is split first, so it keys like the rest.
+  if (p.address && String(p.address).includes(",") && !p.city) { const a = splitAddr(p.address); p = { ...p, address: a.address, city: a.city, zip: p.zip || a.zip }; }
   const key = propertyKey(p);
   if (!key) throw new Error("A property needs a street address, or a name and city.");
   const ex = await db.prepare("SELECT * FROM properties WHERE addr_key = ?").bind(key).first();
@@ -155,6 +157,7 @@ export async function handleOfficeApi(request, env, url) {
       const recent = (await db.prepare(`SELECT a.*, p.address, p.name AS pname FROM activities a LEFT JOIN properties p ON p.id = a.property_id ORDER BY a.at DESC LIMIT 15`).all()).results;
       const counts = (await db.prepare("SELECT (SELECT COUNT(*) FROM properties) AS properties, (SELECT COUNT(*) FROM contacts) AS contacts, (SELECT COUNT(*) FROM deals) AS deals").first());
       const openSvc = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE status IN ('requested','quoted','paid','scheduled','quote_requested','awaiting_payment')").first()).n;
+      await repairOneLineAddresses(db, t); // fixes one-line addresses from older imports the first time the overview opens
       const quoteNeeded = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE service = 'curb' AND status IN ('requested','test') AND amount IS NULL AND paid_at IS NULL").first()).n;
       const newLoans = (await db.prepare("SELECT COUNT(*) AS n FROM loan_apps WHERE status IN ('new','reviewing')").first().catch(() => ({ n: 0 }))).n;
       return json({ ok: true, user: u.email, deals, due, workers, recent, counts, openSvc, quoteNeeded, newLoans, tracks: TRACKS, sales: await salesSummary(db) });
@@ -371,14 +374,42 @@ export async function handleOfficeApi(request, env, url) {
     if (m === "POST" && path === "import/gmaps-link") return json(await gmapsList(clean(b.url, 2000)));
     if (m === "GET" && path === "geocode") return json(await geocode(url.searchParams));
     if (m === "POST" && path === "import/check") {
-      const keys = (Array.isArray(b.keys) ? b.keys : []).filter((k) => typeof k === "string" && k).slice(0, 500);
+      await repairOneLineAddresses(db, t);
+      const keys = (Array.isArray(b.keys) ? b.keys : []).filter((k) => typeof k === "string" && k).slice(0, 2000);
       const found = {};
       for (let i = 0; i < keys.length; i += 90) {
         const part = keys.slice(i, i + 90);
-        const rows = (await db.prepare(`SELECT id, addr_key FROM properties WHERE addr_key IN (${part.map(() => "?").join(",")})`).bind(...part).all()).results;
-        for (const r of rows) found[r.addr_key] = r.id;
+        const rows = (await db.prepare(`SELECT p.id, p.addr_key, p.prop_type, (SELECT group_concat(DISTINCT d.track) FROM deals d WHERE d.property_id = p.id) AS tracks
+          FROM properties p WHERE p.addr_key IN (${part.map(() => "?").join(",")})`).bind(...part).all()).results;
+        for (const r of rows) found[r.addr_key] = { id: r.id, type: r.prop_type || "", tracks: r.tracks ? r.tracks.split(",") : [] };
       }
       return json({ ok: true, found });
+    }
+    // Properties on file with no track and/or no property type (to sort, select and assign in the Import tab)
+    if (m === "GET" && path === "import/unassigned") {
+      await repairOneLineAddresses(db, t);
+      const rows = (await db.prepare(`SELECT p.id, p.name, p.address, p.city, p.zip, p.county, p.prop_type, p.lat, p.lng, p.data, p.created_at,
+          (SELECT group_concat(DISTINCT d.track) FROM deals d WHERE d.property_id = p.id) AS tracks
+        FROM properties p ORDER BY p.created_at DESC LIMIT 5000`).all()).results
+        .filter((r) => !r.tracks || !r.prop_type)
+        .map((r) => { const d = parse(r.data) || {}; return { id: r.id, name: r.name || "", address: r.address || "", city: r.city || "", zip: r.zip || "", county: r.county || "",
+          type: r.prop_type || "", tracks: r.tracks ? r.tracks.split(",") : [], lat: r.lat, lng: r.lng, note: (d.import && d.import.note) || "", list: (d.import && d.import.list) || "", created_at: r.created_at }; });
+      return json({ ok: true, rows });
+    }
+    // Put properties already on file onto a track and/or set their type (bulk, from the Import tab)
+    if (m === "POST" && path === "import/assign") {
+      const ids = (Array.isArray(b.ids) ? b.ids : []).filter((x) => typeof x === "string").slice(0, 100);
+      const track = TRACKS[b.track] ? b.track : null, ptype = clean(b.prop_type, 40), source = clean(b.source, 120) || "Back office";
+      if (!track && !ptype) return json({ ok: false, message: "Pick a track or a type to apply." }, 400);
+      let typed = 0, tracked = 0;
+      for (const id of ids) {
+        const p = await db.prepare("SELECT id FROM properties WHERE id = ?").bind(id).first(); if (!p) continue;
+        if (ptype) { await db.prepare("UPDATE properties SET prop_type = ?, updated_at = ? WHERE id = ?").bind(ptype, t, id).run(); typed++; }
+        let d = null;
+        if (track) { d = await upsertDeal(db, { property_id: id, track, next_touch: today(), source, source_app: "office" }, t); tracked++; }
+        await logActivity(db, { property_id: id, deal_id: d && d.id, kind: "update", summary: [track && `Added to ${TRACKS[track].label}`, ptype && `Type set to ${ptype}`].filter(Boolean).join(" · "), by: u.email, source: "office" }, t);
+      }
+      return json({ ok: true, typed, tracked });
     }
     if (m === "POST" && path === "import/properties") {
       const rows = (Array.isArray(b.rows) ? b.rows : []).slice(0, 50);
@@ -624,4 +655,24 @@ async function gatewayText(env, db, b, u, t) {
   const at = sendAfter ? new Date(sendAfter).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }) : "";
   return { ok: true, message: status === "sent" ? "Text sent from the business phone." : status === "duplicate" ? "Already texted today; not sent again."
     : at ? `Outside texting hours: it sends automatically ${at}.` : "The phone didn't send it yet; the gateway retries automatically." };
+}
+
+// Imports before Nov 10, 2026 saved Google Maps addresses whole ("123 Main St, Dallas, TX 75201") with no city or ZIP.
+// Split them and re-key them so they match the same house entered any other way. Skips a row whose new key belongs
+// to another property (a likely duplicate, left for Harvey). Idempotent and cheap once nothing is left to fix.
+async function repairOneLineAddresses(db, t) {
+  const rows = (await db.prepare("SELECT id, name, address, zip FROM properties WHERE address LIKE '%,%' AND (city IS NULL OR city = '') LIMIT 500").all()).results;
+  if (!rows.length) return 0;
+  const stmts = [];
+  for (const r of rows) {
+    const a = splitAddr(r.address); if (!a.address || (!a.city && !a.zip)) continue;
+    const name = r.name && r.name.trim().toLowerCase() === a.address.toLowerCase() ? null : r.name;
+    const key = propertyKey({ address: a.address, city: a.city, zip: r.zip || a.zip, name: name || "" });
+    const clash = await db.prepare("SELECT id FROM properties WHERE addr_key = ? AND id != ?").bind(key, r.id).first();
+    if (!key || clash) continue;
+    stmts.push(db.prepare("UPDATE properties SET address = ?, city = ?, zip = COALESCE(NULLIF(zip,''), ?), state = COALESCE(NULLIF(?, ''), state), name = ?, addr_key = ?, updated_at = ? WHERE id = ?")
+      .bind(a.address, a.city || null, a.zip || null, a.state, name, key, t, r.id));
+  }
+  for (let i = 0; i < stmts.length; i += 50) await db.batch(stmts.slice(i, i + 50));
+  return stmts.length;
 }
