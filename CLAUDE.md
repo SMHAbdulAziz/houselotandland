@@ -43,6 +43,7 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
 
 ## The rest of the system (outside this repo)
 - **Wholesale Deal Desk**: claude.ai artifact https://claude.ai/artifact/5MAcErFcTQZoe6VCGzbjHs. Master lead list.
+  Two-way sync with the hub's `wholesale` track (Nov 10, 2026; `hubSync` in the artifact, on open, every 5 min and the "Sync back office" button): hub deals appear as desk docs `hub_<deal id>` (or the original desk id), desk docs carry `hubId`/`hubPid`/`hubAt`/`hubSig`; desk stage, next touch, asking, ARV and property details push to D1 (with an activity row); desk-only deals are added to the hub (`source_app = 'desk'`); deleting on the desk marks the hub deal Dead. The artifact's `hubKey` must match `propertyKey` in `js/hub-keys.js`.
   Publishes offer pages and creates envelopes through the Cloudflare connector (`d1_database_query`, one statement per call).
 - **Hourly scheduled task "Website leads + offer choices"**: moves form leads to the desk, sends confirmation email/text,
   syncs offer choices, ownership answers and signatures, emails Harvey a summary.

@@ -51,7 +51,7 @@ const EQUIP = ["Truck", "Trailer", "Mower and trimmer", "Pressure washer", "Pain
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
 const W_STATUS = ["applied", "approved", "active", "inactive", "declined"];
 const W_PILL = { applied: "warn", approved: "", active: "ok", inactive: "mute", declined: "bad" };
-const TYPES = ["Single-family", "Duplex to fourplex", "Apartment complex", "RV park", "Mobile home park", "Land", "Commercial", "Other"];
+const TYPES = ["Single-family", "Duplex to fourplex", "Mobile home on land", "Apartment complex", "RV park", "Mobile home park", "Land", "Commercial", "Other"];
 
 // ---------------- Shabbat ----------------
 function shabbatBanner() {
