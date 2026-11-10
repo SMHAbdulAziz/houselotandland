@@ -7,7 +7,7 @@
 // Data: the "hub" tables (src/hub.sql). Matching keys come from js/hub-keys.js so nothing is duplicated:
 // one property per address, one contact per phone/email, one deal per property per track.
 
-import { propertyKey, phoneKey, emailKey, fmtPhone, splitAddr, TRACKS, CLOSED_STAGES } from "../js/hub-keys.js";
+import { propertyKey, phoneKey, emailKey, fmtPhone, splitAddr, normState, zipState, TRACKS, CLOSED_STAGES } from "../js/hub-keys.js";
 import { CURB, CURB_QUOTE } from "../js/services-catalog.js";
 import { recordPayment, isTestOrder } from "./services.js";
 import { isShabbatDate } from "../js/shabbat.js";
@@ -66,22 +66,25 @@ export async function handleOfficePage(request, env, url) {
 // ---------------- matching / upserts (also used by the worker apply form and imports) ----------------
 export async function upsertProperty(db, p, t = now()) {
   // A whole address typed or imported into one field ("123 Main St, Dallas, TX 75201") is split first, so it keys like the rest.
-  if (p.address && String(p.address).includes(",") && !p.city) { const a = splitAddr(p.address); p = { ...p, address: a.address, city: a.city, zip: p.zip || a.zip }; }
+  if (p.address && String(p.address).includes(",") && !p.city) { const a = splitAddr(p.address); p = { ...p, address: a.address, city: a.city, zip: p.zip || a.zip, state: p.state || a.state }; }
+  // State: as given, else from the ZIP code, else Texas (home market).
+  p = { ...p, state: normState(p.state) || zipState(p.zip) || "TX" };
   const key = propertyKey(p);
   if (!key) throw new Error("A property needs a street address, or a name and city.");
   const ex = await db.prepare("SELECT * FROM properties WHERE addr_key = ?").bind(key).first();
-  const f = { name: clean(p.name, 160), address: clean(p.address, 200), city: clean(p.city, 80), zip: clean(p.zip, 10), county: clean(p.county, 40),
+  const f = { name: clean(p.name, 160), address: clean(p.address, 200), city: clean(p.city, 80), zip: clean(p.zip, 10), county: clean(p.county, 40), state: p.state,
     prop_type: clean(p.prop_type, 40), units: num(p.units), beds: num(p.beds), baths: num(p.baths), sqft: num(p.sqft), acres: num(p.acres), lat: num(p.lat), lng: num(p.lng) };
   if (ex) {
     const set = [], vals = [];
-    for (const [k, v] of Object.entries(f)) if (v != null && (ex[k] == null || ex[k] === "")) { set.push(`${k} = ?`); vals.push(v); }
+    for (const [k, v] of Object.entries(f)) if (k !== "state" && v != null && (ex[k] == null || ex[k] === "")) { set.push(`${k} = ?`); vals.push(v); }
+    if (f.state !== "TX" && (!ex.state || ex.state === "TX")) { set.push("state = ?"); vals.push(f.state); } // the column defaults to TX, so a real out-of-state value wins
     if (p.data) { set.push("data = ?"); vals.push(JSON.stringify({ ...(parse(ex.data) || {}), ...p.data })); }
     if (set.length) await db.prepare(`UPDATE properties SET ${set.join(", ")}, updated_at = ? WHERE id = ?`).bind(...vals, t, ex.id).run();
     return { id: ex.id, merged: true };
   }
   const id = newId("p");
-  await db.prepare(`INSERT INTO properties (id, addr_key, name, address, city, zip, county, prop_type, units, beds, baths, sqft, acres, lat, lng, data, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, key, f.name, f.address, f.city, f.zip, f.county, f.prop_type, f.units, f.beds, f.baths, f.sqft, f.acres, f.lat, f.lng,
+  await db.prepare(`INSERT INTO properties (id, addr_key, name, address, city, zip, state, county, prop_type, units, beds, baths, sqft, acres, lat, lng, data, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, key, f.name, f.address, f.city, f.zip, f.state, f.county, f.prop_type, f.units, f.beds, f.baths, f.sqft, f.acres, f.lat, f.lng,
     p.data ? JSON.stringify(p.data) : null, t, t).run();
   return { id, merged: false };
 }
@@ -133,7 +136,7 @@ export async function logActivity(db, a, t = now()) {
 }
 
 // ---------------- API ----------------
-const DEAL_SELECT = `SELECT d.*, p.address, p.name AS pname, p.city, p.zip, p.county, p.prop_type, p.units, p.beds, p.baths,
+const DEAL_SELECT = `SELECT d.*, p.address, p.name AS pname, p.city, p.zip, p.state, p.county, p.prop_type, p.units, p.beds, p.baths,
   c.name AS cname, c.phone AS cphone, c.email AS cemail, c.opt_out, c.litigator, c.consent,
   (SELECT GROUP_CONCAT(track) FROM deals d2 WHERE d2.property_id = d.property_id) AS tracks
   FROM deals d JOIN properties p ON p.id = d.property_id LEFT JOIN contacts c ON c.id = d.contact_id`;
@@ -175,7 +178,7 @@ export async function handleOfficeApi(request, env, url) {
     if (m === "GET" && path === "search") {
       const q = clean(url.searchParams.get("q"), 80) || "", like = `%${q}%`, digits = q.replace(/\D/g, "");
       const props = (await db.prepare(`SELECT p.*, (SELECT GROUP_CONCAT(track || ':' || stage, ' · ') FROM deals d WHERE d.property_id = p.id) AS tracks FROM properties p
-        WHERE p.address LIKE ? OR p.name LIKE ? OR p.city LIKE ? OR p.zip = ? ORDER BY p.updated_at DESC LIMIT 50`).bind(like, like, like, q).all()).results;
+        WHERE p.address LIKE ? OR p.name LIKE ? OR p.city LIKE ? OR p.zip = ? OR p.state = ? ORDER BY p.updated_at DESC LIMIT 50`).bind(like, like, like, q, q.toUpperCase()).all()).results;
       const contacts = (await db.prepare(`SELECT * FROM contacts WHERE name LIKE ? OR email LIKE ? ${digits.length >= 4 ? "OR phone_key LIKE ?" : ""} ORDER BY updated_at DESC LIMIT 50`)
         .bind(...[like, like, ...(digits.length >= 4 ? [`%${digits}%`] : [])]).all()).results;
       return json({ ok: true, props, contacts });
@@ -206,10 +209,11 @@ export async function handleOfficeApi(request, env, url) {
       return json({ ok: true, property_id: p.id, merged: p.merged, deal_id: d && d.id, deal_merged: d && d.merged, contact_merged: c && c.merged });
     }
     if (m === "PATCH" && seg[0] === "property" && seg[1]) {
-      const allowed = ["name", "address", "city", "zip", "county", "prop_type", "units", "beds", "baths", "sqft", "acres"];
+      const allowed = ["name", "address", "city", "zip", "state", "county", "prop_type", "units", "beds", "baths", "sqft", "acres"];
+      if ("state" in b) { b.state = normState(b.state); if (!b.state) return json({ ok: false, message: "Pick a U.S. state." }, 400); }
       const set = [], vals = [];
       for (const k of allowed) if (k in b) { set.push(`${k} = ?`); vals.push(["units", "beds", "baths", "sqft", "acres"].includes(k) ? num(b[k]) : clean(b[k], 200)); }
-      if ("address" in b || "zip" in b || "city" in b || "name" in b) {
+      if ("address" in b || "zip" in b || "city" in b || "name" in b || "state" in b) {
         const cur = await db.prepare("SELECT * FROM properties WHERE id = ?").bind(seg[1]).first();
         const key = propertyKey({ ...cur, ...b });
         const clash = key && await db.prepare("SELECT id FROM properties WHERE addr_key = ? AND id != ?").bind(key, seg[1]).first();
@@ -381,7 +385,7 @@ export async function handleOfficeApi(request, env, url) {
     }
     // Fill missing counties on properties already on file, 40 at a time (the Import tab calls this until none are left)
     if (m === "POST" && path === "import/fill-counties") {
-      const rows = (await db.prepare(`SELECT id, address, city, zip, lat, lng FROM properties WHERE (county IS NULL OR county = '')
+      const rows = (await db.prepare(`SELECT id, address, city, zip, state, lat, lng FROM properties WHERE (county IS NULL OR county = '')
         AND (lat IS NOT NULL OR (address IS NOT NULL AND address != '')) AND (data IS NULL OR data NOT LIKE '%"county_lookup":"none"%') LIMIT 40`).all()).results;
       let filled = 0;
       await pool(rows, 6, async (r) => {
@@ -408,11 +412,11 @@ export async function handleOfficeApi(request, env, url) {
     // Properties on file with no track and/or no property type (to sort, select and assign in the Import tab)
     if (m === "GET" && path === "import/unassigned") {
       await repairOneLineAddresses(db, t);
-      const rows = (await db.prepare(`SELECT p.id, p.name, p.address, p.city, p.zip, p.county, p.prop_type, p.lat, p.lng, p.data, p.created_at,
+      const rows = (await db.prepare(`SELECT p.id, p.name, p.address, p.city, p.zip, p.state, p.county, p.prop_type, p.lat, p.lng, p.data, p.created_at,
           (SELECT group_concat(DISTINCT d.track) FROM deals d WHERE d.property_id = p.id) AS tracks
         FROM properties p ORDER BY p.created_at DESC LIMIT 5000`).all()).results
         .filter((r) => !r.tracks || !r.prop_type)
-        .map((r) => { const d = parse(r.data) || {}; return { id: r.id, name: r.name || "", address: r.address || "", city: r.city || "", zip: r.zip || "", county: r.county || "",
+        .map((r) => { const d = parse(r.data) || {}; return { id: r.id, name: r.name || "", address: r.address || "", city: r.city || "", zip: r.zip || "", state: r.state || "", county: r.county || "",
           type: r.prop_type || "", tracks: r.tracks ? r.tracks.split(",") : [], lat: r.lat, lng: r.lng, note: (d.import && d.import.note) || "", list: (d.import && d.import.list) || "", created_at: r.created_at }; });
       return json({ ok: true, rows });
     }
@@ -437,7 +441,7 @@ export async function handleOfficeApi(request, env, url) {
       let added = 0, merged = 0, skipped = 0; const errors = [];
       for (const r of rows) {
         try {
-          const p = await upsertProperty(db, { address: r.address, name: r.name, city: r.city, zip: r.zip, county: r.county, prop_type: b.prop_type || null, lat: r.lat, lng: r.lng,
+          const p = await upsertProperty(db, { address: r.address, name: r.name, city: r.city, zip: r.zip, state: r.state, county: r.county, prop_type: b.prop_type || null, lat: r.lat, lng: r.lng,
             data: { import: { source, list: clean(b.list_name, 160), note: clean(r.note, 500), gmaps: clean(r.link, 500), at: t } } }, t);
           p.merged ? merged++ : added++;
           let d = null;
@@ -600,7 +604,7 @@ async function geocode(sp) {
   const a = j.address;
   const street = [a.house_number, a.road].filter(Boolean).join(" ");
   return { ok: true, address: street, exact: !!a.house_number, city: a.city || a.town || a.village || a.hamlet || a.suburb || "", zip: (a.postcode || "").slice(0, 5),
-    county: (a.county || "").replace(/ County$/, ""), state: a.state || "", lat: num(j.lat), lng: num(j.lon), display: j.display_name || "" };
+    county: (a.county || "").replace(/ County$/, ""), state: normState(a.state) || zipState(a.postcode) || "", lat: num(j.lat), lng: num(j.lon), display: j.display_name || "" };
 }
 
 // ---------------- services & sales numbers for the overview ----------------
@@ -687,7 +691,7 @@ async function repairOneLineAddresses(db, t) {
   for (const r of rows) {
     const a = splitAddr(r.address); if (!a.address || (!a.city && !a.zip)) continue;
     const name = r.name && r.name.trim().toLowerCase() === a.address.toLowerCase() ? null : r.name;
-    const key = propertyKey({ address: a.address, city: a.city, zip: r.zip || a.zip, name: name || "" });
+    const key = propertyKey({ address: a.address, city: a.city, zip: r.zip || a.zip, state: a.state, name: name || "" });
     const clash = await db.prepare("SELECT id FROM properties WHERE addr_key = ? AND id != ?").bind(key, r.id).first();
     if (!key || clash) continue;
     stmts.push(db.prepare("UPDATE properties SET address = ?, city = ?, zip = COALESCE(NULLIF(zip,''), ?), state = COALESCE(NULLIF(?, ''), state), name = ?, addr_key = ?, updated_at = ? WHERE id = ?")
@@ -709,7 +713,7 @@ async function countyFor(r) {
     const j = await get(`${base}coordinates?x=${lng}&y=${lat}${tail}`);
     const c = j && j.result && pick(j.result.geographies); if (c) return c;
   }
-  const one = [r.address, r.city, "TX", r.zip].filter(Boolean).join(", ");
+  const one = [r.address, r.city, normState(r.state) || zipState(r.zip), r.zip].filter(Boolean).join(", ");
   if (r.address && /\d/.test(r.address)) {
     const j = await get(`${base}onelineaddress?address=${encodeURIComponent(one)}${tail}`);
     const m = j && j.result && j.result.addressMatches && j.result.addressMatches[0];

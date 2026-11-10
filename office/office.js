@@ -1,5 +1,8 @@
 // Back office app (served only behind Cloudflare Access; data from /api/office/*).
-import { TRACKS, CLOSED_STAGES, propertyKey, splitAddr } from "/js/hub-keys.js";
+import { TRACKS, CLOSED_STAGES, propertyKey, splitAddr, US_STATES, normState, zipState } from "/js/hub-keys.js";
+// cur "" offers "From ZIP (else TX)", which the server fills from the ZIP code.
+const stateSelect = (name, cur, attrs = "") => `<select name="${name}" ${attrs}>${cur ? "" : `<option value="" selected>From ZIP (else TX)</option>`}${Object.entries(US_STATES).map(([k, v]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${k} · ${esc(v)}</option>`).join("")}</select>`;
+const cityLine = (p) => [p.city, [p.state, p.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
 import { shabbatStatus, fmtTime } from "/js/shabbat.js";
 import { CURB, CURB_LOT, CURB_ADDONS, CURB_QUOTE, curbQuoteSuggest } from "/js/services-catalog.js";
 
@@ -124,7 +127,7 @@ async function deals() {
       <button class="chip" data-open aria-pressed="${dealFilter.open === "1"}">Open only</button></div>
     ${tr ? `<div class="chips" style="margin-bottom:12px">${["", ...tr.stages].map((st) => `<button class="chip" data-st="${esc(st)}" aria-pressed="${dealFilter.stage === st}">${esc(st || "Any stage")}</button>`).join("")}</div>` : ""}
     <div class="tablewrap"><table><thead><tr><th>Property</th><th>Track · stage</th><th>Owner</th><th>Also on</th><th>Asking / value</th><th>Next touch</th></tr></thead>
-    <tbody>${rows.map((d) => `<tr class="click" data-prop="${esc(d.property_id)}"><td><b>${esc(label(d))}</b><div class="hint">${esc([d.prop_type, d.city, d.county && d.county + " Co."].filter(Boolean).join(" · "))}</div></td>
+    <tbody>${rows.map((d) => `<tr class="click" data-prop="${esc(d.property_id)}"><td><b>${esc(label(d))}</b><div class="hint">${esc([d.prop_type, [d.city, d.state].filter(Boolean).join(", "), d.county && d.county + " Co."].filter(Boolean).join(" · "))}</div></td>
       <td><span class="pill">${esc(TRACKS[d.track]?.label)}</span> ${esc(d.stage)}${d.ref ? `<div class="hint">${esc(d.ref)}</div>` : ""}</td>
       <td>${esc(d.cname || "—")}${d.cphone ? `<div class="hint">${esc(d.cphone)}</div>` : ""}${d.opt_out ? ` <span class="pill bad">Do not contact</span>` : d.litigator ? ` <span class="pill bad">Mail only</span>` : ""}</td>
       <td>${(d.tracks || "").split(",").filter((t) => t && t !== d.track).map((t) => `<span class="pill mute">${esc(TRACKS[t]?.label || t)}</span>`).join(" ") || "—"}</td>
@@ -149,7 +152,7 @@ async function openProperty(id) {
   const { property: p, deals: ds, contacts, activities } = await api("property/" + id);
   const missing = Object.keys(TRACKS).filter((k) => !ds.some((d) => d.track === k));
   $("dBody").innerHTML = `
-    <div><h2 id="dTitle">${esc(label(p))}</h2><p class="hint" style="margin:4px 0 0">${esc([p.name && p.address ? p.name : "", p.city, p.zip, p.county && p.county + " County", p.prop_type].filter(Boolean).join(" · "))}</p></div>
+    <div><h2 id="dTitle">${esc(label(p))}</h2><p class="hint" style="margin:4px 0 0">${esc([p.name && p.address ? p.name : "", cityLine(p), p.county && p.county + " County", p.prop_type].filter(Boolean).join(" · "))}</p></div>
     <section class="card"><div class="head"><h3>Tracks</h3><span class="hint">One deal per track</span></div>
       <div style="display:grid;gap:10px">${ds.map(dealCard).join("") || `<p class="hint">Not on any track yet.</p>`}</div>
       ${missing.length ? `<div class="acts" style="margin-top:10px"><span class="hint">Add to:</span>${missing.map((k) => `<button class="btn small" data-addtrack="${k}">${esc(TRACKS[k].label)}</button>`).join("")}</div>` : ""}</section>
@@ -164,7 +167,9 @@ async function openProperty(id) {
         <div class="wide"><button class="btn gold">Add contact</button></div></form></details></section>
     <section class="card"><div class="head"><h3>Property details</h3></div>
       <form id="propForm" class="grid">
-        ${[["name", "Name (parks, complexes)"], ["address", "Street address"], ["city", "City"], ["zip", "ZIP"], ["county", "County"]].map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(p[k] ?? "")}"></label>`).join("")}
+        ${[["name", "Name (parks, complexes)"], ["address", "Street address"], ["city", "City"]].map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(p[k] ?? "")}"></label>`).join("")}
+        <label>State${stateSelect("state", p.state || "TX")}</label>
+        ${[["zip", "ZIP"], ["county", "County"]].map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(p[k] ?? "")}"></label>`).join("")}
         <label>Type<select name="prop_type">${["", ...TYPES].map((t) => `<option ${p.prop_type === t ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label>
         ${[["units", "Units / sites"], ["beds", "Beds"], ["baths", "Baths"], ["sqft", "Sq ft"], ["acres", "Acres"]].map(([k, l]) => `<label>${l}<input name="${k}" inputmode="decimal" value="${esc(p[k] ?? "")}"></label>`).join("")}
         <div class="wide"><button class="btn">Save details</button></div></form></section>
@@ -214,7 +219,7 @@ async function add() {
   $("view").innerHTML = `<section class="card"><div class="head"><h2>Add a property</h2><span class="hint">If the address or owner is already on file, it's matched instead of duplicated.</span></div>
     <form id="addForm" class="grid">
       <label class="wide">Street address<input name="address" placeholder="1234 Pecan Dr" autocomplete="off"></label>
-      <label>Name (for parks or complexes)<input name="name"></label><label>City<input name="city"></label><label>ZIP<input name="zip" inputmode="numeric"></label><label>County<input name="county"></label>
+      <label>Name (for parks or complexes)<input name="name"></label><label>City<input name="city"></label><label>State${stateSelect("state", "")}</label><label>ZIP<input name="zip" inputmode="numeric"></label><label>County<input name="county"></label>
       <label>Type<select name="prop_type">${TYPES.map((t) => `<option>${t}</option>`).join("")}</select></label><label>Units / sites<input name="units" inputmode="numeric"></label>
       <label>Owner name<input name="cname"></label><label>Owner phone<input name="cphone" inputmode="tel"></label><label>Owner email<input name="cemail" type="email"></label>
       <label>Track<select name="track">${Object.entries(TRACKS).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("")}</select></label>
@@ -224,7 +229,7 @@ async function add() {
   $("addForm").onsubmit = async (e) => {
     e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
     try {
-      const r = await send("property", "POST", { property: { address: f.address, name: f.name, city: f.city, zip: f.zip, county: f.county, prop_type: f.prop_type, units: f.units },
+      const r = await send("property", "POST", { property: { address: f.address, name: f.name, city: f.city, state: f.state, zip: f.zip, county: f.county, prop_type: f.prop_type, units: f.units },
         contact: f.cname || f.cphone || f.cemail ? { name: f.cname, phone: f.cphone, email: f.cemail } : null, track: f.track, source: f.source || "Back office", notes: f.notes });
       toast(r.merged ? (r.deal_merged ? "Already on file and on this track: opened it" : "Matched an existing property and added the track") : "Property added");
       e.target.reset(); openProperty(r.property_id);
@@ -311,7 +316,7 @@ function coordsIn(s) {
   return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
 }
 function makeRow(o) {
-  const r = { name: o.name || "", address: "", city: "", zip: "", county: "", lat: o.lat ?? null, lng: o.lng ?? null, note: o.note || "", link: o.link || "", on: true, state: "" };
+  const r = { name: o.name || "", address: "", city: "", zip: "", county: "", lat: o.lat ?? null, lng: o.lng ?? null, note: o.note || "", link: o.link || "", on: true, found: false, state: "" };
   const src = o.address || (looksStreet(o.name) ? o.name : "");
   if (src) Object.assign(r, splitAddr(src));
   if (r.name && r.address && r.name.split(",")[0].trim().toLowerCase() === r.address.toLowerCase()) r.name = "";
@@ -350,9 +355,9 @@ function parseTakeout(name, text) {
     return makeRow({ name: title, lat: c?.lat, lng: c?.lng, note: [r[N], C >= 0 ? r[C] : ""].filter((x) => x && x.trim()).join(" · "), link: url });
   });
 }
-const keyOf = (r) => propertyKey({ address: r.address, city: r.city, zip: r.zip, name: r.name });
+const keyOf = (r) => propertyKey({ address: r.address, city: r.city, zip: r.zip, state: r.state, name: r.name });
 function rowState(r) {
-  if (r.state === "exists") return (r.tracks || []).length ? ["mute", "On file · " + r.tracks.map((k) => TRACKS[k]?.label || k).join(", ")] : ["warn", "On file · no track"];
+  if (r.found) return (r.tracks || []).length ? ["mute", "On file · " + r.tracks.map((k) => TRACKS[k]?.label || k).join(", ")] : ["warn", "On file · no track"];
   if (!looksStreet(r.address) && r.lat != null && !r.approx) return ["bad", "Pin only: find its address"];
   if (!looksStreet(r.address) && !(r.name && r.city)) return ["bad", "Needs an address"];
   if (r.approx) return ["warn", "Nearest street (check it)"];
@@ -362,7 +367,7 @@ async function checkExisting() {
   const keys = [...new Set(imp.rows.map(keyOf).filter(Boolean))];
   if (!keys.length) return;
   try { const { found } = await send("import/check", "POST", { keys });
-    imp.rows.forEach((r) => { const f = found[keyOf(r)]; if (f) { r.state = "exists"; r.pid = f.id; r.ptype = f.type; r.tracks = f.tracks; } else if (imp.src !== "onfile") { r.state = ""; r.pid = null; r.ptype = ""; r.tracks = []; } }); } catch {}
+    imp.rows.forEach((r) => { const f = found[keyOf(r)]; if (f) { r.found = true; r.pid = f.id; r.ptype = f.type; r.tracks = f.tracks; } else if (imp.src !== "onfile") { r.found = false; r.pid = null; r.ptype = ""; r.tracks = []; } }); } catch {}
 }
 async function importView() {
   $("view").innerHTML = `<section class="card"><div class="head"><h2>Import a Google Maps list</h2><span class="hint">Addresses already on file are matched, never duplicated.</span></div>
@@ -390,8 +395,8 @@ async function importView() {
   $("srcPaste").onsubmit = async (e) => { e.preventDefault(); await loaded(parseLines(e.target.text.value), "Pasted list", "paste"); };
   $("srcOnfile").onsubmit = async (e) => { e.preventDefault(); $("impMsg").textContent = "Loading…";
     try { const { rows } = await api("import/unassigned");
-      await loaded(rows.map((r) => ({ name: r.name, address: r.address, city: r.city, zip: r.zip, county: r.county, lat: r.lat, lng: r.lng, note: [r.list, r.note].filter(Boolean).join(" · "),
-        on: false, state: "exists", pid: r.id, ptype: r.type, tracks: r.tracks, link: "" })), "On file, no track or type", "onfile");
+      await loaded(rows.map((r) => ({ name: r.name, address: r.address, city: r.city, zip: r.zip, state: r.state, county: r.county, lat: r.lat, lng: r.lng, note: [r.list, r.note].filter(Boolean).join(" · "),
+        on: false, found: true, pid: r.id, ptype: r.type, tracks: r.tracks, link: "" })), "On file, no track or type", "onfile");
       imp.filter = "all"; drawPreview(); } catch (er) { $("impMsg").textContent = er.message; } };
   $("srcFile").onsubmit = async (e) => { e.preventDefault(); const fl = e.target.file.files[0]; if (!fl) { toast("Pick a file first."); return; }
     try { await loaded(parseTakeout(fl.name, await fl.text()), fl.name.replace(/\.(csv|json)$/i, ""), "file"); } catch (er) { $("impMsg").textContent = "Couldn't read that file: " + er.message; } };
@@ -404,7 +409,7 @@ async function autoCounties() {
   for (let i = 0; i < todo.length; i += 25) {
     const part = todo.slice(i, i + 25);
     const pr = $("impProg"); if (pr) pr.textContent = `Finding counties… ${Math.min(i + 25, todo.length)} of ${todo.length}`;
-    try { const { counties } = await send("counties", "POST", { items: part.map((r) => ({ key: r.uid, lat: r.lat, lng: r.lng, address: r.address, city: r.city, zip: r.zip })) });
+    try { const { counties } = await send("counties", "POST", { items: part.map((r) => ({ key: r.uid, lat: r.lat, lng: r.lng, address: r.address, city: r.city, zip: r.zip, state: r.state })) });
       part.forEach((r) => { if (counties[r.uid] && !r.county) r.county = counties[r.uid]; }); } catch { break; }
     if (location.hash.startsWith("#import") && !document.activeElement?.matches?.("#impPreview input")) drawPreview();
   }
@@ -424,14 +429,14 @@ async function fillFileCounties() {
 // Filters, sorting, paging and selection for the import list (and for "on file, no track or type").
 const IMP_FILTERS = [["all", "All"], ["new", "New"], ["onfile", "On file"], ["notrack", "On file, no track"], ["notype", "No type"], ["needs", "Needs address"]];
 function impMatch(r, f) {
-  if (f === "new") return r.state !== "exists";
-  if (f === "onfile") return r.state === "exists";
-  if (f === "notrack") return r.state === "exists" && !(r.tracks || []).length;
+  if (f === "new") return !r.found;
+  if (f === "onfile") return r.found;
+  if (f === "notrack") return r.found && !(r.tracks || []).length;
   if (f === "notype") return !r.ptype;
   if (f === "needs") return rowState(r)[0] === "bad";
   return true;
 }
-const IMP_SORT = { name: (r) => r.name, address: (r) => r.address.replace(/^\d+\s*/, "") + " " + String(parseInt(r.address) || 0).padStart(7, "0"), city: (r) => r.city, zip: (r) => r.zip,
+const IMP_SORT = { name: (r) => r.name, address: (r) => r.address.replace(/^\d+\s*/, "") + " " + String(parseInt(r.address) || 0).padStart(7, "0"), city: (r) => r.city, state: (r) => r.state, zip: (r) => r.zip,
   county: (r) => r.county, type: (r) => r.ptype || "", status: (r) => rowState(r)[1], order: (r) => String(r.uid).padStart(6, "0") };
 function impView() {
   let list = imp.rows.filter((r) => impMatch(r, imp.filter));
@@ -445,13 +450,13 @@ function impView() {
 function drawPreview() {
   const rows = imp.rows, sel = rows.filter((r) => r.on);
   const pins = sel.filter((r) => r.lat != null && !looksStreet(r.address) && !r.approx).length;
-  const fwd = sel.filter((r) => looksStreet(r.address) && !r.zip && r.state !== "exists").length;
-  const ready = sel.filter((r) => r.state !== "exists" && rowState(r)[0] !== "bad").length;
-  const selOnFile = sel.filter((r) => r.state === "exists" && r.pid).length;
+  const fwd = sel.filter((r) => looksStreet(r.address) && !r.zip && !r.found).length;
+  const ready = sel.filter((r) => !r.found && rowState(r)[0] !== "bad").length;
+  const selOnFile = sel.filter((r) => r.found && r.pid).length;
   const { list, pages, shown } = impView();
   const th = (key, label) => `<th><button class="link sort" data-sort="${key}" title="Sort">${label}${imp.sort.key === key ? (imp.sort.dir > 0 ? " ▲" : " ▼") : ""}</button></th>`;
   const allShownOn = shown.length && shown.every((r) => r.on);
-  $("impPreview").innerHTML = `<section class="card"><div class="head"><h2>${esc(imp.list || "Preview")}</h2><span class="hint">${rows.length} places · ${rows.filter((r) => r.state === "exists").length} on file · ${sel.length} selected</span></div>
+  $("impPreview").innerHTML = `<section class="card"><div class="head"><h2>${esc(imp.list || "Preview")}</h2><span class="hint">${rows.length} places · ${rows.filter((r) => r.found).length} on file · ${sel.length} selected</span></div>
     <div class="grid" style="margin-bottom:10px">
       <label>Add to track<select id="impTrack"><option value="">No track (just the property)</option>${Object.entries(TRACKS).map(([k, v]) => `<option value="${k}" ${imp.track === k ? "selected" : ""}>${esc(v.label)}</option>`).join("")}</select></label>
       <label>Type<select id="impType"><option value="">Not set</option>${TYPES.map((t) => `<option ${imp.ptype === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
@@ -469,10 +474,11 @@ function drawPreview() {
       <label class="hint" style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select id="impSize">${[25, 50, 100, 0].map((n) => `<option value="${n}" ${impPageSize === n ? "selected" : ""}>${n || "All"}</option>`).join("")}</select></label>
       ${pages > 1 ? `<button class="btn small" type="button" id="impPrev" ${imp.page ? "" : "disabled"}>‹ Prev</button><span class="hint">Page ${imp.page + 1} of ${pages}</span><button class="btn small" type="button" id="impNext" ${imp.page < pages - 1 ? "" : "disabled"}>Next ›</button>` : ""}
     </div>
-    <div class="tablewrap"><table><thead><tr><th><input type="checkbox" id="impPageAll" ${allShownOn ? "checked" : ""} aria-label="Select this page"></th>${th("name", "Name")}${th("address", "Street address")}${th("city", "City")}${th("zip", "ZIP")}${th("county", "County")}${th("type", "Type")}<th>Pin</th>${th("status", "Status")}</tr></thead><tbody>
+    <div class="tablewrap"><table><thead><tr><th><input type="checkbox" id="impPageAll" ${allShownOn ? "checked" : ""} aria-label="Select this page"></th>${th("name", "Name")}${th("address", "Street address")}${th("city", "City")}${th("state", "State")}${th("zip", "ZIP")}${th("county", "County")}${th("type", "Type")}<th>Pin</th>${th("status", "Status")}</tr></thead><tbody>
     ${shown.map((r) => { const i = rows.indexOf(r), [c, t] = rowState(r); return `<tr><td><input type="checkbox" data-on="${i}" ${r.on ? "checked" : ""} aria-label="Select"></td>
-      <td><input data-i="${i}" data-k="name" value="${esc(r.name)}" style="min-width:140px" ${r.state === "exists" && imp.src === "onfile" ? "readonly" : ""}>${r.note ? `<div class="hint">${esc(r.note)}</div>` : ""}</td>
+      <td><input data-i="${i}" data-k="name" value="${esc(r.name)}" style="min-width:140px" ${r.found && imp.src === "onfile" ? "readonly" : ""}>${r.note ? `<div class="hint">${esc(r.note)}</div>` : ""}</td>
       <td><input data-i="${i}" data-k="address" value="${esc(r.address)}" style="min-width:180px" ${imp.src === "onfile" ? "readonly" : ""}></td><td><input data-i="${i}" data-k="city" value="${esc(r.city)}" style="width:110px" ${imp.src === "onfile" ? "readonly" : ""}></td>
+      <td><input data-i="${i}" data-k="state" value="${esc(r.state || "")}" style="width:44px" maxlength="2" placeholder="TX" title="Two-letter state" ${imp.src === "onfile" ? "readonly" : ""}></td>
       <td><input data-i="${i}" data-k="zip" value="${esc(r.zip)}" style="width:70px" inputmode="numeric" ${imp.src === "onfile" ? "readonly" : ""}></td><td><input data-i="${i}" data-k="county" value="${esc(r.county)}" style="width:90px" ${imp.src === "onfile" ? "readonly" : ""}></td>
       <td>${r.ptype ? esc(r.ptype) : `<span class="hint">—</span>`}</td>
       <td>${r.lat != null ? `<a href="https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lng}" target="_blank" rel="noopener">${(+r.lat).toFixed(5)}, ${(+r.lng).toFixed(5)} ↗</a>` : "—"}</td>
@@ -490,7 +496,7 @@ function drawPreview() {
   tb.querySelectorAll("[data-sort]").forEach((b) => b.onclick = () => { keep(); const k = b.dataset.sort; imp.sort = imp.sort.key === k ? (imp.sort.dir > 0 ? { key: k, dir: -1 } : { key: "", dir: 1 }) : { key: k, dir: 1 }; drawPreview(); });
   $("impSize").onchange = (e) => { keep(); impPageSize = +e.target.value; imp.page = 0; try { localStorage.setItem("hll_imp_page", String(impPageSize)); } catch {} drawPreview(); };
   if ($("impPrev")) { $("impPrev").onclick = () => { keep(); imp.page--; drawPreview(); }; $("impNext").onclick = () => { keep(); imp.page++; drawPreview(); }; }
-  tb.querySelectorAll("input[data-i]:not([readonly])").forEach((el) => el.onchange = async () => { keep(); const r = rows[el.dataset.i]; r[el.dataset.k] = el.value.trim(); r.approx = false; await checkExisting(); drawPreview(); });
+  tb.querySelectorAll("input[data-i]:not([readonly])").forEach((el) => el.onchange = async () => { keep(); const r = rows[el.dataset.i]; r[el.dataset.k] = el.dataset.k === "state" ? (normState(el.value) || "") : el.value.trim(); r.approx = false; await checkExisting(); drawPreview(); });
   if ($("impGeo")) $("impGeo").onclick = () => { keep(); geocodeRows(); };
   if ($("impGo")) $("impGo").onclick = () => { keep(); runImport(); };
   $("impAssign").onclick = () => { keep(); runAssign(); };
@@ -499,7 +505,7 @@ async function runAssign() {
   if (imp.busy) return;
   const track = imp.track || "", prop_type = imp.ptype || "", source = (imp.source || "").trim() || imp.list;
   if (!track && !prop_type) { toast("Pick a track and/or a type above first."); return; }
-  const rows = imp.rows.filter((r) => r.on && r.state === "exists" && r.pid);
+  const rows = imp.rows.filter((r) => r.on && r.found && r.pid);
   if (!rows.length) return;
   imp.busy = true; let tracked = 0, typed = 0;
   for (let i = 0; i < rows.length; i += 50) {
@@ -518,7 +524,7 @@ async function geocodeRows() {
   for (const r of todo) {
     $("impProg").textContent = `Looking up ${++n} of ${todo.length}… (about 1 per second)`;
     try {
-      const qs = r.lat != null && !looksStreet(r.address) ? `lat=${r.lat}&lng=${r.lng}` : `q=${encodeURIComponent([r.address, r.city, "TX"].filter(Boolean).join(", "))}`;
+      const qs = r.lat != null && !looksStreet(r.address) ? `lat=${r.lat}&lng=${r.lng}` : `q=${encodeURIComponent([r.address, r.city, r.state || zipState(r.zip)].filter(Boolean).join(", "))}`;
       const g = await api("geocode?" + qs);
       if (!looksStreet(r.address)) {
         if (!r.name && r.address) r.name = r.address;
@@ -526,7 +532,7 @@ async function geocodeRows() {
         // No house number: keep the pin in the name so two pins on the same road stay separate properties.
         if (!g.exact && r.lat != null) r.name = `${r.name && !/^dropped pin$/i.test(r.name) ? r.name + " · " : ""}pin ${(+r.lat).toFixed(5)}, ${(+r.lng).toFixed(5)}`;
       }
-      r.city = r.city || g.city; r.zip = r.zip || g.zip; r.county = r.county || g.county;
+      r.city = r.city || g.city; r.zip = r.zip || g.zip; r.state = r.state || g.state || zipState(r.zip); r.county = r.county || g.county;
       if (r.lat == null && g.lat != null) { r.lat = g.lat; r.lng = g.lng; }
     } catch {}
     await sleep(1100);
@@ -537,7 +543,7 @@ async function geocodeRows() {
 }
 async function runImport() {
   if (imp.busy) return;
-  const rows = imp.rows.filter((r) => r.on && r.state !== "exists" && rowState(r)[0] !== "bad");
+  const rows = imp.rows.filter((r) => r.on && !r.found && rowState(r)[0] !== "bad");
   if (!rows.length) return;
   imp.busy = true;
   const track = imp.track || "", prop_type = imp.ptype || "", source = (imp.source ?? $("impSource").value).trim();
