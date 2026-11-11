@@ -39,6 +39,10 @@
         .home .hero { min-height: 0; padding: calc(80px + 56px) 0 64px; background: radial-gradient(1100px 500px at 85% -10%, rgba(37,99,235,.55), transparent 60%), linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 100%); }
         .home .hero::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 44px 44px; mask-image: linear-gradient(180deg, #000 0%, transparent 85%); pointer-events: none; }
         .home .hero-background { display: none; }
+        .home .hero { padding-top: calc(80px + 28px); }
+        .hx-banner { margin: 0 0 40px; border-radius: 16px; overflow: hidden; box-shadow: 0 30px 60px -24px rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.12); line-height: 0; background: #e8eef6; }
+        .hx-banner img { display: block; width: 100%; height: auto; aspect-ratio: 2033 / 774; }
+        @media (max-width: 640px) { .hx-banner { margin-bottom: 28px; border-radius: 12px; } }
         .home .hero .container { position: relative; }
         .home .hero-content { gap: 48px; }
         .home .carousel { border-radius: 16px; box-shadow: 0 30px 60px -24px rgba(0,0,0,.6); }
@@ -224,6 +228,13 @@
             <div class="hero-overlay"></div>
         </div>
         <div class="container">
+            <div class="hx-banner">
+                <picture>
+                    <source type="image/webp" srcset="images/hll-banner-1024.webp 1024w, images/hll-banner.webp 2033w" sizes="(max-width: 1212px) calc(100vw - 32px), 1180px">
+                    <img src="images/hll-banner.jpg" width="2033" height="774" fetchpriority="high" decoding="async"
+                         alt="House Lot &amp; Land Sales Co. LLC: houses, lots and land, Dallas–Fort Worth. Harvey Searcy in front of the Dallas skyline and new homes.">
+                </picture>
+            </div>
             <div class="hero-content">
                 <div class="hero-left">
                     <div class="hero-carousel">
