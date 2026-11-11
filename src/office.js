@@ -232,9 +232,19 @@ export async function handleOfficeApi(request, env, url) {
       if ("lang" in b) { set.push("lang = ?"); vals.push(b.lang === "es" ? "es" : "en"); }
       if ("opt_out" in b) { set.push("opt_out = ?"); vals.push(b.opt_out ? 1 : 0); }
       if ("litigator" in b) { set.push("litigator = ?"); vals.push(b.litigator ? 1 : 0); }
+      // Text/call consent recorded by hand (how the person agreed, when, and who recorded it). Never on an opted-out contact.
+      if (b.consent === true || b.consent === false) {
+        const cur = await db.prepare("SELECT opt_out FROM contacts WHERE id = ?").bind(seg[1]).first();
+        if (b.consent && cur && cur.opt_out) return json({ ok: false, message: "This contact opted out. Remove do-not-contact first, only if they asked you to." }, 400);
+        const how = clean(b.consent_source, 80);
+        if (b.consent && !how) return json({ ok: false, message: "Say how they agreed to texts." }, 400);
+        set.push("consent = ?", "consent_json = ?"); vals.push(b.consent ? 1 : 0, b.consent ? JSON.stringify({ source: how, at: t, by: u.email, note: clean(b.consent_note, 500) || "" }) : null);
+      }
       if (!set.length) return json({ ok: true });
       await db.prepare(`UPDATE contacts SET ${set.join(", ")}, updated_at = ? WHERE id = ?`).bind(...vals, t, seg[1]).run();
       if ("opt_out" in b) await logActivity(db, { contact_id: seg[1], kind: "consent", summary: b.opt_out ? "Marked do-not-contact" : "Do-not-contact removed", by: u.email, source: "office" }, t);
+      if (b.consent === true || b.consent === false) await logActivity(db, { property_id: clean(b.property_id, 40), contact_id: seg[1], kind: "consent",
+        summary: b.consent ? `Text consent recorded: ${clean(b.consent_source, 80)}${b.consent_note ? " (" + clean(b.consent_note, 200) + ")" : ""}` : "Text consent removed", by: u.email, source: "office" }, t);
       return json({ ok: true });
     }
     if (m === "POST" && path === "contact") {
@@ -645,7 +655,7 @@ async function salesSummary(db) {
 // The gateway (House Lot & Land Messaging Bridge) only sends approved templates and enforces opt-outs and quiet hours.
 // send_now: Harvey's click is the release; the Mac mini sends it from the Android right away (no one touches the phone). Needs var BRIDGE_URL and secret BRIDGE_TOKEN
 // (set by Harvey in Cloudflare; same value as PHONE_BRIDGE_TOKEN in the bridge's .env). Endpoint: POST /api/phone-bridge/send-template.
-const TEXT_TEMPLATES = { w9_request: { kind: "worker" } };
+const TEXT_TEMPLATES = { w9_request: { kind: "worker" }, heir_wholesale: { kind: "contact" }, heir_subto: { kind: "contact" }, heir_creative: { kind: "contact" } };
 async function gatewayText(env, db, b, u, t) {
   if (!env.BRIDGE_URL || !env.BRIDGE_TOKEN) return { ok: false, message: "The texting gateway isn't connected to the site yet." };
   const tpl = TEXT_TEMPLATES[b.template]; if (!tpl) return { ok: false, message: "Unknown text." };
@@ -659,6 +669,19 @@ async function gatewayText(env, db, b, u, t) {
     to = w.phone_key ? "+1" + w.phone_key : null; lang = w.lang === "es" ? "es" : "en"; ref = w.ref || w.id;
     vars = { first_name: String(w.name || "").trim().split(/\s+/)[0] || "", link };
     consent = { source: "work-with-us application", at: w.created_at, text: w.consent_text || "" };
+  }
+  if (tpl.kind === "contact") { // owner/family texts from the property drawer: consent on file required, never to opt-outs or TCPA litigators
+    const c = await db.prepare("SELECT * FROM contacts WHERE id = ?").bind(b.id || "").first();
+    const p = await db.prepare("SELECT * FROM properties WHERE id = ?").bind(b.property_id || "").first();
+    if (!c || !p) return { ok: false, message: "Contact or property not found." };
+    if (c.opt_out) return { ok: false, message: "This contact asked not to be contacted." };
+    if (c.litigator) return { ok: false, message: "This contact is flagged as a TCPA litigator: mail only." };
+    if (!c.consent) return { ok: false, message: "No text consent on file for this contact. Email or mail them instead." };
+    const d = await db.prepare("SELECT ref FROM deals WHERE property_id = ? AND ref IS NOT NULL AND ref != '' LIMIT 1").bind(p.id).first();
+    to = c.phone_key ? "+1" + c.phone_key : null; lang = b.lang === "es" || (!b.lang && c.lang === "es") ? "es" : "en"; ref = (d && d.ref) || p.id;
+    vars = { first_name: clean(b.first_name, 40) || String(c.name || "").trim().split(/\s+/)[0] || (lang === "es" ? "a la familia" : "there"), address: p.address || p.name || (lang === "es" ? "su propiedad" : "your property"), ref };
+    let cj = {}; try { cj = JSON.parse(c.consent_json || "{}") || {}; } catch {}
+    consent = { source: cj.source || "contact consent on file", at: cj.at || c.updated_at, text: cj.text || "" };
   }
   if (!to) return { ok: false, message: "No valid phone number on file." };
   const id = newId("tx"), day = t.slice(0, 10);
@@ -679,6 +702,7 @@ async function gatewayText(env, db, b, u, t) {
   await db.prepare("INSERT INTO outbound_texts (id, at, to_phone, kind, ref_id, template, lang, status, bridge_id, error, by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
     .bind(id, t, to, tpl.kind, b.id, b.template, lang, status, bridgeId, error, u.email).run();
   if (!["sent", "queued", "duplicate"].includes(status)) return { ok: false, message: error };
+  if (tpl.kind === "contact") await logActivity(db, { property_id: b.property_id, contact_id: b.id, kind: "text", summary: `Text (${b.template.replace("heir_", "owner passed away, ")}${lang === "es" ? ", Spanish" : ""}) to ${to}: ${status}`, by: u.email, source: "office" }, t);
   if (b.template === "w9_request") await db.prepare("UPDATE workers SET w9 = 'requested', w9_at = ?, updated_at = ? WHERE id = ? AND COALESCE(w9,'') != 'received'").bind(t, t, b.id).run();
   const at = sendAfter ? new Date(sendAfter).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }) : "";
   return { ok: true, message: status === "sent" ? "Text sent from the business phone." : status === "duplicate" ? "Already texted today; not sent again."

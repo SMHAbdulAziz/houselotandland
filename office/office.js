@@ -233,7 +233,12 @@ async function openProperty(id) {
       <div class="list">${contacts.map((c) => `<div class="row"><div><div class="t">${esc(c.name || "Unnamed")} <span class="pill mute">${esc(c.role)}</span></div>
         <div class="s">${esc([c.phone, c.email, c.lang === "es" ? "Spanish" : ""].filter(Boolean).join(" · ") || "No phone or email")}${c.mailing ? "<br>Mail: " + esc(c.mailing) : ""}</div></div>
         <div class="acts">${c.opt_out ? `<span class="pill bad">Do not contact</span>` : c.consent ? `<span class="pill ok">Consent on file</span>` : `<span class="pill mute">No consent</span>`}${c.litigator ? ` <span class="pill bad">TCPA litigator: mail only</span>` : ""}
-          <button class="btn small" data-dnc="${esc(c.id)}" data-v="${c.opt_out ? 0 : 1}">${c.opt_out ? "Allow contact" : "Do not contact"}</button></div></div>`).join("") || `<p class="hint">No contact yet.</p>`}</div>
+          <button class="btn small" data-dnc="${esc(c.id)}" data-v="${c.opt_out ? 0 : 1}">${c.opt_out ? "Allow contact" : "Do not contact"}</button></div>
+        ${c.opt_out ? "" : c.consent ? `<div class="s" style="margin-top:4px">${(() => { let j = {}; try { j = JSON.parse(c.consent_json || "{}") || {}; } catch {} return esc(["Consent: " + (j.source || "on file"), j.at && fmtDate(String(j.at).slice(0, 10)), j.note].filter(Boolean).join(" · ")); })()}
+            <button class="link" type="button" data-unconsent="${esc(c.id)}">Remove consent</button></div>`
+          : `<details style="margin-top:6px"><summary class="hint" style="cursor:pointer">Record text consent</summary>
+            <form class="acts" data-consent="${esc(c.id)}" style="margin-top:6px"><select name="how" required style="width:auto"><option value="">How did they agree?</option><option>Asked us to text them on a call</option><option>Texted us first and asked for info</option><option>Agreed in writing or by email</option><option>Agreed in person</option></select>
+              <input name="note" placeholder="Note (date, what they said)" style="width:auto;flex:1"><button class="btn small">Save</button></form></details>`}</div>`).join("") || `<p class="hint">No contact yet.</p>`}</div>
       <details style="margin-top:10px"><summary class="hint" style="cursor:pointer">Add a contact</summary>
         <form id="addContact" class="grid" style="margin-top:10px"><label>Name<input name="name"></label><label>Phone<input name="phone" inputmode="tel"></label><label>Email<input name="email" type="email"></label>
         <label>Role<select name="role"><option>owner</option><option>co-owner</option><option>heir</option><option>executor</option><option>spouse</option><option>broker</option><option>agent</option><option>tenant</option><option>other</option></select></label>
@@ -265,6 +270,10 @@ async function openProperty(id) {
   body.querySelectorAll("[data-dnc]").forEach((b) => b.onclick = async () => {
     try { await send("contact/" + b.dataset.dnc, "PATCH", { opt_out: b.dataset.v === "1" }); toast(b.dataset.v === "1" ? "Marked do not contact" : "Contact allowed"); openProperty(id); } catch (er) { toast(er.message); }
   });
+  body.querySelectorAll("[data-consent]").forEach((fm) => fm.onsubmit = async (e) => { e.preventDefault(); const fd = Object.fromEntries(new FormData(fm));
+    try { await send("contact/" + fm.dataset.consent, "PATCH", { consent: true, consent_source: fd.how, consent_note: fd.note, property_id: id }); toast("Consent recorded"); openProperty(id); } catch (er) { toast(er.message); } });
+  body.querySelectorAll("[data-unconsent]").forEach((b) => b.onclick = async () => {
+    try { await send("contact/" + b.dataset.unconsent, "PATCH", { consent: false, property_id: id }); toast("Consent removed"); openProperty(id); } catch (er) { toast(er.message); } });
   $("addContact").onsubmit = async (e) => { e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target));
     try { const r = await send("contact", "POST", { ...fd, property_id: id }); toast(r.merged ? "Matched an existing contact and linked it" : "Contact added"); openProperty(id); } catch (er) { toast(er.message); } };
   wireOwnerEmail(p, ds, contacts);
@@ -311,6 +320,13 @@ function ownerEmailSection(p, ds, contacts) {
       <label class="wide">Message<textarea name="body" rows="16" style="font-family:inherit"></textarea></label>
       <label class="wide" id="oeAddrWrap" hidden>Your mailing address (required at the bottom of marketing emails; saved for next time)<input name="mail" placeholder="1030 Oxbow Lane, Dallas, TX 75241"></label>
       <div class="wide acts"><button class="btn gold" type="button" id="oeGmail">Open draft in Gmail</button><button class="btn" type="button" id="oeCopy">Copy text</button><span class="hint" id="oeMsg"></span></div>
+      <div class="wide" style="border-top:1px solid var(--line, #e3e8ef);padding-top:10px;margin-top:4px">
+        <div class="acts"><b>Or text the matching short version</b><span class="hint">Only to contacts with text consent on file; sends from the business phone inside texting hours</span></div>
+        ${(() => { const ok = contacts.filter((c) => c.phone && c.consent && !c.opt_out && !c.litigator);
+          return ok.length ? `<div class="acts" style="margin-top:8px"><select id="oeTextTo" style="width:auto">${ok.map((c) => `<option value="${esc(c.id)}">${esc((c.name || "Contact") + " · " + c.phone)}</option>`).join("")}</select>
+            <button class="btn" type="button" id="oeText">Text via phone gateway</button><span class="hint" id="oeTextMsg"></span></div>`
+            : `<p class="hint" style="margin:6px 0 0">No contact here has text consent on file, so texting is off. Use email or a letter.</p>`; })()}
+      </div>
     </form>`}</section>`;
 }
 async function wireOwnerEmail(p, ds, contacts) {
@@ -335,6 +351,14 @@ async function wireOwnerEmail(p, ds, contacts) {
     if (!mailAddress && !f.mail.value.trim()) { $("oeMsg").textContent = "Add your mailing address first."; return; }
     open("https://mail.google.com/mail/?authuser=houselotandland@gmail.com&view=cm&fs=1&to=" + encodeURIComponent(f.to.value.trim()) + "&su=" + encodeURIComponent(f.subject.value) + "&body=" + encodeURIComponent(f.body.value), "_blank", "noopener");
     await done("Email drafted in Gmail"); $("oeMsg").textContent = "Draft opened in Gmail and logged in the history.";
+  };
+  if ($("oeText")) $("oeText").onclick = async () => {
+    const tpl = "heir_" + OWNER_TEMPLATES[f.tpl.value].track, btn = $("oeText");
+    btn.disabled = true; $("oeTextMsg").textContent = "Sending…";
+    try { const r = await send("text", "POST", { template: tpl, id: $("oeTextTo").value, property_id: p.id, lang: f.lang.value, first_name: (f.recipient.value || "").trim().split(/\s+/)[0] || "" });
+      $("oeTextMsg").textContent = r.message || "Sent."; }
+    catch (er) { $("oeTextMsg").textContent = er.message; }
+    btn.disabled = false;
   };
   $("oeCopy").onclick = async () => {
     try { await navigator.clipboard.writeText(f.subject.value + "\n\n" + f.body.value); $("oeMsg").textContent = "Copied."; await done("Email text copied"); } catch { $("oeMsg").textContent = "Couldn't copy; select the text and copy it."; }
