@@ -84,8 +84,8 @@ async function handleLead(request, env) {
     return json({ success: false, message: "Could not read the form. Please try again." }, 400, request);
   }
 
-  // Bots fill hidden fields; real visitors never see "website".
-  if (clean(body.website)) return json({ success: true }, 200, request);
+  // Bots fill hidden fields; real visitors never see "hll_hp" (renamed from "website", which Chrome autofilled for real people).
+  if (clean(body.hll_hp)) return json({ success: true }, 200, request);
 
   const formType = body.form_type === "contact" ? "contact" : "offer";
   const f = {

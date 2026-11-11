@@ -151,7 +151,7 @@ function initContactFormEmailOnly() {
                 phone: formData.get('contact-phone'),
                 email: formData.get('contact-email'),
                 message: formData.get('contact-message'),
-                website: formData.get('website') || '',
+                hll_hp: formData.get('hll_hp') || '',
                 lang: LANG_(),
                 form_type: "contact"
             };
@@ -316,7 +316,7 @@ function handleFormSubmission(form, formType) {
         'property-details': formData.get('property-details'),
         consent: formData.get('consent'),
         consent_text: (form.querySelector('#consent-text') || {}).textContent ? form.querySelector('#consent-text').textContent.replace(/\s+/g, ' ').trim() : '',
-        website: formData.get('website') || '',
+        hll_hp: formData.get('hll_hp') || '',
         lang: LANG_(),
         form_type: 'offer',
         source: 'Website'

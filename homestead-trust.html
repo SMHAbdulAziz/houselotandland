@@ -91,7 +91,7 @@
         <h2 class="px-h2">Your homestead trust questionnaire</h2>
         <div class="px-note warn" id="waitNote" hidden>Our Texas templates are finishing attorney review. Complete the questionnaire to join the waitlist: we'll save your answers and email you when it opens. Nothing is charged today.</div>
         <form class="pf" id="hForm" novalidate>
-          <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+          <input type="text" name="hll_hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
           <h3>About you</h3>
           <div class="row">
             <label class="f"><span class="req">Your full legal name</span><input name="settlor_name" autocomplete="name"></label>
@@ -209,7 +209,7 @@
       if (!$("ack").checked) { $("hMsg").className = "msg err"; $("hMsg").textContent = "Please confirm you understand this is self-help software, not legal advice."; return; }
       if (a.trustee_choice !== "other") a.trustee_name = "";
       const answers = {}; ["settlor_name","spouse_name","marital","trust_name","trustee_name","successor_trustee","successor_address","beneficiaries","property_address","county","legal_description","mailing_address","has_mortgage"].forEach((k) => answers[k] = a[k] || "");
-      submit({ service: "homestead", website: a.website, name: a.settlor_name, email: a.email, phone: a.phone, property_address: a.property_address, answers, addOns: addOns(),
+      submit({ service: "homestead", hll_hp: a.hll_hp, name: a.settlor_name, email: a.email, phone: a.phone, property_address: a.property_address, answers, addOns: addOns(),
         consent: $("consent").checked, consent_text: $("consentText").textContent.trim() }, { btn: $("hBtn"), msg: $("hMsg"), form: f, done: $("done") });
     });
   </script>

@@ -64,7 +64,7 @@
         <div class="px-grid" id="pkgs"></div>
 
         <form class="pf" id="cForm" novalidate style="margin-top:28px">
-          <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+          <input type="text" name="hll_hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
           <h3>Lot size</h3>
           <p class="fine" style="margin:0 0 8px;font-size:.88rem;color:#64748b">The whole lot is mowed, trimmed and blown. We check the lot size with the county appraisal district before we confirm; if it's different, we'll tell you the new price first and you can cancel at no charge.</p>
           <div id="lots"></div>
@@ -218,7 +218,7 @@
       const sat = ["date1", "date2"].find((k) => a[k] && new Date(a[k] + "T12:00:00Z").getUTCDay() === 6);
       if (sat) { $("cMsg").className = "msg err"; $("cMsg").textContent = "We don't schedule work on Saturdays (Shabbat). Please choose another day."; f.elements[sat].focus(); return; }
       const answers = {}; ["occupied", "date1", "date2", "window", "access", "notes", "role"].forEach((k) => answers[k] = a[k] || "");
-      submit({ service: "curb", package: pick, addOns: addOns(), lot: lot(), overgrown: og(), website: a.website, name: a.name, email: a.email, phone: a.phone, property_address: a.property_address, answers,
+      submit({ service: "curb", package: pick, addOns: addOns(), lot: lot(), overgrown: og(), hll_hp: a.hll_hp, name: a.name, email: a.email, phone: a.phone, property_address: a.property_address, answers,
         payNow: a.pay === "now", consent: $("consent").checked, consent_text: $("consentText").textContent.trim() }, { btn: $("cBtn"), msg: $("cMsg"), form: f, done: $("done") });
     });
   </script>

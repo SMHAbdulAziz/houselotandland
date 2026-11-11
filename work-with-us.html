@@ -72,7 +72,7 @@
         <div class="px-eyebrow"><span data-t="form_e">Apply</span></div>
         <h2 class="px-h2"><span data-t="form_h">Tell us about you</span></h2>
         <form class="pf" id="wkForm" novalidate>
-          <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+          <input type="text" name="hll_hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
           <h3><span data-t="you">You</span></h3>
           <div class="row">
             <label class="f"><span class="req" data-t="name">Full name</span><input name="name" autocomplete="name"></label>
@@ -161,7 +161,7 @@
         e.preventDefault();
         var f = e.target, fd = new FormData(f), msg = $("wkMsg"), btn = $("wkBtn");
         var all = function (n) { return fd.getAll(n); };
-        var body = { lang: cur, website: fd.get("website"), name: fd.get("name"), phone: fd.get("phone"), email: fd.get("email"), city: fd.get("city"), zip: fd.get("zip"),
+        var body = { lang: cur, hll_hp: fd.get("hll_hp"), name: fd.get("name"), phone: fd.get("phone"), email: fd.get("email"), city: fd.get("city"), zip: fd.get("zip"),
           kind: fd.get("kind"), trades: all("trades"), equipment: all("equipment"), availability: all("availability"), experience: fd.get("experience"),
           adult: $("adult").checked, ack: $("ack").checked, consent: $("consent").checked, consent_text: $("consentText").textContent.trim() };
         if (!String(body.name || "").trim() || !String(body.phone || "").trim() || !body.trades.length) { msg.className = "msg err"; msg.textContent = i("err_req"); return; }

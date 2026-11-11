@@ -33,7 +33,7 @@ export async function handleLoanApi(request, env) {
   } catch {
     return json({ success: false, message: "Could not read the application. Please try again." }, 400, request);
   }
-  if (clean(body.website)) return json({ success: true, ref: "PM-OK" }, 200, request); // honeypot
+  if (clean(body.hll_hp)) return json({ success: true, ref: "PM-OK" }, 200, request); // honeypot
 
   const d = {};
   for (const [k, max] of Object.entries(TEXT)) d[k] = clean(body[k], max);

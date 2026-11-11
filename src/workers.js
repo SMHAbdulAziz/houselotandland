@@ -26,7 +26,7 @@ export async function handleWorkerApply(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { ...headers, "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" } });
   if (request.method !== "POST") return out({ success: false, message: "Method not allowed" }, 405);
   let b; try { b = await request.json(); } catch { return out({ success: false, message: "Could not read the form." }, 400); }
-  if (clean(b.website)) return out({ success: true, ref: "WK-OK" });
+  if (clean(b.hll_hp)) return out({ success: true, ref: "WK-OK" });
   const es = b.lang === "es";
   const name = clean(b.name, 120), pk = phoneKey(b.phone), email = emailKey(b.email);
   if (name.split(/\s+/).length < 2) return out({ success: false, message: es ? "Escriba su nombre completo." : "Please enter your full name." }, 400);

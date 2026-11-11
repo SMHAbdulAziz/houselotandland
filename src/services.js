@@ -44,7 +44,7 @@ export async function handleOrderPage(request, env, url) {
 async function createOrder(request, env, url) {
   let b;
   try { b = await request.json(); } catch { return json({ success: false, message: "Could not read the form. Please try again." }, 400, request); }
-  if (clean(b.website)) return json({ success: true, ref: "SV-OK" }, 200, request);
+  if (clean(b.hll_hp)) return json({ success: true, ref: "SV-OK" }, 200, request);
   const service = String(b.service || "");
   if (!SERVICES.includes(service)) return json({ success: false, message: "Unknown service." }, 400, request);
 
