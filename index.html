@@ -346,6 +346,17 @@
                                 <label for="property-details">Additional Details</label>
                                 <textarea id="property-details" name="property-details" placeholder="Tell us more about your property, situation, or any questions you have..." rows="3"></textarea>
                             </div>
+                            <div class="form-group">
+                                <label for="referrer">Who referred you to us?</label>
+                                <select id="referrer" name="referrer">
+                                    <option value="">No one referred me</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="referrer-other-group" hidden>
+                                <label for="referrer-other">Referrer's name *</label>
+                                <input type="text" id="referrer-other" name="referrer_other" placeholder="Name of the person who referred you" maxlength="120" autocomplete="off">
+                            </div>
                             <div class="form-group checkbox-group">
                                 <label class="checkbox-label">
                                     <input type="checkbox" id="consent" name="consent" required>
@@ -621,7 +632,6 @@
                         <li><a href="#faq">FAQ</a></li>
                         <li><a href="/find">Find My Offer</a></li>
                         <li><a href="funding.html">Investor Funding</a></li>
-                        <li><a href="bird-dog.html">Bird-Dog Program ($500)</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">

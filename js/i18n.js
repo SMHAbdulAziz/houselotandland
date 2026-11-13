@@ -6,6 +6,10 @@
  */
 (function () {
   var ES = {
+    "Who referred you to us?": "¿Quién le recomendó con nosotros?",
+    "No one referred me": "Nadie me recomendó",
+    "Referrer's name *": "Nombre de quien le recomendó *",
+    "Name of the person who referred you": "Nombre de la persona que le recomendó",
     "Home": "Inicio",
     "Services": "Servicios",
     "Investor Funding": "Inversionistas",

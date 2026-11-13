@@ -314,6 +314,8 @@ function handleFormSubmission(form, formType) {
         'property-condition': formData.get('property-condition'),
         timeline: formData.get('timeline'),
         'property-details': formData.get('property-details'),
+        referrer: formData.get('referrer') || '',
+        referrer_other: formData.get('referrer') === 'other' ? (formData.get('referrer_other') || '') : '',
         consent: formData.get('consent'),
         consent_text: (form.querySelector('#consent-text') || {}).textContent ? form.querySelector('#consent-text').textContent.replace(/\s+/g, ' ').trim() : '',
         hll_hp: formData.get('hll_hp') || '',
@@ -776,3 +778,15 @@ function initHeroCarousel() {
     carousel.addEventListener('mouseenter', () => clearInterval(interval));
     carousel.addEventListener('mouseleave', resetInterval);
 } 
+// "Who referred you?" on the cash-offer form: affiliates from the back office (GET /api/affiliates), then "Other" + a name field.
+(function () {
+    var sel = document.getElementById('referrer'), grp = document.getElementById('referrer-other-group'), other = document.getElementById('referrer-other');
+    if (!sel || !grp) return;
+    var sync = function () { var on = sel.value === 'other'; grp.hidden = !on; grp.style.display = on ? '' : 'none'; other.required = on; if (!on) other.value = ''; };
+    sel.addEventListener('change', sync);
+    fetch('/api/affiliates').then(function (r) { return r.json(); }).then(function (j) {
+        var list = (j && j.affiliates) || [], otherOpt = sel.querySelector('option[value="other"]');
+        list.forEach(function (a) { var o = document.createElement('option'); o.value = a.id; o.textContent = a.name; sel.insertBefore(o, otherOpt); });
+    }).catch(function () {});
+    sync();
+})();

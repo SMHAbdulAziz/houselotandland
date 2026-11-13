@@ -13,13 +13,13 @@ import { handleLoanApi } from "./loan.js";
 import { handleServiceApi, handleOrderPage } from "./services.js";
 import { handleOfficePage, handleOfficeApi } from "./office.js";
 import { handleWorkerApply } from "./workers.js";
-import { handleBirddogApi } from "./birddog.js";
+import { handleAffiliatesPublic, referrerFromLead, recordReferral } from "./affiliates.js";
 import { shabbatStatus, closedMessage, TZ } from "../js/shabbat.js";
 
 // New-business actions refused from sunset Friday to sunset Saturday (Shabbat). Viewing orders, documents,
 // offer pages and "Find my offer" stays open, and Stripe webhooks are still recorded.
 // Back-office changes (/api/office/*, any method but GET) and worker applications are refused too.
-const NEW_BUSINESS = /^\/api\/(lead|loan|service|worker\/apply|birddog\/(join|lead)|offer\/[^/]+\/(choose|callback|owners)|sign\/[^/]+|order\/[^/]+\/(doc|approve)|office\/.+)$/;
+const NEW_BUSINESS = /^\/api\/(lead|loan|service|worker\/apply|offer\/[^/]+\/(choose|callback|owners)|sign\/[^/]+|order\/[^/]+\/(doc|approve)|office\/.+)$/;
 // Customer pages rendered by this Worker get the Shabbat notice (mode=access: nothing is hidden).
 const NOTICE_PAGES = /^\/(offer\/[^/]+|sign\/[^/]+|order\/[^/]+|find)\/?$/;
 
@@ -70,7 +70,7 @@ async function route(request, env, ctx, url) {
     if (url.pathname === "/api/health") return json({ ok: true }, 200, request);
     if (url.pathname === "/api/hours") return hours();
     if (url.pathname === "/api/worker/apply") return handleWorkerApply(request, env);
-    if (url.pathname.startsWith("/api/birddog/")) return handleBirddogApi(request, env, url);
+    if (url.pathname === "/api/affiliates") return handleAffiliatesPublic(request, env);
     if (url.pathname.startsWith("/api/office/")) return handleOfficeApi(request, env, url);
     if (url.pathname === "/office" || url.pathname.startsWith("/office/")) return handleOfficePage(request, env, url);
 
@@ -106,6 +106,11 @@ async function handleLead(request, env) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return json({ success: false, message: "Please enter a valid email address." }, 400, request);
   if (f.phone.replace(/\D/g, "").length < 10) return json({ success: false, message: "Please enter a 10-digit phone number." }, 400, request);
 
+  // "Who referred you?" (end of the cash-offer form): an affiliate from the back-office list, or "Other" + a typed name.
+  const referrer = formType === "offer" ? await referrerFromLead(env.DB, body, clean(body.lang, 5) === "es") : null;
+  if (referrer && referrer.error) return json({ success: false, message: referrer.error }, 400, request);
+  if (referrer) f.details = [f.details, `Referred by: ${referrer.name}${referrer.type === "affiliate" ? " (affiliate)" : " (not an affiliate)"}`].filter(Boolean).join("\n\n").slice(0, MAX_LEN.details + 200);
+
   const consent = formType === "offer" && truthy(body.consent) ? 1 : 0;
   const consentText = consent ? clean(body.consent_text, 600) : "";
   const lang = clean(body.lang, 5) === "es" ? "es" : "en";
@@ -123,14 +128,16 @@ async function handleLead(request, env) {
   const id = "web_" + crypto.randomUUID();
   const ref = makeRef();
   await env.DB.prepare(
-    `INSERT INTO leads (id, ref, created_at, form_type, name, phone, email, property_address, property_type, property_condition, timeline, details, lang, consent, consent_text, ip_hash, user_agent, country)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO leads (id, ref, created_at, form_type, name, phone, email, property_address, property_type, property_condition, timeline, details, lang, consent, consent_text, ip_hash, user_agent, country, referrer_type, referrer_id, referrer_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     id, ref, new Date().toISOString(), formType,
     f.name, f.phone, f.email, f.property_address, f.property_type, f.property_condition, f.timeline, f.details,
     lang, consent, consentText, ipHash,
-    clean(request.headers.get("user-agent"), 300), (request.cf && request.cf.country) || ""
+    clean(request.headers.get("user-agent"), 300), (request.cf && request.cf.country) || "",
+    referrer ? referrer.type : null, referrer ? referrer.id : null, referrer ? referrer.name : null
   ).run();
+  if (referrer) await recordReferral(env.DB, referrer, { id, ref, name: f.name, phone: f.phone, property_address: f.property_address });
 
   return json({ success: true, result: "success", ref }, 200, request);
 }
