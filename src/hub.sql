@@ -45,3 +45,9 @@ CREATE INDEX IF NOT EXISTS worker_jobs_worker ON worker_jobs (worker_id, work_da
 CREATE TABLE IF NOT EXISTS hub_imports (
   id TEXT PRIMARY KEY, at TEXT NOT NULL, source TEXT, file TEXT, rows INTEGER, added INTEGER, merged INTEGER, skipped INTEGER, notes TEXT
 );
+
+-- Deals removed from the master list (back office or a dashboard). Dashboards read this to drop their copy.
+CREATE TABLE IF NOT EXISTS deleted_deals (
+  deal_id TEXT PRIMARY KEY, property_id TEXT, track TEXT, source_app TEXT, source_id TEXT, label TEXT, at TEXT NOT NULL, by TEXT
+);
+CREATE INDEX IF NOT EXISTS deleted_deals_track ON deleted_deals (track, at);

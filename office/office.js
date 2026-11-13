@@ -165,6 +165,7 @@ function drawDeals() {
         <option value="">Set stage…</option>${stageTrack ? TRACKS[stageTrack].stages.map((s) => `<option>${esc(s)}</option>`).join("") : ""}</select>
       <input type="date" id="dTouch" ${dv.sel.size ? "" : "disabled"} title="Set next touch" style="width:auto">
       <button class="btn small gold" type="button" id="dApply" disabled>Apply</button>
+      <button class="btn small danger" type="button" id="dDel" ${dv.sel.size ? "" : "disabled"}>Delete selected</button>
       <span class="hint" id="dProg"></span>
       <span style="flex:1"></span>
       <label class="hint" style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select id="dSize" style="width:auto">${[25, 50, 100, 0].map((n) => `<option value="${n}" ${dealPageSize === n ? "selected" : ""}>${n || "All"}</option>`).join("")}</select></label>
@@ -193,6 +194,11 @@ function drawDeals() {
   $("dNone").onclick = () => { dv.sel.clear(); drawDeals(); };
   $("dSize").onchange = (e) => { dealPageSize = +e.target.value; dv.page = 0; try { localStorage.setItem("hll_deals_page", String(dealPageSize)); } catch {} drawDeals(); };
   if ($("dPrev")) { $("dPrev").onclick = () => { dv.page--; drawDeals(); }; $("dNext").onclick = () => { dv.page++; drawDeals(); }; }
+  if (dv.sel.size) armClick($("dDel"), `Click again to delete ${dv.sel.size}`, async () => {
+    const r = await send("deals/delete", "POST", { ids: [...dv.sel] });
+    toast(`${r.deals} deal${r.deals === 1 ? "" : "s"} removed${r.properties ? `, ${r.properties} propert${r.properties === 1 ? "y" : "ies"} with no other tracks deleted` : ""}.`);
+    dv.sel.clear(); deals();
+  });
   const ready = () => { $("dApply").disabled = !dv.sel.size || (!$("dStage").value && !$("dTouch").value); };
   $("dStage").onchange = ready; $("dTouch").oninput = ready;
   $("dApply").onclick = async () => {
@@ -257,9 +263,17 @@ async function openProperty(id) {
         <label>Deal<select name="deal_id"><option value="">Property (all tracks)</option>${ds.map((d) => `<option value="${esc(d.id)}">${esc(TRACKS[d.track].label)}</option>`).join("")}</select></label>
         <label>Next touch<input name="next_touch" type="date" value="${addDays(3)}"></label>
         <label class="wide">What happened<textarea name="summary" required></textarea></label><div class="wide"><button class="btn gold">Log it</button></div></form>
-      <div class="log" style="margin-top:12px">${activities.map((a) => `<div><time>${esc(fmtWhen(a.at))}</time><span class="pill mute">${esc(a.kind)}</span> ${esc(a.summary)}${a.by ? ` <span class="hint">· ${esc(a.by)}</span>` : ""}</div>`).join("") || `<div class="hint">Nothing logged yet.</div>`}</div></section>`;
+      <div class="log" style="margin-top:12px">${activities.map((a) => `<div><time>${esc(fmtWhen(a.at))}</time><span class="pill mute">${esc(a.kind)}</span> ${esc(a.summary)}${a.by ? ` <span class="hint">· ${esc(a.by)}</span>` : ""}</div>`).join("") || `<div class="hint">Nothing logged yet.</div>`}</div></section>
+    <section class="card" style="border-color:#f1c4c4"><div class="head"><h3>Delete this property</h3></div>
+      <p class="hint" style="margin:0 0 10px">Removes it from every track, here and in the Deal Desk, Sub-To and Creative dashboards, with its history. Contacts who asked not to be contacted stay on the do-not-contact list. This can't be undone.</p>
+      <button type="button" class="btn small danger" id="delProp">Delete property</button></section>`;
   $("drawer").hidden = false;
   const body = $("dBody");
+  body.querySelectorAll("[data-rmdeal]").forEach((b) => armClick(b, "Click again to remove", async () => {
+    const r = await send("deal/" + b.dataset.rmdeal, "DELETE"); toast(r.properties ? "Removed. The property had no other tracks, so it was deleted." : "Removed from the track.");
+    if (r.properties) { $("drawer").hidden = true; route(); } else openProperty(id);
+  }));
+  armClick($("delProp"), "Click again to delete for good", async () => { await send("property/" + id, "DELETE"); toast("Property deleted."); $("drawer").hidden = true; route(); });
   body.querySelectorAll("[data-deal]").forEach((f) => f.addEventListener("submit", async (e) => {
     e.preventDefault(); const fd = Object.fromEntries(new FormData(f));
     try { await send("deal/" + f.dataset.deal, "PATCH", fd); toast("Saved"); openProperty(id); } catch (er) { toast(er.message); }
@@ -283,6 +297,15 @@ async function openProperty(id) {
   $("logForm").onsubmit = async (e) => { e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target));
     try { await send("activity", "POST", { ...fd, property_id: id, deal_id: fd.deal_id || null, contact_id: contacts[0] && contacts[0].id }); toast("Logged"); openProperty(id); } catch (er) { toast(er.message); } };
 }
+// Two-step confirm for destructive buttons: first click arms (label changes), second click within 5 s runs.
+function armClick(btn, confirmLabel, fn) {
+  btn.addEventListener("click", async () => {
+    if (btn.dataset.armed !== "1") { const was = btn.textContent; btn.dataset.armed = "1"; btn.dataset.was = was; btn.textContent = confirmLabel;
+      setTimeout(() => { if (btn.isConnected && btn.dataset.armed === "1") { btn.dataset.armed = ""; btn.textContent = was; } }, 5000); return; }
+    btn.dataset.armed = ""; btn.disabled = true; btn.textContent = "Removing…";
+    try { await fn(); } catch (er) { toast(er.message); btn.disabled = false; btn.textContent = btn.dataset.was; }
+  });
+}
 function dealCard(d) {
   const tr = TRACKS[d.track];
   return `<form class="deal" data-deal="${esc(d.id)}"><div class="acts" style="justify-content:space-between"><b>${esc(tr.label)}</b>
@@ -291,7 +314,7 @@ function dealCard(d) {
       <label>Next touch<input type="date" name="next_touch" value="${esc(d.next_touch || "")}"></label>
       <label>Asking ($)<input name="asking" inputmode="decimal" value="${esc(d.asking ?? "")}"></label><label>Value / ARV ($)<input name="value" inputmode="decimal" value="${esc(d.value ?? "")}"></label>
       <label class="wide">Notes<textarea name="notes">${esc(d.notes || "")}</textarea></label></div>
-    <div class="acts"><button class="btn small gold">Save</button>${dashLink(d)}</div></form>`;
+    <div class="acts"><button class="btn small gold">Save</button>${dashLink(d)}<span style="flex:1"></span><button type="button" class="btn small danger" data-rmdeal="${esc(d.id)}" title="Takes this property off the ${esc(tr.label)} track here and in its dashboard">Remove from ${esc(tr.label)}</button></div></form>`;
 }
 function dashLink(d) {
   const L = { wholesale: LINKS[0][1][0], subto: LINKS[0][1][1], creative: LINKS[0][1][2] }[d.track];

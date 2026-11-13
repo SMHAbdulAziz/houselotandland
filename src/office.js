@@ -64,7 +64,41 @@ export async function handleOfficePage(request, env, url) {
 }
 
 // ---------------- matching / upserts (also used by the worker apply form and imports) ----------------
-export async function upsertProperty(db, p, t = now()) {
+export async function removeDeals(db, ids, by, t) {
+  let deals = 0, properties = 0; const props = new Set();
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50), q = chunk.map(() => "?").join(",");
+    const rows = (await db.prepare(`SELECT d.id, d.property_id, d.track, d.source_app, d.source_id, COALESCE(p.address, p.name, '') AS label FROM deals d LEFT JOIN properties p ON p.id = d.property_id WHERE d.id IN (${q})`).bind(...chunk).all()).results;
+    if (!rows.length) continue;
+    const stmts = [];
+    for (const d of rows) {
+      stmts.push(db.prepare("INSERT OR REPLACE INTO deleted_deals (deal_id, property_id, track, source_app, source_id, label, at, by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(d.id, d.property_id, d.track, d.source_app, d.source_id, d.label, t, by || ""));
+      stmts.push(db.prepare("DELETE FROM deals WHERE id = ?").bind(d.id));
+      stmts.push(db.prepare("INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'update', ?, ?, 'office')").bind(newId("a"), t, d.property_id, d.id, `Removed from ${TRACKS[d.track]?.label || d.track}`, by || ""));
+      props.add(d.property_id); deals++;
+    }
+    await db.batch(stmts);
+  }
+  for (const pid of props) {
+    const left = await db.prepare("SELECT COUNT(*) AS n FROM deals WHERE property_id = ?").bind(pid).first();
+    if (!left || !left.n) properties += await removeProperty(db, pid);
+  }
+  return { deals, properties };
+}
+async function removeProperty(db, pid) {
+  const cs = (await db.prepare("SELECT contact_id FROM property_contacts WHERE property_id = ?").bind(pid).all()).results.map((r) => r.contact_id);
+  const stmts = [
+    db.prepare("DELETE FROM property_contacts WHERE property_id = ?").bind(pid),
+    db.prepare("DELETE FROM activities WHERE property_id = ?").bind(pid),
+    db.prepare("DELETE FROM properties WHERE id = ?").bind(pid),
+  ];
+  // Contacts tied to no other property go too, except opted-out or litigator contacts, which stay on the do-not-contact list.
+  for (const c of cs) stmts.push(db.prepare(`DELETE FROM contacts WHERE id = ? AND COALESCE(opt_out, 0) = 0 AND COALESCE(litigator, 0) = 0
+    AND NOT EXISTS (SELECT 1 FROM property_contacts WHERE contact_id = ? AND property_id != ?) AND NOT EXISTS (SELECT 1 FROM deals WHERE contact_id = ?)`).bind(c, c, pid, c));
+  const r = await db.batch(stmts);
+  return r[2].meta.changes ? 1 : 0;
+}
+async function upsertProperty(db, p, t = now()) {
   // A whole address typed or imported into one field ("123 Main St, Dallas, TX 75201") is split first, so it keys like the rest.
   if (p.address && String(p.address).includes(",") && !p.city) { const a = splitAddr(p.address); p = { ...p, address: a.address, city: a.city, zip: p.zip || a.zip, state: p.state || a.state }; }
   // State: as given, else from the ZIP code, else Texas (home market).
@@ -149,7 +183,7 @@ export async function handleOfficeApi(request, env, url) {
   if (!u || u.setup) return json({ ok: false, message: u && u.setup ? "Back office isn't set up yet." : "Not signed in." }, 401);
   const db = env.DB, path = url.pathname.replace(/^\/api\/office\/?/, ""), m = request.method, t = now();
   let b = {};
-  if (m !== "GET") { try { b = await request.json(); } catch { return json({ ok: false, message: "Bad request." }, 400); } }
+  if (m !== "GET" && m !== "DELETE") { try { b = await request.json(); } catch { return json({ ok: false, message: "Bad request." }, 400); } }
   const seg = path.split("/");
   try {
     if (m === "GET" && path === "summary") {
@@ -257,6 +291,24 @@ export async function handleOfficeApi(request, env, url) {
       const d = await upsertDeal(db, { ...b, next_touch: b.next_touch || today(), source: b.source || "Back office", source_app: b.source_app || "office" }, t);
       if (!d.merged) await logActivity(db, { property_id: b.property_id, deal_id: d.id, kind: "stage", summary: `Added to ${TRACKS[b.track].label}`, by: u.email, source: "office" }, t);
       return json({ ok: true, deal_id: d.id, merged: d.merged });
+    }
+    // Delete: one deal (removes the property from that track), several deals, or a whole property.
+    // A property left with no deals is deleted too. Opted-out and TCPA-litigator contacts are always kept (do-not-contact list).
+    if (m === "DELETE" && seg[0] === "deal" && seg[1]) {
+      const r = await removeDeals(db, [seg[1]], u.email, t);
+      return json({ ok: true, ...r });
+    }
+    if (m === "POST" && seg[0] === "deals" && seg[1] === "delete") {
+      const ids = (Array.isArray(b.ids) ? b.ids : []).map((x) => clean(x, 40)).filter(Boolean).slice(0, 2000);
+      if (!ids.length) return json({ ok: false, message: "Nothing selected." }, 400);
+      const r = await removeDeals(db, ids, u.email, t);
+      return json({ ok: true, ...r });
+    }
+    if (m === "DELETE" && seg[0] === "property" && seg[1]) {
+      const ds = (await db.prepare("SELECT id FROM deals WHERE property_id = ?").bind(seg[1]).all()).results.map((d) => d.id);
+      const r = ds.length ? await removeDeals(db, ds, u.email, t) : { deals: 0, properties: 0 };
+      if (!ds.length) r.properties = await removeProperty(db, seg[1]);
+      return json({ ok: true, ...r });
     }
     if (m === "PATCH" && seg[0] === "deal" && seg[1]) {
       const cur = await db.prepare("SELECT * FROM deals WHERE id = ?").bind(seg[1]).first();
