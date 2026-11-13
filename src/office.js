@@ -536,7 +536,7 @@ export async function handleOfficeApi(request, env, url) {
       const r = await db.prepare("SELECT id, service, status FROM service_requests WHERE id = ?").bind(seg[1]).first();
       if (!r) return json({ ok: false, message: "Not found." }, 404);
       const set = [], vals = [];
-      const OK = ["requested", "quoted", "awaiting_payment", "paid", "scheduled", "in_progress", "completed", "cancelled", "active", "past_due", "delivered", "quote_requested", "won", "lost", "waitlist"];
+      const OK = ["requested", "quoted", "awaiting_payment", "paid", "scheduled", "in_progress", "completed", "cancelled", "active", "past_due", "delivered", "quote_requested", "won", "lost", "waitlist", "refunded"];
       if ("status" in b) { if (!OK.includes(b.status)) return json({ ok: false, message: "Unknown status." }, 400); set.push("status = ?"); vals.push(b.status); }
       if ("appointment_at" in b) {
         const v = clean(b.appointment_at, 40);
@@ -681,7 +681,7 @@ async function salesSummary(db) {
   const sum = async (where, ...v) => (await db.prepare(`SELECT COALESCE(SUM(amount),0) AS s, COUNT(*) AS n FROM service_payments WHERE ${where}`).bind(...v).first());
   const month = await sum("test = 0 AND at >= ?", monthStart), last30 = await sum("test = 0 AND at >= ?", d30), year = await sum("test = 0 AND at >= ?", yearStart);
   const invoices30 = await sum("test = 0 AND kind = 'invoice' AND at >= ?", d30), testAll = await sum("test = 1");
-  const reqs = (await db.prepare(`SELECT id, ref, service, item, label, status, name, amount, mode, appointment_at, paid_at, extra, answers, property_address FROM service_requests WHERE status NOT IN ('cancelled')`).all()).results
+  const reqs = (await db.prepare(`SELECT id, ref, service, item, label, status, name, amount, mode, appointment_at, paid_at, extra, answers, property_address FROM service_requests WHERE status NOT IN ('cancelled','refunded')`).all()).results
     .map((r) => ({ ...r, test: isTestOrder(r), extra: undefined, answers: (() => { try { return JSON.parse(r.answers || "{}"); } catch { return {}; } })() }));
   const real = reqs.filter((r) => !r.test);
   const subs = real.filter((r) => r.mode === "subscription" && ["active", "past_due"].includes(r.status));

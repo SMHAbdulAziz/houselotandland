@@ -176,7 +176,7 @@ async function markPaid(env, id, s) {
   // Subscriptions are recorded from invoice.paid (first month and every renewal); one-time checkouts here.
   if (s.mode !== "subscription" && s.amount_total) await recordPayment(env, { request_id: id, at: now, amount: s.amount_total / 100, kind: "checkout", method: "card", stripe_id: s.id, test: isTestOrder(r) || (s.livemode === false ? 1 : 0) });
   const next = r.service === "contracts" && s.mode === "subscription" ? "active" : r.service === "curb" ? "paid" : "paid";
-  await env.DB.prepare(`UPDATE service_requests SET status = CASE WHEN status IN ('test','cancelled') THEN status ELSE ? END, paid_at = COALESCE(paid_at, ?),
+  await env.DB.prepare(`UPDATE service_requests SET status = CASE WHEN status IN ('test','cancelled','refunded') THEN status ELSE ? END, paid_at = COALESCE(paid_at, ?),
       stripe_customer = COALESCE(?, stripe_customer), stripe_subscription = COALESCE(?, stripe_subscription), amount_paid = ?, updated_at = ? WHERE id = ?`)
     .bind(next, now, s.customer || null, s.subscription || null, s.amount_total != null ? s.amount_total / 100 : null, now, id).run();
 }
@@ -196,6 +196,8 @@ async function orderPage(env, token, url) {
 
   if (r.status === "waitlist") {
     body += `<h2>You're on the list</h2><p>Thanks, ${esc(first(r.name))}. This service opens soon. We saved your answers and will email you at ${esc(r.email)} as soon as it's available. Nothing has been charged.</p>`;
+  } else if (r.status === "refunded" || (r.status === "cancelled" && r.service !== "curb")) {
+    body += `<h2>${r.status === "refunded" ? "This order was refunded" : "This order was cancelled"}</h2><p>${r.status === "refunded" ? "Your payment was refunded to your original payment method; card refunds usually show within 5 to 10 business days. " : ""}Questions? Call 214-702-1519 or email houselotandland+billing@gmail.com.</p>`;
   } else if (r.status === "awaiting_payment" && shab.closed) {
     body += `<h2>Almost done</h2><p>Your order is saved. We're closed for Shabbat, so payment opens again <b>${esc(fmtTime(shab.opensAt))}</b> Central time. Come back to this page then to pay.</p><p class="muted">Bookmark this page: it's your private link to your order.</p>`;
   } else if (r.status === "awaiting_payment") {

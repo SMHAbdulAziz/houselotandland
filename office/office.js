@@ -738,8 +738,14 @@ async function runImport() {
 // ---------------- services & sales (overview) ----------------
 const SVC = { curb: "Curb Appeal", watch: "Property Watch", homestead: "Homestead Trust", contracts: "Contract Drafting" };
 const ST_LABEL = { requested: "Requested", quoted: "Quote sent", awaiting_payment: "Awaiting payment", paid: "Paid, to schedule", scheduled: "Scheduled", in_progress: "In progress",
-  completed: "Completed", cancelled: "Cancelled", active: "Active subscription", past_due: "Past due", delivered: "Delivered", quote_requested: "Quote requested", waitlist: "Waitlist", won: "Won", lost: "Lost", test: "Test" };
-const ST_PILL = { requested: "warn", quoted: "warn", awaiting_payment: "warn", paid: "bad", scheduled: "", in_progress: "", completed: "ok", cancelled: "mute", active: "ok", past_due: "bad", delivered: "ok", quote_requested: "warn", waitlist: "mute", test: "mute" };
+  completed: "Completed", cancelled: "Cancelled", active: "Active subscription", past_due: "Past due", delivered: "Delivered", quote_requested: "Quote requested", waitlist: "Waitlist", won: "Won", lost: "Lost", refunded: "Refunded", test: "Test" };
+const ST_PILL = { requested: "warn", quoted: "warn", awaiting_payment: "warn", paid: "bad", scheduled: "", in_progress: "", completed: "ok", cancelled: "mute", active: "ok", past_due: "bad", delivered: "ok", quote_requested: "warn", waitlist: "mute", refunded: "mute", test: "mute" };
+// Which statuses the job drawer offers: field work (Curb Appeal, Property Watch) vs documents and plans.
+const JOB_STATUSES = {
+  field: ["requested", "quoted", "awaiting_payment", "paid", "scheduled", "in_progress", "completed", "cancelled", "refunded"],
+  doc: ["awaiting_payment", "paid", "delivered", "cancelled", "refunded"],
+  sub: ["awaiting_payment", "active", "past_due", "cancelled", "refunded"],
+};
 const when = (s) => (s ? new Date(s).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
 function salesSection(x) {
   if (!x) return "";
@@ -768,23 +774,24 @@ function salesSection(x) {
 
 // ---------------- jobs ----------------
 let jobFilter = "open";
-const JOB_FILTERS = [["open", "Open"], ["schedule", "Needs a date"], ["upcoming", "Scheduled"], ["unpaid", "Unpaid"], ["subs", "Subscriptions"], ["done", "Completed"], ["all", "All"], ["test", "Tests"]];
+const JOB_FILTERS = [["open", "Open"], ["schedule", "Needs a date"], ["upcoming", "Scheduled"], ["unpaid", "Unpaid"], ["subs", "Subscriptions"], ["done", "Completed"], ["closed", "Cancelled / refunded"], ["all", "All"], ["test", "Tests"]];
 const OPEN_ST = ["requested", "quoted", "awaiting_payment", "paid", "scheduled", "in_progress", "quote_requested"];
 function jobMatch(r, f) {
   if (f === "test") return r.test; if (r.test && f !== "all") return false;
   if (f === "all") return true;
-  if (f === "open") return OPEN_ST.includes(r.status);
+  if (f === "open") return OPEN_ST.includes(r.status) && !(r.status === "paid" && !["curb", "watch"].includes(r.service)); // a paid document order is done
   if (f === "schedule") return ["curb", "watch"].includes(r.service) && !r.appointment_at && ["requested", "paid"].includes(r.status) && r.amount != null;
   if (f === "upcoming") return !!r.appointment_at && ["scheduled", "in_progress", "paid"].includes(r.status);
   if (f === "unpaid") return ["awaiting_payment", "quoted"].includes(r.status) || (r.status === "requested" && !r.paid_at && r.amount != null);
   if (f === "subs") return r.mode === "subscription";
-  if (f === "done") return ["completed", "delivered"].includes(r.status);
+  if (f === "done") return ["completed", "delivered"].includes(r.status) || (r.status === "paid" && !["curb", "watch"].includes(r.service) && r.mode !== "subscription");
+  if (f === "closed") return ["cancelled", "refunded"].includes(r.status);
   return true;
 }
 async function jobs() {
   const { rows } = await api("jobs");
   const list = rows.filter((r) => jobMatch(r, jobFilter));
-  $("view").innerHTML = `<section class="card"><div class="head"><h2>Jobs &amp; service orders</h2><span class="hint">${list.length} shown · click a row to schedule, assign crew or record a payment</span></div>
+  $("view").innerHTML = `<section class="card"><div class="head"><h2>Jobs &amp; service orders</h2><span class="hint">${list.length} shown · click a row to update status, schedule, assign crew, or record a payment or refund</span></div>
     <div class="chips" style="margin-bottom:12px">${JOB_FILTERS.map(([k, l]) => `<button class="chip" data-jf="${k}" aria-pressed="${jobFilter === k}">${esc(l)} <span class="hint">${rows.filter((r) => jobMatch(r, k)).length}</span></button>`).join("")}</div>
     <div class="tablewrap"><table><thead><tr><th>Ref</th><th>Customer</th><th>Service</th><th>Property</th><th>When</th><th>Crew</th><th>Price · paid</th><th>Status</th></tr></thead><tbody>
     ${list.map((r) => `<tr class="click" data-sr="${esc(r.id)}"><td><b>${esc(r.ref)}</b><div class="hint">${fmtDate(r.created_at)}${r.test ? " · TEST" : ""}</div></td>
@@ -800,22 +807,26 @@ document.addEventListener("click", (e) => { const j = e.target.closest("[data-sr
 
 async function openJob(id) {
   const { request: r, jobs: js, payments: ps, crew, origin } = await api("job-detail/" + id);
-  const a = r.answers, x = r.extra, paid = ps.reduce((t, p) => t + p.amount, 0);
+  const a = r.answers, x = r.extra, field = ["curb", "watch"].includes(r.service);
+  const paid = ps.filter((p) => p.amount > 0).reduce((t, p) => t + p.amount, 0), refunded = -ps.filter((p) => p.amount < 0).reduce((t, p) => t + p.amount, 0);
+  const net = Math.round((paid - refunded) * 100) / 100, hadCard = ps.some((p) => p.amount > 0 && (p.kind === "checkout" || p.kind === "invoice" || p.method === "card"));
+  const stList = field ? JOB_STATUSES.field : r.mode === "subscription" ? JOB_STATUSES.sub : JOB_STATUSES.doc;
+  const statusSel = `<select name="status">${[...new Set([...stList, r.status])].filter((k) => k !== "test").map((k) => `<option value="${k}" ${k === r.status ? "selected" : ""}>${esc(k === "paid" && !field ? "Paid" : ST_LABEL[k] || k)}</option>`).join("")}</select>`;
   const apt = r.appointment_at ? new Date(r.appointment_at) : null;
   const aptD = apt ? apt.toLocaleDateString("en-CA") : (a.date1 || ""), aptT = apt ? apt.toTimeString().slice(0, 5) : (/^Afternoon/.test(a.window || "") ? "13:00" : "09:00");
   const details = r.service === "curb" ? [CURB[r.item]?.name && CURB[r.item].name + " package", a.lot, x.overgrown && "overgrown", ...(x.addOns || []).map((k) => CURB_ADDONS[k]?.label || k)].filter(Boolean).join(" · ")
     : r.service === "watch" ? `${x.estimate?.properties || "?"} properties · ${x.estimate?.visitsPerMonth || "?"} visits/month` : r.label;
   $("dBody").innerHTML = `<div><h2 id="dTitle">${esc(r.ref)} · ${esc(r.label)}</h2><p class="hint" style="margin:4px 0 0">${esc([r.name, r.phone, r.email, r.consent ? "OK to call/text" : "Email only", r.test ? "TEST" : ""].filter(Boolean).join(" · "))}</p></div>
-    <section class="card"><div class="head"><h3>Order</h3><span class="pill ${ST_PILL[r.status] || ""}">${esc(ST_LABEL[r.status] || r.status)}</span></div>
+    <section class="card"><div class="head"><h3>Order</h3><span class="pill ${ST_PILL[r.status] || ""}">${esc(r.status === "paid" && !field ? "Paid" : ST_LABEL[r.status] || r.status)}</span></div>
       <div class="hint" style="font-size:.95rem;line-height:1.7">${r.property_address ? `<b>${esc(r.property_address)}</b><br>` : ""}${esc(details)}<br>
       ${a.date1 ? `Asked for ${esc([a.date1, a.date2].filter(Boolean).map(fmtLong).join(" or "))}${a.window ? " · " + esc(a.window) : ""}${a.access ? " · " + esc(a.access) : ""}<br>` : ""}${a.notes ? `Customer notes: ${esc(a.notes)}<br>` : ""}
-      Price ${r.amount != null ? usd(r.amount) + (r.mode === "subscription" ? "/month" : "") : "not set (quote)"} · paid ${usd(paid)}${r.labor_cost ? ` · crew cost ${usd(r.labor_cost)}` : x.laborGuide ? ` · payout guide ${usd(x.laborGuide)}` : ""}</div>
+      Price ${r.amount != null ? usd(r.amount) + (r.mode === "subscription" ? "/month" : "") : "not set (quote)"} · paid ${usd(paid)}${refunded ? ` · refunded ${usd(refunded)}` : ""}${r.labor_cost ? ` · crew cost ${usd(r.labor_cost)}` : x.laborGuide ? ` · payout guide ${usd(x.laborGuide)}` : ""}</div>
       <p style="margin:10px 0 0"><a class="btn small" target="_blank" rel="noopener" href="${esc(origin)}/order/${esc(r.token)}">Customer page ↗</a>
         ${r.property_address ? `<a class="btn small" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.property_address)}">Map ↗</a>` : ""}
         ${r.service === "curb" && ["requested", "quoted", "test"].includes(r.status) && !r.paid_at ? `<a class="btn small" href="#quotes" data-q="${esc(r.id)}">Quote / re-price</a>` : ""}</p></section>
-    <section class="card"><div class="head"><h3>Schedule and status</h3><span class="hint">No Saturdays</span></div>
+    ${field ? `<section class="card"><div class="head"><h3>Schedule and status</h3><span class="hint">No Saturdays</span></div>
       <form id="jForm" class="grid"><label>Date<input type="date" name="d" value="${esc(aptD)}" min="${today()}"></label><label>Time<input type="time" name="t" value="${esc(aptT)}" step="900"></label>
-        <label>Status<select name="status">${Object.entries(ST_LABEL).filter(([k]) => k !== "test").map(([k, l]) => `<option value="${k}" ${k === r.status ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
+        <label>Status${statusSel}</label>
         <label>Actual crew cost ($)<input name="labor_cost" inputmode="decimal" value="${esc(r.labor_cost ?? "")}"></label>
         <label class="wide">Office notes (not shown to the customer)<textarea name="desk_notes">${esc(r.desk_notes || "")}</textarea></label>
         <div class="wide"><button class="btn gold">Save</button> ${r.appointment_at ? `<button class="btn small" type="button" id="jClear">Clear date</button>` : ""}
@@ -826,16 +837,26 @@ async function openJob(id) {
         ${j.status === "scheduled" ? `<button class="btn small" data-wj="${esc(j.id)}" data-st="done">Mark done</button>` : ""}${!j.paid_at && j.status === "done" ? `<button class="btn small" data-wj="${esc(j.id)}" data-paid="1">Mark paid</button>` : ""}</div></div>`).join("") || `<p class="hint">No crew assigned.</p>`}</div>
       ${crew.length ? `<form id="cForm" class="grid" style="margin-top:10px"><label>Worker<select name="worker_id">${crew.map((w) => `<option value="${esc(w.id)}">${esc(w.name)}</option>`).join("")}</select></label>
         <label>Work date<input type="date" name="work_date" value="${esc(aptD)}" min="${today()}"></label><label>Pay ($)<input name="pay" inputmode="decimal" value="${esc(x.laborGuide ?? "")}"></label>
-        <div class="wide"><button class="btn">Assign</button></div></form>` : `<p class="hint">Approve workers in “Workers &amp; crews” to assign them here.</p>`}</section>
-    <section class="card"><div class="head"><h3>Payments</h3><span class="hint">Stripe payments and subscription invoices are recorded automatically</span></div>
-      <div class="list">${ps.map((p) => `<div class="row"><div><div class="t">${usd(p.amount)} · ${esc(p.kind === "invoice" ? "subscription invoice" : p.kind)}${p.method ? " · " + esc(p.method) : ""}</div><div class="s">${esc([fmtDate(p.at), p.note, p.by].filter(Boolean).join(" · "))}</div></div>${p.test ? `<span class="pill mute">Test</span>` : ""}</div>`).join("") || `<p class="hint">No payments yet.</p>`}</div>
-      <form id="pForm" class="grid" style="margin-top:10px"><label>Amount ($)<input name="amount" inputmode="decimal" placeholder="${r.amount != null ? esc(Math.max(0, r.amount - paid)) : ""}"></label>
+        <div class="wide"><button class="btn">Assign</button></div></form>` : `<p class="hint">Approve workers in “Workers &amp; crews” to assign them here.</p>`}</section>`
+    : `<section class="card"><div class="head"><h3>Status and notes</h3></div>
+      <form id="jForm" class="grid"><label>Status${statusSel}</label>
+        <label class="wide">Office notes (not shown to the customer)<textarea name="desk_notes">${esc(r.desk_notes || "")}</textarea></label>
+        <div class="wide"><button class="btn gold">Save</button></div></form></section>`}
+    <section class="card" id="paySec"><div class="head"><h3>Payments and refunds</h3><span class="hint">Paid ${usd(paid)}${refunded ? ` · refunded ${usd(refunded)}` : ""}</span></div>
+      <div class="list">${ps.map((p) => `<div class="row"><div><div class="t">${p.amount < 0 ? `Refund ${usd(-p.amount)}` : usd(p.amount)} · ${esc(p.kind === "invoice" ? "subscription invoice" : p.kind === "checkout" ? "paid online (Stripe)" : p.kind === "refund" ? "refund" : "recorded by hand")}${p.method ? " · " + esc(p.method) : ""}</div><div class="s">${esc([fmtDate(p.at), p.note, p.by].filter(Boolean).join(" · "))}</div></div>${p.test ? `<span class="pill mute">Test</span>` : p.amount < 0 ? `<span class="pill mute">Refund</span>` : ""}</div>`).join("") || `<p class="hint">No payments yet.</p>`}</div>
+      <p style="margin:10px 0 0"><button class="btn small" type="button" data-paymode="pay">Record a payment</button> ${net > 0 ? `<button class="btn small" type="button" data-paymode="refund">Record a refund</button>` : ""}</p>
+      <form id="pForm" class="grid" style="margin-top:10px" hidden><label>Amount received ($)<input name="amount" inputmode="decimal" value="${r.amount != null && r.amount > paid ? esc(r.amount - paid) : ""}"></label>
         <label>Method<select name="method"><option>cash</option><option>Zelle</option><option>check</option><option>card</option><option>Cash App</option><option>other</option></select></label>
-        <label>Date<input type="date" name="date" value="${today()}"></label><label class="wide">Note<input name="note" placeholder="Invoice #, check #… (negative amount = refund)"></label>
-        <div class="wide"><button class="btn">Record payment</button></div></form></section>`;
+        <label>Date<input type="date" name="date" value="${today()}"></label><label class="wide">Note (optional)<input name="note" placeholder="Invoice #, check #…"></label>
+        <div class="wide"><button class="btn gold">Save payment</button> <span class="hint">Online card payments through Stripe are recorded automatically; use this for cash, Zelle and checks.</span></div></form>
+      <form id="rForm" class="grid" style="margin-top:10px" hidden><label>Amount refunded ($)<input name="amount" inputmode="decimal" value="${esc(net)}"></label>
+        <label>How it was refunded<select name="method">${hadCard ? `<option value="card">card (refunded in Stripe)</option>` : ""}<option>cash</option><option>Zelle</option><option>check</option><option>Cash App</option><option>other</option></select></label>
+        <label>Date<input type="date" name="date" value="${today()}"></label><label class="wide">Reason (optional)<input name="note" placeholder="Customer asked to cancel, duplicate order…"></label>
+        <label class="wide check"><input type="checkbox" name="mark" checked> Mark this order Refunded (the customer's page says so${field ? "" : " and the document links stop working"})</label>
+        <div class="wide"><button class="btn gold">Save refund</button> <span class="hint">This records the refund here. ${hadCard ? "Card payments are refunded in your Stripe dashboard (Payments → the payment → Refund); do that first or after, it doesn't matter." : ""}</span></div></form></section>`;
   $("drawer").hidden = false;
   const reopen = () => { openJob(id); if (location.hash.startsWith("#jobs")) jobs(); };
-  $("jForm").onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); const body = { status: f.status, labor_cost: f.labor_cost, desk_notes: f.desk_notes };
+  $("jForm").onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); const body = { status: f.status, desk_notes: f.desk_notes }; if ("labor_cost" in f) body.labor_cost = f.labor_cost;
     if (f.d) { if (new Date(f.d + "T12:00:00Z").getUTCDay() === 6) { toast("No Saturday work (Shabbat). Pick another day."); return; }
       body.appointment_at = new Date(`${f.d}T${f.t || "09:00"}`).toISOString(); if (f.status === r.status && ["requested", "paid", "quoted"].includes(r.status)) delete body.status; }
     try { await send("service/" + id, "PATCH", body); toast("Saved"); reopen(); } catch (er) { toast(er.message); } };
@@ -843,8 +864,20 @@ async function openJob(id) {
   if ($("cForm")) $("cForm").onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
     if (f.work_date && new Date(f.work_date + "T12:00:00Z").getUTCDay() === 6) { toast("No Saturday work (Shabbat). Pick another day."); return; }
     try { await send("job", "POST", { ...f, service_request_id: id, title: `${r.label}, ${r.property_address || r.ref}` }); toast("Crew assigned"); reopen(); } catch (er) { toast(er.message); } };
-  $("pForm").onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
-    try { await send("payment", "POST", { ...f, request_id: id }); toast("Payment recorded"); reopen(); } catch (er) { toast(er.message); } };
+  $("dBody").querySelectorAll("[data-paymode]").forEach((b) => b.onclick = () => {
+    const refund = b.dataset.paymode === "refund"; $("pForm").hidden = refund; $("rForm").hidden = !refund;
+    (refund ? $("rForm") : $("pForm")).querySelector("input[name=amount]").focus(); });
+  $("pForm").onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); const amt = Number(String(f.amount).replace(/[$,\s]/g, ""));
+    if (!(amt > 0)) { toast("Enter the amount received."); return; }
+    try { await send("payment", "POST", { ...f, amount: amt, request_id: id }); toast("Payment recorded"); reopen(); } catch (er) { toast(er.message); } };
+  $("rForm").onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); const amt = Number(String(f.amount).replace(/[$,\s-]/g, ""));
+    if (!(amt > 0)) { toast("Enter the amount refunded."); return; }
+    if (amt > net + 0.005) { toast(`That's more than the ${usd(net)} paid on this order.`); return; }
+    try {
+      await send("payment", "POST", { amount: -amt, method: f.method, date: f.date, note: f.note ? "Refund: " + f.note : "Refund", request_id: id });
+      if (f.mark) await send("service/" + id, "PATCH", { status: "refunded" });
+      toast(f.mark ? "Refund recorded, order marked Refunded" : "Refund recorded"); reopen();
+    } catch (er) { toast(er.message); } };
   $("dBody").querySelectorAll("[data-wj]").forEach((b) => b.onclick = async () => {
     const body = b.dataset.paid ? { paid_at: today(), pay_method: prompt("Paid how? (cash, Zelle, check…)", "cash") || "cash" } : { status: b.dataset.st };
     try { await send("job/" + b.dataset.wj, "PATCH", body); toast("Saved"); reopen(); } catch (er) { toast(er.message); } });
