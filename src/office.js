@@ -11,6 +11,7 @@ import { propertyKey, phoneKey, emailKey, fmtPhone, splitAddr, normState, zipSta
 import { CURB, CURB_QUOTE } from "../js/services-catalog.js";
 import { recordPayment, isTestOrder } from "./services.js";
 import { isShabbatDate } from "../js/shabbat.js";
+import { officeBirddogApi } from "./birddog.js";
 
 const JSONH = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: JSONH });
@@ -98,7 +99,7 @@ async function removeProperty(db, pid) {
   const r = await db.batch(stmts);
   return r[2].meta.changes ? 1 : 0;
 }
-async function upsertProperty(db, p, t = now()) {
+export async function upsertProperty(db, p, t = now()) {
   // A whole address typed or imported into one field ("123 Main St, Dallas, TX 75201") is split first, so it keys like the rest.
   if (p.address && String(p.address).includes(",") && !p.city) { const a = splitAddr(p.address); p = { ...p, address: a.address, city: a.city, zip: p.zip || a.zip, state: p.state || a.state }; }
   // State: as given, else from the ZIP code, else Texas (home market).
@@ -186,6 +187,7 @@ export async function handleOfficeApi(request, env, url) {
   if (m !== "GET" && m !== "DELETE") { try { b = await request.json(); } catch { return json({ ok: false, message: "Bad request." }, 400); } }
   const seg = path.split("/");
   try {
+    if (seg[0] === "bd") return await officeBirddogApi(db, m, seg, b, u, t, url, json);
     if (m === "GET" && path === "summary") {
       const deals = (await db.prepare("SELECT track, stage, COUNT(*) AS n FROM deals GROUP BY track, stage").all()).results;
       const due = (await db.prepare(`${DEAL_SELECT} WHERE d.next_touch IS NOT NULL AND d.next_touch <= ? ORDER BY d.next_touch LIMIT 200`).bind(today()).all()).results
@@ -197,7 +199,8 @@ export async function handleOfficeApi(request, env, url) {
       await repairOneLineAddresses(db, t); // fixes one-line addresses from older imports the first time the overview opens
       const quoteNeeded = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE service = 'curb' AND status IN ('requested','test') AND amount IS NULL AND paid_at IS NULL").first()).n;
       const newLoans = (await db.prepare("SELECT COUNT(*) AS n FROM loan_apps WHERE status IN ('new','reviewing')").first().catch(() => ({ n: 0 }))).n;
-      return json({ ok: true, user: u.email, deals, due, workers, recent, counts, openSvc, quoteNeeded, newLoans, tracks: TRACKS, sales: await salesSummary(db) });
+      const bd = await db.prepare("SELECT (SELECT COUNT(*) FROM birddog_leads WHERE status = 'submitted') AS toVerify, (SELECT COUNT(*) FROM birddog_leads WHERE status = 'closed') AS toPay").first().catch(() => ({ toVerify: 0, toPay: 0 }));
+      return json({ ok: true, user: u.email, deals, due, workers, recent, counts, openSvc, quoteNeeded, newLoans, bd, tracks: TRACKS, sales: await salesSummary(db) });
     }
     if (m === "GET" && path === "deals") {
       const w = [], v = [];
@@ -713,14 +716,14 @@ async function gatewayText(env, db, b, u, t) {
   const tpl = TEXT_TEMPLATES[b.template]; if (!tpl) return { ok: false, message: "Unknown text." };
   let to, lang, vars, ref, consent;
   if (tpl.kind === "worker") {
-    const w = await db.prepare("SELECT * FROM workers WHERE id = ?").bind(b.id || "").first();
+    const w = await db.prepare(`SELECT * FROM ${b.kind === "birddog" ? "birddogs" : "workers"} WHERE id = ?`).bind(b.id || "").first();
     if (!w) return { ok: false, message: "Worker not found." };
     if (!w.consent) return { ok: false, message: "No text consent on file for this worker. Email them instead." };
     const link = (await db.prepare("SELECT value FROM settings WHERE key = 'w9_link'").first() || {}).value;
     if (b.template === "w9_request" && !link) return { ok: false, message: "Save your secure W-9 link first." };
     to = w.phone_key ? "+1" + w.phone_key : null; lang = w.lang === "es" ? "es" : "en"; ref = w.ref || w.id;
     vars = { first_name: String(w.name || "").trim().split(/\s+/)[0] || "", link };
-    consent = { source: "work-with-us application", at: w.created_at, text: w.consent_text || "" };
+    consent = { source: b.kind === "birddog" ? "bird-dog program sign-up" : "work-with-us application", at: w.created_at, text: w.consent_text || "" };
   }
   if (tpl.kind === "contact") { // owner/family texts from the property drawer: consent on file required, never to opt-outs or TCPA litigators
     const c = await db.prepare("SELECT * FROM contacts WHERE id = ?").bind(b.id || "").first();
@@ -752,10 +755,10 @@ async function gatewayText(env, db, b, u, t) {
     else { bridgeId = j.message_id || j.id || null; status = j.duplicate ? "duplicate" : j.status === "sent" ? "sent" : "queued"; sendAfter = j.send_after || null; }
   } catch (e) { status = "failed"; error = "Couldn't reach the gateway (is the Mac on?)"; }
   await db.prepare("INSERT INTO outbound_texts (id, at, to_phone, kind, ref_id, template, lang, status, bridge_id, error, by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-    .bind(id, t, to, tpl.kind, b.id, b.template, lang, status, bridgeId, error, u.email).run();
+    .bind(id, t, to, b.kind === "birddog" ? "birddog" : tpl.kind, b.id, b.template, lang, status, bridgeId, error, u.email).run();
   if (!["sent", "queued", "duplicate"].includes(status)) return { ok: false, message: error };
   if (tpl.kind === "contact") await logActivity(db, { property_id: b.property_id, contact_id: b.id, kind: "text", summary: `Text (${b.template.replace("heir_", "owner passed away, ")}${lang === "es" ? ", Spanish" : ""}) to ${to}: ${status}`, by: u.email, source: "office" }, t);
-  if (b.template === "w9_request") await db.prepare("UPDATE workers SET w9 = 'requested', w9_at = ?, updated_at = ? WHERE id = ? AND COALESCE(w9,'') != 'received'").bind(t, t, b.id).run();
+  if (b.template === "w9_request") await db.prepare(`UPDATE ${b.kind === "birddog" ? "birddogs" : "workers"} SET w9 = 'requested', w9_at = ?, updated_at = ? WHERE id = ? AND COALESCE(w9,'') != 'received'`).bind(t, t, b.id).run();
   const at = sendAfter ? new Date(sendAfter).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }) : "";
   return { ok: true, message: status === "sent" ? "Text sent from the business phone." : status === "duplicate" ? "Already texted today; not sent again."
     : at ? `Outside texting hours: it sends automatically ${at}.` : "The phone didn't send it yet; the gateway retries automatically." };

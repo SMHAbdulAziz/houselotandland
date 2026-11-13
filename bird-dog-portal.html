@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>My Bird-Dog Page | House Lot & Land Sales Co. LLC</title>
+  <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/pages.css">
+</head>
+<body class="px">
+  <header class="header">
+    <nav class="navbar">
+      <div class="container">
+        <div class="nav-brand"><div class="logo-crop"><img src="images/Menu-Logo.png" alt="House Lot & Land Sales Co. LLC" class="logo"></div></div>
+        <div class="nav-menu" id="nav-menu">
+          <ul class="nav-list">
+            <li class="nav-item"><a href="#send" class="nav-link" data-t="l_h">Send a lead</a></li>
+            <li class="nav-item"><a href="#mine" class="nav-link" data-t="my_h">Your leads</a></li>
+            <li class="nav-item"><a href="bird-dog.html#terms" class="nav-link" data-t="terms_link">Program terms</a></li>
+          </ul>
+        </div>
+        <div class="nav-contact"><a href="tel:214-702-1519" class="phone-link"><i class="fas fa-phone"></i><span>214-702-1519</span></a></div>
+        <div class="nav-toggle" id="nav-toggle"><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+      </div>
+    </nav>
+  </header>
+  <main>
+    <style>
+      .bd-lang { display: inline-flex; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; overflow: hidden; margin-bottom: 10px; }
+      .bd-lang button { border: 0; background: transparent; color: #fff; padding: 7px 16px; font: 600 .9rem Inter, sans-serif; cursor: pointer; }
+      .bd-lang button[aria-pressed="true"] { background: #fff; color: #0b1730; }
+      .bd-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+      .bd-kpi { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 12px; padding: 12px 14px; color: #fff; }
+      .bd-kpi b { display: block; font: 700 1.5rem Inter, sans-serif; color: #fff; }
+      .bd-kpi span { font-size: .85rem; color: #cbd5e1; }
+      .bd-checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+      .bd-thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      .bd-thumbs figure { position: relative; margin: 0; }
+      .bd-thumbs img { width: 96px; height: 96px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+      .bd-thumbs button { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: #b91c1c; color: #fff; cursor: pointer; font-weight: 700; }
+      .bd-list { width: 100%; border-collapse: collapse; font-size: .95rem; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+      .bd-list th, .bd-list td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      .bd-list th { background: var(--soft); font: 600 .85rem Inter, sans-serif; color: var(--muted); }
+      .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font: 600 .8rem Inter, sans-serif; background: #e2e8f0; color: #334155; }
+      .pill.ok { background: #dcfce7; color: #166534; } .pill.warn { background: #fef3c7; color: #92400e; } .pill.bad { background: #fee2e2; color: #991b1b; } .pill.blue { background: #dbeafe; color: #1e40af; }
+      .bd-note { background: #fef3c7; border: 1px solid #fcd34d; color: #78350f; border-radius: 10px; padding: 12px 14px; margin: 14px 0 0; font-size: .93rem; }
+      .bd-ok { background: #dcfce7; border: 1px solid #86efac; color: #14532d; border-radius: 10px; padding: 12px 14px; margin-top: 12px; }
+      @media (max-width: 700px) { .bd-kpis, .bd-checks { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bd-list .hide-sm { display: none; } }
+    </style>
+    <section class="px-hero" style="padding-bottom:36px">
+      <div class="px-wrap">
+        <div class="bd-lang" role="group" aria-label="Language / Idioma"><button type="button" data-l="en">English</button><button type="button" data-l="es">Español</button></div><br>
+        <span class="px-tag"><i class="fas fa-dog"></i> <span data-t="p_tag">Your bird-dog page</span></span>
+        <h1 id="hello" data-t="p_loading">Loading…</h1>
+        <div class="bd-kpis" id="kpis" hidden>
+          <div class="bd-kpi"><b id="kSub">0</b><span data-t="k_sub">Submitted</span></div>
+          <div class="bd-kpi"><b id="kVer">0</b><span data-t="k_ver">Verified</span></div>
+          <div class="bd-kpi"><b id="kOwed">$0</b><span data-t="k_owed">Owed to you</span></div>
+          <div class="bd-kpi"><b id="kPaid">$0</b><span data-t="k_paid">Paid to you</span></div>
+        </div>
+        <div class="bd-note" id="topNote" hidden></div>
+      </div>
+    </section>
+
+    <section class="px-sec alt" id="send">
+      <div class="px-wrap" style="max-width:860px">
+        <h2 class="px-h2"><span data-t="l_h">Send a lead</span></h2>
+        <form class="pf" id="leadForm" novalidate hidden>
+          <input type="text" name="hll_hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+          <h3><span data-t="l_prop">The property</span></h3>
+          <div class="row three">
+            <label class="f full"><span class="req" data-t="addr">Street address</span><input name="address" autocomplete="off"></label>
+            <label class="f"><span data-t="city">City</span><input name="city" autocomplete="off"></label>
+            <label class="f"><span class="req" data-t="zip">ZIP</span><input name="zip" inputmode="numeric" autocomplete="off"></label>
+            <label class="f"><span data-t="ptype">Type</span><select name="prop_type" id="ptype"></select></label>
+            <label class="f full"><span data-t="asking">Price the owner mentioned (optional)</span><input name="asking" inputmode="decimal"></label>
+          </div>
+          <h3><span data-t="l_owner">Who you spoke with</span></h3>
+          <div class="row">
+            <label class="f"><span class="req" data-t="oname">Their name</span><input name="owner_name" autocomplete="off"></label>
+            <label class="f"><span class="req" data-t="ophone">Their phone</span><input name="owner_phone" type="tel" autocomplete="off"></label>
+            <label class="f"><span data-t="oemail">Their email (optional)</span><input name="owner_email" type="email" autocomplete="off"></label>
+            <label class="f"><span class="req" data-t="rel">They are the…</span><select name="relation" id="rel"></select></label>
+            <label class="f"><span class="req" data-t="spoke">Date you spoke with them</span><input name="spoke_on" type="date" id="spoke"></label>
+          </div>
+          <h3><span class="req" data-t="l_why">Why they want to sell</span></h3>
+          <div class="bd-checks" id="mot"></div>
+          <div class="row" style="margin-top:12px"><label class="f full"><span data-t="sit">What's going on? (a few lines)</span><textarea name="situation" data-ph="sit_ph"></textarea></label></div>
+          <h3><span class="req" data-t="l_photos">Photos (1 to 4)</span></h3>
+          <input type="file" id="photos" accept="image/*" multiple>
+          <p style="font-size:.88rem;color:var(--muted);margin:6px 0 0"><span data-t="photos_hint">Take them from the street or with the owner's OK. Photos are shrunk automatically.</span></p>
+          <div class="bd-thumbs" id="thumbs"></div>
+          <label class="check"><input type="checkbox" id="ownerOk"> <span data-t="owner_ok">The owner agreed that House Lot &amp; Land may call or text them about selling.</span></label>
+          <label class="check"><input type="checkbox" id="attest"> <span data-t="attest">Everything here is true.</span></label>
+          <button class="btn-gold submit" id="leadBtn" type="submit" data-t="l_send">Send this lead</button>
+          <div class="msg" id="leadMsg" role="status" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="px-sec" id="mine">
+      <div class="px-wrap" style="max-width:980px">
+        <h2 class="px-h2"><span data-t="my_h">Your leads</span></h2>
+        <div id="list"></div>
+      </div>
+    </section>
+  </main>
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom"><p>&copy; 2026 House Lot &amp; Land Sales Co. LLC · <a href="bird-dog.html#terms">Bird-Dog Program Terms</a> · <a href="terms.html">Terms of Use</a> · <a href="privacy.html">Privacy Policy</a> · 214-702-1519</p></div>
+    </div>
+  </footer>
+  <script src="js/main.js"></script>
+  <script src="js/birddog-i18n.js"></script>
+  <script>
+    (function () {
+      var L = window.hllBirddogLang("My Bird-Dog Page | House Lot & Land Sales Co. LLC", "Mi página de referidos | House Lot & Land Sales Co. LLC");
+      var i = L.t, $ = function (id) { return document.getElementById(id); };
+      var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+      var usd = function (n) { return "$" + Math.round(Number(n) || 0).toLocaleString(); };
+      var ES = { "Behind on payments / foreclosure": "Atrasado en pagos / ejecución hipotecaria", "Tax lien or back taxes": "Gravamen o impuestos atrasados", "Inherited / probate": "Herencia / sucesión",
+        "Vacant or abandoned": "Vacía o abandonada", "Needs major repairs": "Necesita reparaciones mayores", "Divorce": "Divorcio", "Relocating / job change": "Mudanza / cambio de trabajo",
+        "Tired landlord / bad tenants": "Arrendador cansado / malos inquilinos", "Code violations": "Infracciones del código", "Health or age (downsizing)": "Salud o edad (mudarse a algo menor)", "Other": "Otro",
+        "Single-family": "Casa unifamiliar", "Duplex to fourplex": "Dúplex a cuádruplex", "Mobile home on land": "Casa móvil con terreno", "Land": "Terreno", "Apartment complex": "Complejo de apartamentos",
+        "RV park": "Parque de RV", "Mobile home park": "Parque de casas móviles", "Commercial": "Comercial" };
+      var tr = function (s) { return L.cur() === "es" && ES[s] ? ES[s] : s; };
+
+      // The key lives in the link (#key). Fall back to the one saved on this device at sign-up.
+      var key = (location.hash || "").replace(/^#/, "").trim();
+      try { if (/^[a-z0-9]{24}$/.test(key)) localStorage.setItem("hll_bd_key", key); else key = localStorage.getItem("hll_bd_key") || ""; } catch (e) {}
+      var data = null, photos = [];
+
+      function load() {
+        if (!/^[a-z0-9]{24}$/.test(key)) { $("hello").textContent = i("p_bad"); return; }
+        fetch("/api/birddog/me", { headers: { "x-bd-key": key } }).then(function (r) { return r.json(); }).then(function (j) {
+          if (!j.success) { $("hello").textContent = j.message || i("p_bad"); return; }
+          data = j; draw();
+        }).catch(function () { $("hello").textContent = i("err_net"); });
+      }
+      function draw() {
+        if (!data) return;
+        var me = data.me, tot = data.totals;
+        $("hello").textContent = i("p_hi") + ", " + String(me.name || "").split(/\s+/)[0] + " · " + me.ref;
+        $("hello").removeAttribute("data-t");
+        $("kpis").hidden = false; $("kSub").textContent = tot.submitted; $("kVer").textContent = tot.verified; $("kOwed").textContent = usd(tot.owed); $("kPaid").textContent = usd(tot.paid);
+        var note = me.status !== "active" ? i("p_paused") : (me.w9 !== "received" && (tot.owed > 0 || tot.verified > 0)) ? i("p_w9") : "";
+        $("topNote").hidden = !note; $("topNote").textContent = note;
+        $("leadForm").hidden = me.status !== "active";
+        var keepMot = Array.prototype.map.call(document.querySelectorAll("#mot input:checked"), function (c) { return c.value; });
+        $("mot").innerHTML = data.lists.motivations.map(function (m) { return '<label class="check"><input type="checkbox" name="motivation" value="' + esc(m) + '"' + (keepMot.indexOf(m) >= 0 ? " checked" : "") + "> <span>" + esc(tr(m)) + "</span></label>"; }).join("");
+        var pt = $("ptype").value, rl = $("rel").value;
+        $("ptype").innerHTML = '<option value="">' + esc(i("choose")) + "</option>" + data.lists.types.map(function (x) { return '<option value="' + esc(x) + '">' + esc(tr(x)) + "</option>"; }).join(""); $("ptype").value = pt;
+        $("rel").innerHTML = '<option value="">' + esc(i("choose")) + "</option>" + data.lists.relations.map(function (x) { return '<option value="' + x + '">' + esc(i("rel_" + x)) + "</option>"; }).join(""); $("rel").value = rl;
+        var pill = { submitted: "warn", verified: "blue", closed: "ok", paid: "ok", rejected: "bad" };
+        var d = function (s) { return s ? new Date(String(s).length === 10 ? s + "T12:00:00" : s).toLocaleDateString(L.cur() === "es" ? "es-US" : "en-US", { month: "short", day: "numeric", year: "numeric" }) : ""; };
+        $("list").innerHTML = data.leads.length ? '<table class="bd-list"><thead><tr><th>' + i("th_prop") + '</th><th class="hide-sm">' + i("th_sent") + "</th><th>" + i("th_status") + "</th></tr></thead><tbody>" +
+          data.leads.map(function (l) {
+            var extra = l.status === "rejected" && l.reason ? '<div style="font-size:.85rem;color:var(--muted);margin-top:4px">' + esc(l.reason) + "</div>"
+              : l.status === "paid" ? '<div style="font-size:.85rem;color:var(--muted);margin-top:4px">' + usd(l.payout) + " · " + d(l.paid) + "</div>"
+              : l.status === "closed" ? '<div style="font-size:.85rem;color:var(--muted);margin-top:4px">' + usd(l.payout) + " · " + d(l.funded) + "</div>" : "";
+            return "<tr><td><b>" + esc(l.address) + "</b><div style=\"font-size:.85rem;color:var(--muted)\">" + esc([l.city, l.zip].filter(Boolean).join(" ")) + " · " + esc(l.ref) + "</div></td>" +
+              '<td class="hide-sm">' + d(l.submitted) + '</td><td><span class="pill ' + pill[l.status] + '">' + esc(i("st_" + l.status)) + "</span>" + extra + "</td></tr>";
+          }).join("") + "</tbody></table>" : '<p class="pf" style="text-align:center">' + i("my_none") + "</p>";
+      }
+      L.onChange(draw);
+
+      // ---- photos: shrink in the browser to keep uploads small (max 1600px, JPEG) ----
+      function shrink(file) {
+        return new Promise(function (res, rej) {
+          var img = new Image(), url = URL.createObjectURL(file);
+          img.onload = function () {
+            var tries = [[1600, .78], [1280, .7], [1024, .62]], out = "";
+            for (var k = 0; k < tries.length; k++) {
+              var s = Math.min(1, tries[k][0] / Math.max(img.width, img.height)), c = document.createElement("canvas");
+              c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+              c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+              out = c.toDataURL("image/jpeg", tries[k][1]);
+              if (out.length < 900000) break;
+            }
+            URL.revokeObjectURL(url); res(out);
+          };
+          img.onerror = function () { URL.revokeObjectURL(url); rej(new Error("photo")); };
+          img.src = url;
+        });
+      }
+      function drawThumbs() {
+        $("thumbs").innerHTML = photos.map(function (p, n) { return '<figure><img src="' + p + '" alt=""><button type="button" data-x="' + n + '" aria-label="Remove">×</button></figure>'; }).join("");
+        $("thumbs").querySelectorAll("[data-x]").forEach(function (b) { b.onclick = function () { photos.splice(+b.getAttribute("data-x"), 1); drawThumbs(); }; });
+      }
+      $("photos").addEventListener("change", function (e) {
+        var files = Array.prototype.slice.call(e.target.files || []).slice(0, 4 - photos.length);
+        Promise.all(files.map(shrink)).then(function (list) { photos = photos.concat(list).slice(0, 4); drawThumbs(); }).catch(function () { $("leadMsg").className = "msg err"; $("leadMsg").textContent = "Photo?"; });
+        e.target.value = "";
+      });
+      var td = new Date(), ymd = function (x) { return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
+      $("spoke").max = ymd(td); var mn = new Date(td); mn.setDate(mn.getDate() - 30); $("spoke").min = ymd(mn); $("spoke").value = ymd(td);
+
+      $("leadForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var f = e.target, fd = new FormData(f), msg = $("leadMsg"), btn = $("leadBtn");
+        var body = { lang: L.cur(), hll_hp: fd.get("hll_hp"), address: fd.get("address"), city: fd.get("city"), zip: fd.get("zip"), prop_type: fd.get("prop_type"), asking: fd.get("asking"),
+          owner_name: fd.get("owner_name"), owner_phone: fd.get("owner_phone"), owner_email: fd.get("owner_email"), relation: fd.get("relation"), spoke_on: fd.get("spoke_on"),
+          motivation: fd.getAll("motivation"), situation: fd.get("situation"), photos: photos, owner_ok: $("ownerOk").checked, attest: $("attest").checked };
+        btn.disabled = true; btn.textContent = i("sending"); msg.className = "msg"; msg.textContent = "";
+        fetch("/api/birddog/lead", { method: "POST", headers: { "content-type": "application/json", "x-bd-key": key }, body: JSON.stringify(body) })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            if (!j.success) { msg.className = "msg err"; msg.textContent = (j.dup ? i("l_dup") + " " : "") + (j.message || i("err_net")); return; }
+            f.reset(); photos = []; drawThumbs(); $("spoke").value = ymd(new Date());
+            msg.className = "msg"; msg.innerHTML = '<div class="bd-ok"><i class="fas fa-check"></i> ' + esc(i("l_ok")) + " <b>" + esc(j.ref) + "</b></div>";
+            load();
+          })
+          .catch(function () { msg.className = "msg err"; msg.textContent = i("err_net"); })
+          .then(function () { btn.disabled = false; btn.textContent = i("l_send"); });
+      });
+      load();
+    })();
+  </script>
+  <script type="module" src="js/shabbat-banner.js"></script>
+</body>
+</html>

@@ -39,7 +39,7 @@ const LINKS = [
     ["Home page", "/", "houselotandland.org"], ["Investor funding", "/funding.html", "Calculator and programs"], ["Loan application", "/apply.html", "Private money intake"],
     ["Curb Appeal", "/curb-appeal.html", "Packages and booking"], ["Property Watch", "/property-watch.html", "Vacant property quotes"],
     ["Homestead Trust", "/homestead-trust.html", "Waitlist until attorney approval"], ["Contract Drafting", "/contracts.html", "Waitlist until attorney approval"],
-    ["Work with us", "/work-with-us.html", "Crew and contractor applications"], ["Terms of Use", "/terms.html", "Includes the Shabbat policy"], ["Business hours", "/api/hours", "Open/closed status the phone line uses"],
+    ["Work with us", "/work-with-us.html", "Crew and contractor applications"], ["Bird-Dog Program", "/bird-dog.html", "$500 per funded deal; sign-up and terms"], ["Terms of Use", "/terms.html", "Includes the Shabbat policy"], ["Business hours", "/api/hours", "Open/closed status the phone line uses"],
   ]],
   ["Accounts", [
     ["Stripe", "https://dashboard.stripe.com/", "Payments and payouts"], ["Cloudflare", "https://dash.cloudflare.com/", "Website, database and Access login"],
@@ -64,7 +64,7 @@ function shabbatBanner() {
 }
 
 // ---------------- router ----------------
-const VIEWS = { overview, deals, add, import: importView, jobs, quotes, workers, links };
+const VIEWS = { overview, deals, add, import: importView, jobs, quotes, workers, birddogs, links };
 let dealFilter = { track: "", stage: "", q: "", open: "1" };
 async function route() {
   shabbatBanner();
@@ -93,6 +93,7 @@ async function overview() {
       <a class="kpi" href="#deals"><b>${s.counts.properties}</b><span>Properties · ${s.counts.contacts} contacts</span></a>
       <a class="kpi" href="#quotes"><b>${s.quoteNeeded || 0}</b><span>Curb Appeal quotes to send</span></a>
       <a class="kpi" href="#workers"><b>${wk.applied || 0}</b><span>Worker applications to review</span></a>
+      <a class="kpi" href="#birddogs"><b>${(s.bd && s.bd.toVerify) || 0}</b><span>Bird-dog leads to verify${s.bd && s.bd.toPay ? ` · <b style="color:var(--bad);font-size:inherit">${s.bd.toPay} to pay</b>` : ""}</span></a>
       <a class="kpi" href="#workers"><b>${(wk.active || 0) + (wk.approved || 0)}</b><span>Approved and active workers</span></a>
     </section>
     ${salesSection(s.sales)}
@@ -1005,7 +1006,7 @@ async function w9Section(w) {
   if (w9Link === null) { try { const st = await api("settings"); w9Link = st.w9_link || ""; texting = !!st.texting; } catch { w9Link = ""; } }
   const st = w.w9 || "not requested", pill = st === "received" ? "ok" : st === "requested" ? "warn" : "bad";
   return `<section class="card"><div class="head"><h3>W-9 (tax form)</h3><span class="pill ${pill}">${esc(st)}${w.w9_at && st !== "not requested" ? " · " + fmtDate(w.w9_at) : ""}</span></div>
-    ${w9Link ? `<p class="hint" style="margin-top:0">Sends your secure W-9 link: <a href="${esc(w9Link)}" target="_blank" rel="noopener">${esc(w9Link.replace(/^https:\/\//, "").slice(0, 60))} ↗</a> · <button class="btn small" type="button" id="w9Change">Change link</button></p>
+    ${w9Link ? `${w.__bd ? `<p class="hint" style="margin-top:0">Required before any bird-dog payout.</p>` : ""}<p class="hint" style="margin-top:0">Sends your secure W-9 link: <a href="${esc(w9Link)}" target="_blank" rel="noopener">${esc(w9Link.replace(/^https:\/\//, "").slice(0, 60))} ↗</a> · <button class="btn small" type="button" id="w9Change">Change link</button></p>
       <p>${w.email ? `<button class="btn gold" type="button" id="w9Mail">Email W-9 request${w.lang === "es" ? " (Spanish)" : ""}</button>` : `<span class="hint">No email on file. </span>`}
         ${w.consent ? `<button class="btn" type="button" id="w9Gw" ${texting ? "" : 'disabled title="Texting gateway not connected yet"'}>Text via phone gateway</button>` : ""}
         <button class="btn" type="button" id="w9Text">Copy text message</button>
@@ -1018,6 +1019,32 @@ async function w9Section(w) {
 }
 function w9Message(w) {
   const first = String(w.name || "").trim().split(/\s+/)[0] || "";
+  if (w.__bd) { // bird-dogs: same secure link, worded for a referral payout
+    if (w.lang === "es") return { subject: "Formulario W-9 para su pago de referidos, House Lot & Land", text: `Hola ${first},
+
+Gracias por participar en el Programa de Referidos de House Lot & Land. Antes de enviarle un pago necesitamos su Formulario W-9. Por favor llénelo y fírmelo en este enlace seguro:
+${w9Link}
+
+Toma unos 5 minutos. No envíe su número de Seguro Social ni su número de identificación fiscal por correo electrónico ni por mensaje de texto; escríbalo solo en el formulario seguro.
+
+¿Preguntas? Llame o envíe un mensaje al 214-702-1519.
+
+Harvey Searcy
+House Lot & Land Sales Co. LLC
+214-702-1519`, sms: `House Lot & Land: Hola ${first}, para recibir su pago de referidos complete su W-9 (formulario seguro, 5 min): ${w9Link} No envíe su número de Seguro Social por texto. Preguntas: 214-702-1519` };
+    return { subject: "W-9 for your House Lot & Land bird-dog payout", text: `Hi ${first},
+
+Thanks for being part of the House Lot & Land Bird-Dog Program. Before we can send you a payout we need your Form W-9. Please fill it out and sign it through this secure link:
+${w9Link}
+
+It takes about 5 minutes. Please don't send your Social Security or tax ID number by email or text; enter it only on the secure form.
+
+Questions? Call or text 214-702-1519.
+
+Harvey Searcy
+House Lot & Land Sales Co. LLC
+214-702-1519`, sms: `House Lot & Land: Hi ${first}, to receive your bird-dog payout please complete your W-9 (secure form, about 5 min): ${w9Link} Please don't text your SSN. Questions: 214-702-1519` };
+  }
   if (w.lang === "es") return { subject: "Formulario W-9 para House Lot & Land Sales Co. LLC", text: `Hola ${first},
 
 Gracias por su interés en trabajar con House Lot & Land. Antes de su primer trabajo necesitamos su Formulario W-9 (requerido para contratistas independientes). Por favor llénelo y fírmelo en este enlace seguro:
@@ -1044,7 +1071,7 @@ House Lot & Land Sales Co. LLC
 214-702-1519`, sms: `House Lot & Land: Hi ${first}, please complete your W-9 before your first job (secure form, about 5 min): ${w9Link} Please don't text your SSN. Questions: 214-702-1519` };
 }
 function wireW9(w, refresh) {
-  const mark = async (v, msg) => { try { await send("worker/" + w.id, "PATCH", { w9: v }); toast(msg); refresh(); } catch (er) { toast(er.message); } };
+  const mark = async (v, msg) => { try { await send((w.__bd ? "bd/dog/" : "worker/") + w.id, "PATCH", { w9: v }); toast(msg); refresh(); } catch (er) { toast(er.message); } };
   const f = $("w9Set");
   if (f) f.onsubmit = async (e) => { e.preventDefault(); try { await send("settings", "PUT", { w9_link: e.target.w9_link.value.trim() }); w9Link = e.target.w9_link.value.trim(); toast("W-9 link saved"); refresh(); } catch (er) { toast(er.message); } };
   const ch = $("w9Change"); if (ch) ch.onclick = () => { w9Link = ""; refresh(); };
@@ -1052,9 +1079,121 @@ function wireW9(w, refresh) {
     open("https://mail.google.com/mail/?authuser=houselotandland@gmail.com&view=cm&fs=1&to=" + encodeURIComponent(w.email) + "&su=" + encodeURIComponent(x.subject) + "&body=" + encodeURIComponent(x.text), "_blank", "noopener");
     if (w.w9 !== "received") mark("requested", "Gmail opened. Review and click Send. Marked W-9 requested."); };
   const tx = $("w9Text"); if (tx) tx.onclick = async () => { await navigator.clipboard.writeText(w9Message(w).sms); if (w.w9 !== "received") mark("requested", "Text copied. Marked W-9 requested."); else toast("Text copied"); };
-  const gw = $("w9Gw"); if (gw) gw.onclick = async () => { gw.disabled = true; try { const r = await send("text", "POST", { template: "w9_request", id: w.id }); toast(r.message); refresh(); } catch (er) { toast(er.message); gw.disabled = false; } };
+  const gw = $("w9Gw"); if (gw) gw.onclick = async () => { gw.disabled = true; try { const r = await send("text", "POST", { template: "w9_request", id: w.id, kind: w.__bd ? "birddog" : undefined }); toast(r.message); refresh(); } catch (er) { toast(er.message); gw.disabled = false; } };
   const got = $("w9Got"); if (got) got.onclick = () => mark("received", "W-9 marked received");
   const rs = $("w9Reset"); if (rs) rs.onclick = () => mark("not requested", "Reset. Send the request again.");
+}
+
+
+// ---------------- bird-dogs (Bird-Dog Program: $500 per funded deal; src/birddog.js) ----------------
+let bdFilter = "";
+const BD_PILL = { submitted: "warn", verified: "", rejected: "bad", closed: "bad", paid: "ok" };
+const BD_LABEL = { submitted: "To verify", verified: "Verified", rejected: "Rejected", closed: "Funded, unpaid", paid: "Paid" };
+const bdLink = (tok) => location.origin + "/bird-dog-portal.html#" + tok;
+async function birddogs() {
+  const s = await api("bd/summary" + (bdFilter ? "?status=" + bdFilter : ""));
+  const owed = s.dogs.reduce((a, d) => a + (d.owed || 0), 0);
+  $("view").innerHTML = `<section class="card"><div class="head"><h2>Bird-dog leads</h2><div class="acts"><a class="btn small" href="/bird-dog.html" target="_blank" rel="noopener">Public program page ↗</a></div></div>
+    <p class="hint" style="margin-top:0">$${s.payout} per funded deal. Verify a lead to add it to the master list (it's then protected for 12 months), mark it funded when the deal closes, then record the payout. W-9 required before paying.${owed ? ` <b style="color:var(--bad)">Owed now: ${usd(owed)}</b>` : ""}</p>
+    <div class="chips" style="margin-bottom:12px">${["", "submitted", "verified", "closed", "paid", "rejected"].map((x) => `<button class="chip" data-bdf="${x}" aria-pressed="${bdFilter === x}">${x ? BD_LABEL[x] : "All"}</button>`).join("")}</div>
+    <div class="tablewrap"><table><thead><tr><th>Lead</th><th>Property</th><th>Seller</th><th>Bird-dog</th><th>Deal</th><th>Status</th></tr></thead><tbody>
+    ${s.leads.map((l) => `<tr class="click" data-bdlead="${esc(l.id)}"><td><b>${esc(l.ref)}</b><div class="hint">${fmtDate(l.created_at)}</div></td>
+      <td>${esc(l.address)}<div class="hint">${esc([l.city, l.zip].filter(Boolean).join(" "))}${l.prop_type ? " · " + esc(l.prop_type) : ""}</div></td>
+      <td>${esc(l.owner_name)}<div class="hint">${esc(l.motivation.slice(0, 2).join(", "))}${l.motivation.length > 2 ? "…" : ""}</div></td>
+      <td>${esc(l.dog_name)}<div class="hint">${esc(l.dog_ref)} · W-9 ${esc(l.dog_w9)}</div></td>
+      <td>${l.deal_track ? `${esc(TRACKS[l.deal_track]?.label || l.deal_track)}<div class="hint">${esc(l.deal_stage || "")}</div>` : "—"}</td>
+      <td><span class="pill ${BD_PILL[l.status]}">${BD_LABEL[l.status]}</span>${l.status === "verified" && l.deal_closed ? `<div class="hint" style="color:var(--bad)">Deal shows ${esc(l.deal_stage)}: confirm funded</div>` : ""}</td></tr>`).join("")
+      || `<tr><td colspan="6"><div class="empty">No leads here yet.</div></td></tr>`}</tbody></table></div></section>
+    <section class="card"><div class="head"><h2>Bird-dogs</h2><span class="hint">${s.dogs.length} signed up</span></div>
+    <div class="list">${s.dogs.map((d) => `<div class="row"><button class="link" data-bddog="${esc(d.id)}"><div class="t">${esc(d.name)} <span class="pill ${d.status === "active" ? "ok" : d.status === "paused" ? "warn" : "mute"}">${esc(d.status)}</span>${d.licensed ? ` <span class="pill">Licensed</span>` : ""}</div>
+      <div class="s">${esc([d.ref, d.city, d.phone, d.email].filter(Boolean).join(" · "))}</div></button>
+      <div class="s" style="text-align:right">${d.leads} leads · ${d.good} verified${d.owed ? `<br><b style="color:var(--bad)">Owed ${usd(d.owed)}</b>` : ""}${d.paid_ytd ? `<br>Paid ${usd(d.paid_ytd)} this year` : ""}<br>W-9: ${esc(d.w9)}</div></div>`).join("") || `<div class="empty">No bird-dogs yet. Share houselotandland.org/bird-dog.html.</div>`}</div></section>`;
+  $("view").querySelectorAll("[data-bdf]").forEach((b) => b.onclick = () => { bdFilter = b.dataset.bdf; birddogs(); });
+}
+document.addEventListener("click", (e) => {
+  const l = e.target.closest("[data-bdlead]"); if (l) { e.preventDefault(); openBdLead(l.dataset.bdlead); }
+  const d = e.target.closest("[data-bddog]"); if (d) { e.preventDefault(); openBirddog(d.dataset.bddog); }
+});
+const bdRefresh = () => { if (location.hash.startsWith("#birddogs")) birddogs(); };
+async function openBdLead(id) {
+  const { lead: l, photos, dog } = await api("bd/lead/" + id);
+  const act = async (action, body, msg) => { try { await send(`bd/lead/${id}/${action}`, "POST", body); toast(msg); openBdLead(id); bdRefresh(); } catch (er) { toast(er.message); } };
+  const g = (k, v) => v ? `<div><span class="hint">${k}</span><br>${v}</div>` : "";
+  $("dBody").innerHTML = `<div><h2 id="dTitle">${esc(l.address)}</h2><p class="hint" style="margin:4px 0 0">${esc([l.city, "TX", l.zip].filter(Boolean).join(" "))} · ${esc(l.ref)} · sent ${esc(fmtWhen(l.created_at))} <span class="pill ${BD_PILL[l.status]}">${BD_LABEL[l.status]}</span></p></div>
+    ${l.status === "rejected" ? `<div class="note">Rejected: ${esc(l.reason || "")}</div>` : ""}
+    <section class="card"><div class="head"><h3>Seller</h3>${l.property_id ? `<button class="btn small" data-prop="${esc(l.property_id)}">Open property</button>` : ""}</div>
+      <div class="grid">${g("Spoke with", `${esc(l.owner_name)} (${esc(l.relation)})`)}${g("Phone", `<a href="tel:${esc(l.owner_phone)}">${esc(l.owner_phone)}</a>`)}${g("Email", esc(l.owner_email || ""))}
+        ${g("Spoke on", esc(fmtDate(l.spoke_on)))}${g("Type", esc(l.prop_type || ""))}${g("Price mentioned", l.asking != null ? usd(l.asking) : "")}
+        <div class="wide"><span class="hint">Motivation</span><br>${esc(l.motivation.join(", "))}</div>${l.situation ? `<div class="wide"><span class="hint">Situation</span><br>${esc(l.situation)}</div>` : ""}</div>
+      <p class="hint">The bird-dog says this person agreed we may contact them. Call to confirm; record text consent on the contact only after they give it to you.</p></section>
+    <section class="card"><div class="head"><h3>Photos</h3><span class="hint">${photos.length}</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${photos.map((p) => `<a href="/api/office/bd/photo/${esc(p.id)}" target="_blank" rel="noopener"><img src="/api/office/bd/photo/${esc(p.id)}" alt="Photo ${p.n}" style="width:150px;height:150px;object-fit:cover;border-radius:10px;border:1px solid var(--line)"></a>`).join("")}</div></section>
+    <section class="card"><div class="head"><h3>Bird-dog</h3><button class="btn small" data-bddog="${esc(dog.id)}">Open bird-dog</button></div>
+      <p style="margin:0">${esc(dog.name)} · ${esc(dog.ref)} · ${esc(dog.phone || "")} · W-9: <b>${esc(dog.w9)}</b>${dog.licensed ? ` · Licensed: pay broker ${esc(dog.broker || "?")}` : ""}${dog.status !== "active" ? ` · <span class="pill warn">${esc(dog.status)}</span>` : ""}</p></section>
+    <section class="card"><div class="head"><h3>Next step</h3><span class="hint">Payout ${usd(l.payout)}</span></div>
+      ${l.status === "submitted" ? `<form id="bdVerify" class="grid"><label>Put on track<select name="track"><option value="wholesale">Wholesale</option><option value="subto">Sub-To</option><option value="creative">Creative finance</option></select></label>
+          <label class="wide">Office note (optional)<input name="note"></label>
+          <div class="wide"><button class="btn gold">Verified: add to master list</button></div></form>
+        <form id="bdReject" class="grid" style="margin-top:12px"><label class="wide">Reason (the bird-dog sees it)<select name="reason"><option value="">Choose…</option>
+          ${["Already on our list", "Owner did not agree to be contacted", "Owner is not motivated to sell", "Couldn't reach the owner", "Listed with an agent", "Wrong or incomplete information", "Outside our buying area", "Photo missing or not of this property"].map((r) => `<option>${r}</option>`).join("")}<option value="__other">Other…</option></select></label>
+          <div class="wide"><button class="btn">Reject</button></div></form>` : ""}
+      ${l.status === "verified" ? `<p>On ${esc(TRACKS[l.deal_track]?.label || l.track)} · stage <b>${esc(l.deal_stage || "?")}</b>. Verified ${esc(fmtDate(l.verified_at))}; protected until ${esc(fmtDate(new Date(new Date(l.verified_at).getTime() + 365 * 864e5).toISOString()))}.</p>
+        <form id="bdFunded" class="grid"><label>Funded at title on<input type="date" name="date" value="${today()}" max="${today()}"></label><div class="wide"><button class="btn gold">Deal funded: $${l.payout} now owed</button></div></form>
+        <p style="margin-top:12px"><button class="btn small" id="bdUnverify">Reject after all…</button></p>` : ""}
+      ${l.status === "closed" ? `<p>Funded ${esc(fmtDate(l.funded_at))}. Pay within 10 business days.${dog.w9 !== "received" ? ` <b style="color:var(--bad)">W-9 not received yet.</b>` : ""}</p>
+        <form id="bdPaid" class="grid"><label>Paid on<input type="date" name="date" value="${today()}" max="${today()}"></label><label>How<select name="method"><option>Zelle</option><option>Check</option><option>Cash</option><option>Other</option></select></label>
+          <label>Amount ($)<input name="amount" value="${esc(l.payout)}" inputmode="decimal"></label><label class="wide">Note (check number, Zelle confirmation…)<input name="note"></label>
+          <div class="wide"><button class="btn gold">Record payout</button></div></form>` : ""}
+      ${l.status === "paid" ? `<p>Paid ${usd(l.payout)} by ${esc(l.pay_method)} on ${esc(fmtDate(l.paid_at))}${l.pay_note ? " · " + esc(l.pay_note) : ""}.</p>` : ""}
+      ${l.status === "rejected" ? `<button class="btn" id="bdReopen">Reopen</button>` : ""}
+    </section>
+    <section class="card"><form id="bdNotes"><label>Office notes<textarea name="note">${esc(l.office_notes || "")}</textarea></label><button class="btn small" style="margin-top:6px">Save notes</button></form></section>`;
+  $("drawer").hidden = false;
+  const on = (fid, fn) => { const f = $(fid); if (f) f.onsubmit = (e) => { e.preventDefault(); fn(Object.fromEntries(new FormData(e.target))); }; };
+  on("bdVerify", (f) => act("verify", f, "Verified and added to the master list"));
+  on("bdReject", (f) => { let r = f.reason; if (r === "__other") r = prompt("Reason the bird-dog will see:") || ""; if (!r) return toast("Pick a reason."); act("reject", { reason: r }, "Rejected"); });
+  on("bdFunded", (f) => act("funded", f, `Marked funded: ${usd(l.payout)} owed`));
+  on("bdPaid", async (f) => {
+    if (dog.w9 !== "received" && !confirm("No W-9 on file for this bird-dog. Record the payout anyway?")) return;
+    if (Number(f.amount) !== Number(l.payout)) { try { await send(`bd/lead/${id}/payout`, "POST", { amount: f.amount }); } catch (er) { return toast(er.message); } }
+    act("paid", f, "Payout recorded");
+  });
+  on("bdNotes", (f) => act("notes", f, "Notes saved"));
+  const un = $("bdUnverify"); if (un) un.onclick = () => { const r = prompt("Reason the bird-dog will see (no payout):"); if (r) act("reject", { reason: r }, "Rejected"); };
+  const ro = $("bdReopen"); if (ro) ro.onclick = () => act("reopen", {}, "Reopened");
+}
+async function openBirddog(id) {
+  const { dog: d, leads } = await api("bd/dog/" + id);
+  const link = bdLink(d.token);
+  $("dBody").innerHTML = `<div><h2 id="dTitle">${esc(d.name)}</h2><p class="hint" style="margin:4px 0 0">${esc([d.ref, "joined " + fmtDate(d.created_at), "terms " + (d.terms_version || "?"), d.lang === "es" ? "Prefers Spanish" : "", d.consent ? "OK to text" : "No text consent"].filter(Boolean).join(" · "))}</p></div>
+    <section class="card"><div class="head"><h3>Private portal link</h3></div>
+      <p style="margin:0;word-break:break-all"><code>${esc(link)}</code></p>
+      <p><button class="btn small" id="bdCopy">Copy link</button> ${d.email ? `<button class="btn small" id="bdMailLink">Email it to them</button>` : ""} <button class="btn small" id="bdNewKey">Replace link</button></p>
+      <p class="hint">Replace the link if it may have been shared; the old one stops working right away.</p></section>
+    <section class="card"><form id="bdDogForm" class="grid">
+      <label>Name<input name="name" value="${esc(d.name)}"></label><label>Phone<input name="phone" value="${esc(d.phone || "")}"></label><label>Email<input name="email" value="${esc(d.email || "")}"></label>
+      <label>City<input name="city" value="${esc(d.city || "")}"></label><label>Status<select name="status">${["active", "paused", "removed"].map((x) => `<option ${x === d.status ? "selected" : ""}>${x}</option>`).join("")}</select></label>
+      <label>Language<select name="lang"><option value="en" ${d.lang !== "es" ? "selected" : ""}>English</option><option value="es" ${d.lang === "es" ? "selected" : ""}>Spanish</option></select></label>
+      <label>Usual pay method<input name="pay_method" value="${esc(d.pay_method || "")}" placeholder="Zelle to 214-…"></label>
+      ${d.licensed ? `<label class="wide">Sponsoring broker (fee is paid to the broker)<input name="broker" value="${esc(d.broker || "")}"></label>` : ""}
+      <label class="wide">Notes<textarea name="notes">${esc(d.notes || "")}</textarea></label><div class="wide"><button class="btn gold">Save</button></div></form></section>
+    ${await w9Section({ ...d, __bd: true })}
+    <section class="card"><div class="head"><h3>Leads</h3><span class="hint">${leads.length}</span></div>
+      <div class="list">${leads.map((l) => `<div class="row"><button class="link" data-bdlead="${esc(l.id)}"><div class="t">${esc(l.address)}</div><div class="s">${esc(l.ref)} · ${fmtDate(l.created_at)}</div></button>
+        <span class="pill ${BD_PILL[l.status]}">${BD_LABEL[l.status]}</span></div>`).join("") || `<p class="hint">No leads yet.</p>`}</div></section>`;
+  $("drawer").hidden = false;
+  $("bdDogForm").onsubmit = async (e) => { e.preventDefault(); try { await send("bd/dog/" + id, "PATCH", Object.fromEntries(new FormData(e.target))); toast("Saved"); openBirddog(id); bdRefresh(); } catch (er) { toast(er.message); } };
+  $("bdCopy").onclick = async () => { await navigator.clipboard.writeText(link); toast("Link copied"); };
+  const ml = $("bdMailLink"); if (ml) ml.onclick = () => {
+    const first = String(d.name || "").trim().split(/\s+/)[0] || "";
+    const es = d.lang === "es";
+    const su = es ? "Su enlace del Programa de Referidos de House Lot & Land" : "Your House Lot & Land bird-dog link";
+    const body = es ? `Hola ${first},\n\nEste es su enlace privado para enviar referidos y ver sus pagos:\n${link}\n\nGuárdelo y no lo comparta.\n\nHarvey Searcy\nHouse Lot & Land Sales Co. LLC\n214-702-1519`
+      : `Hi ${first},\n\nHere is your private link to send leads and track your payouts:\n${link}\n\nPlease save it and don't share it.\n\nHarvey Searcy\nHouse Lot & Land Sales Co. LLC\n214-702-1519`;
+    open("https://mail.google.com/mail/?authuser=houselotandland@gmail.com&view=cm&fs=1&to=" + encodeURIComponent(d.email) + "&su=" + encodeURIComponent(su) + "&body=" + encodeURIComponent(body), "_blank", "noopener");
+  };
+  armClick($("bdNewKey"), "Click again to replace", async () => { try { await send("bd/dog/" + id, "PATCH", { new_key: true }); toast("New link made; the old one no longer works"); openBirddog(id); } catch (er) { toast(er.message); } });
+  wireW9({ ...d, __bd: true }, () => { openBirddog(id); bdRefresh(); });
 }
 
 // ---------------- links ----------------
