@@ -169,7 +169,7 @@ function drawDeals() {
       <button class="btn small danger" type="button" id="dDel" ${dv.sel.size ? "" : "disabled"}>Delete selected</button>
       <span class="hint" id="dProg"></span>
       <span style="flex:1"></span>
-      <label class="hint" style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select id="dSize" style="width:auto">${[25, 50, 100, 0].map((n) => `<option value="${n}" ${dealPageSize === n ? "selected" : ""}>${n || "All"}</option>`).join("")}</select></label>
+      <label class="hint" style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select id="dSize" style="width:auto">${[10, 25, 50, 100, 0].map((n) => `<option value="${n}" ${dealPageSize === n ? "selected" : ""}>${n || "All"}</option>`).join("")}</select></label>
       ${pages > 1 ? `<button class="btn small" type="button" id="dPrev" ${dv.page ? "" : "disabled"}>‹ Prev</button><span class="hint">Page ${dv.page + 1} of ${pages}</span><button class="btn small" type="button" id="dNext" ${dv.page < pages - 1 ? "" : "disabled"}>Next ›</button>` : ""}
     </div>
     <div class="tablewrap"><table><thead><tr><th><input type="checkbox" id="dPageAll" ${allShown ? "checked" : ""} aria-label="Select this page"></th>${th("property", "Property")}${th("place", "City · state")}${th("stage", "Track · stage")}${th("owner", "Owner")}<th>Also on</th>${th("asking", "Asking / value")}${th("touch", "Next touch")}${th("added", "Added")}</tr></thead>
@@ -649,7 +649,7 @@ function drawPreview() {
       <button class="btn small" type="button" id="impNone">Select none</button>
       <button class="btn small" type="button" id="impRemove" ${sel.length ? "" : "disabled"}>Remove ${sel.length} selected from this list</button>
       <span style="flex:1"></span>
-      <label class="hint" style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select id="impSize">${[25, 50, 100, 0].map((n) => `<option value="${n}" ${impPageSize === n ? "selected" : ""}>${n || "All"}</option>`).join("")}</select></label>
+      <label class="hint" style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select id="impSize">${[10, 25, 50, 100, 0].map((n) => `<option value="${n}" ${impPageSize === n ? "selected" : ""}>${n || "All"}</option>`).join("")}</select></label>
       ${pages > 1 ? `<button class="btn small" type="button" id="impPrev" ${imp.page ? "" : "disabled"}>‹ Prev</button><span class="hint">Page ${imp.page + 1} of ${pages}</span><button class="btn small" type="button" id="impNext" ${imp.page < pages - 1 ? "" : "disabled"}>Next ›</button>` : ""}
     </div>
     <div class="tablewrap"><table><thead><tr><th><input type="checkbox" id="impPageAll" ${allShownOn ? "checked" : ""} aria-label="Select this page"></th>${th("name", "Name")}${th("address", "Street address")}${th("city", "City")}${th("state", "State")}${th("zip", "ZIP")}${th("county", "County")}${th("type", "Type")}<th>Pin</th>${th("status", "Status")}</tr></thead><tbody>

@@ -34,6 +34,7 @@ HOW TO ANSWER
 - Lead with the answer: recommended track and exit, in one or two sentences, then why, with the numbers worked out (show the arithmetic briefly). Then risks and red flags, then the questions to ask or documents to get next. Be direct and specific; no filler. Use short headings and bullets; tables only for comparisons.
 - Compare data sources: public records/BatchData vs. what a seller, agent or investor claims vs. photos/documents. Point out every mismatch (beds, baths, square feet, owner name, liens, listing status, price) and what it might mean (unpermitted addition, outdated records, wrong owner, middleman).
 - When images are attached, say briefly what you see that matters (condition, repairs, rooms, roof, foundation clues, the text in a screenshot), because later turns will not include the images again.
+- Reference code: every deal has one (shown as REFERENCE CODE with the deal, like HL-SMEGG). Every email, letter or text you draft about this property must carry it exactly as given: in an email subject as "(Ref HL-XXXXX)" after the property address and again on its own line above the signature as "Reference: HL-XXXXX"; in a text as "Ref HL-XXXXX". Spanish: "(Ref HL-XXXXX)" and "Referencia: HL-XXXXX". Never make up or change a code.
 - Never invent facts or comps. If you are estimating, say so. If information is missing, say what is missing and how to get it.
 - Today is ${today()}.
 
@@ -179,7 +180,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       ["Best track & exit", "What's the best track and exit strategy for this deal, and what would you offer? Work the numbers."],
       ["Check the data", "Compare everything we know about this property (public records, what the seller/agent/investor said, the listing) and flag every mismatch and what it means."],
       ["What to ask next", "What questions should I ask, and what documents should I get, before making an offer?"],
-      ["Draft a reply", "Draft my reply to the latest message from the seller or the person who sent this deal. Keep it short, in my voice."],
+      ["Draft a reply", "Draft my reply to the latest message from the seller or the person who sent this deal. Keep it short, in my voice, with the reference code."],
     ];
     chips.innerHTML = CHIPS.map(([l], i) => `<button type="button" class="da-chip" data-i="${i}">${esc(l)}</button>`).join("");
 
@@ -299,14 +300,34 @@ If the deal record should change (corrected property facts, numbers, notes, stag
     chips.onclick = e => { const b = e.target.closest("[data-i]"); if(!b) return; ta.value = CHIPS[+b.dataset.i][1]; form.requestSubmit(); };
     stopBtn.onclick = () => { if(S.ctl) S.ctl.abort(); };
 
+    /* ----- reference code: the dashboard's own (Deal Desk), else one already on the property in the back office, else a stable
+       code made from the property id (same algorithm as the Deal Desk's makeRef), saved to the hub deal so every draft reuses it ----- */
+    const RA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    const makeRef = id => { let h = 2166136261; for(const ch of String(id)){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } h >>>= 0; let r = ""; for(let i = 0; i < 5; i++){ r += RA[h % RA.length]; h = Math.floor(h / RA.length); } return "HL-" + r; };
+    const REF_OK = /^HL-[A-HJ-NP-Z2-9]{5}$/i, refCache = {};
+    async function refFor(rec, ids){
+      if(refCache[rec.id]) return refCache[rec.id];
+      let ref = cfg.ownRef ? cfg.ownRef(rec.id) : null;
+      try{
+        if(ids && ids.hubPid){
+          if(!ref){ const rows = await d1(`SELECT ref FROM deals WHERE property_id = ? AND ref LIKE 'HL-%' ORDER BY CASE track WHEN 'wholesale' THEN 0 ELSE 1 END, created_at LIMIT 1`, [ids.hubPid]);
+            ref = rows[0] && REF_OK.test(rows[0].ref) ? rows[0].ref.toUpperCase() : makeRef(ids.hubPid); }
+          if(ids.hubId) await d1(`UPDATE deals SET ref = ? WHERE id = ? AND (ref IS NULL OR ref = '')`, [ref, ids.hubId]);
+        }
+      }catch(_){}
+      ref = ref || makeRef(rec.id);
+      return (refCache[rec.id] = ref);
+    }
+
     /* ----- context for Claude ----- */
     async function contextText(rec){
       let ctx = "";
       try{ ctx = JSON.stringify(cfg.context(rec.id), (k, v) => typeof v === "string" && v.length > 4000 ? v.slice(0, 4000) + "…" : v, 1); }catch(_){ ctx = "{}"; }
       if(ctx.length > 30000) ctx = ctx.slice(0, 30000) + "…";
-      let hub = "";
+      let hub = "", ids = null;
+      try{ ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null; }catch(_){}
+      const ref = await refFor(rec, ids);
       try{
-        const ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null;
         if(ids && ids.hubPid){
           const rows = await d1(`SELECT d.track, d.stage, d.next_touch, d.asking, d.updated_at, c.name AS contact, c.consent, c.opt_out
             FROM deals d LEFT JOIN contacts c ON c.id = d.contact_id WHERE d.property_id = ?`, [ids.hubPid]);
@@ -314,7 +335,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
           hub = `\n\nBACK OFFICE (master list) for this property:\nTracks: ${rows.map(r => `${r.track} (${r.stage}${r.next_touch ? ", next touch " + r.next_touch : ""}${r.contact ? ", contact " + r.contact + (r.opt_out == 1 ? " OPTED OUT" : r.consent == 1 ? " (text consent on file)" : " (no text consent)") : ""})`).join("; ") || "none"}\nRecent activity:\n${acts.map(a => `- ${String(a.at).slice(0,10)} ${a.kind}: ${a.summary}`).join("\n") || "- none"}`;
         } else hub = "\n\nBACK OFFICE: this record isn't linked to the master list yet (it links on the next back office sync).";
       }catch(_){ hub = ""; }
-      return `CURRENT DEAL on the ${cfg.appLabel} (record id ${rec.id}):\n${ctx}${hub}`;
+      return `REFERENCE CODE for this property: ${ref}\n\nCURRENT DEAL on the ${cfg.appLabel} (record id ${rec.id}):\n${ctx}${hub}`;
     }
 
     /* ----- send ----- */
@@ -414,9 +435,9 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       const rid = "d_" + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
       const exists = await d1("SELECT id FROM deals WHERE property_id = ? AND track = ?", [ids.hubPid, track]);
       if(exists.length) return;
-      await d1(`INSERT OR IGNORE INTO deals (id, property_id, contact_id, track, stage, next_touch, source, source_app, asking, notes, created_at, updated_at)
-        SELECT ?, ?, contact_id, ?, ?, ?, 'Deal Advisor', 'office', asking, ?, ?, ? FROM deals WHERE id = ?`,
-        [rid, ids.hubPid, track, stage, today(), `Added by the Deal Advisor from the ${cfg.appLabel}.`, now, now, ids.hubId]);
+      await d1(`INSERT OR IGNORE INTO deals (id, property_id, contact_id, track, stage, ref, next_touch, source, source_app, asking, notes, created_at, updated_at)
+        SELECT ?, ?, contact_id, ?, ?, ?, ?, 'Deal Advisor', 'office', asking, ?, ?, ? FROM deals WHERE id = ?`,
+        [rid, ids.hubPid, track, stage, await refFor(rec, ids), today(), `Added by the Deal Advisor from the ${cfg.appLabel}.`, now, now, ids.hubId]);
       await d1(`INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'created', ?, 'Deal Advisor', ?)`,
         ["a_" + rid.slice(2), now, ids.hubPid, rid, `Added to ${TRACKS[track].label.split(" (")[0]} by the Deal Advisor`, cfg.app]);
     }
