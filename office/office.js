@@ -319,7 +319,10 @@ function dealCard(d) {
 }
 function dashLink(d) {
   const L = { wholesale: LINKS[0][1][0], subto: LINKS[0][1][1], creative: LINKS[0][1][2] }[d.track];
-  return L ? `<a class="btn small" href="${L[1]}" target="_blank" rel="noopener">Open ${esc(L[0])} ↗</a>` : "";
+  if (!L) return "";
+  // The dashboard opens this deal with its Deal Advisor (claude.ai passes a plain #name through to the page).
+  const adv = /^d_[a-z0-9]+$/i.test(d.id) ? `${L[1]}#advise-${d.id.replace("_", "-")}` : "";
+  return `<a class="btn small" href="${L[1]}" target="_blank" rel="noopener">Open ${esc(L[0])} ↗</a>${adv ? `<a class="btn small" href="${esc(adv)}" target="_blank" rel="noopener" title="Opens this deal in ${esc(L[0])} with the Deal Advisor: recommendations, data checks, photos and documents">✦ Deal Advisor ↗</a>` : ""}`;
 }
 
 // ---------------- owner / family email drafts (office/owner-email.js) ----------------
