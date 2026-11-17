@@ -97,4 +97,7 @@ export const TRACKS = {
   funding: { label: "Funding", stages: ["New", "Reviewing", "Docs requested", "With lender", "Approved", "Funded", "Declined", "Withdrawn"] },
   services: { label: "Services", stages: ["Requested", "Scheduled", "In progress", "Completed", "Cancelled"] },
 };
+/** Harvey's market value: county appraisal-district value ÷ 0.8 ("FMV"). An extra figure next to BatchData's Est. value, never a replacement. */
+export const FMV_RATIO = 0.8;
+export const fmvFromAppraised = (v) => { const n = Number(v); return n > 0 ? Math.round(n / FMV_RATIO) : null; };
 export const CLOSED_STAGES = new Set(["Closed", "Dead", "Assigned", "Funded", "Declined", "Withdrawn", "Completed", "Cancelled"]);

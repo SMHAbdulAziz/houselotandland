@@ -1,5 +1,5 @@
 // Back office app (served only behind Cloudflare Access; data from /api/office/*).
-import { TRACKS, CLOSED_STAGES, propertyKey, splitAddr, US_STATES, normState, zipState } from "/js/hub-keys.js";
+import { TRACKS, CLOSED_STAGES, propertyKey, splitAddr, US_STATES, normState, zipState, fmvFromAppraised, FMV_RATIO } from "/js/hub-keys.js";
 // cur "" offers "From ZIP (else TX)", which the server fills from the ZIP code.
 const stateSelect = (name, cur, attrs = "") => `<select name="${name}" ${attrs}>${cur ? "" : `<option value="" selected>From ZIP (else TX)</option>`}${Object.entries(US_STATES).map(([k, v]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${k} · ${esc(v)}</option>`).join("")}</select>`;
 const cityLine = (p) => [p.city, [p.state, p.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
@@ -228,6 +228,16 @@ $("dClose").onclick = () => ($("drawer").hidden = true);
 $("drawer").addEventListener("click", (e) => { if (e.target.id === "drawer") $("drawer").hidden = true; });
 addEventListener("keydown", (e) => { if (e.key === "Escape") $("drawer").hidden = true; });
 
+// Values: BatchData's Est. value as-is, plus Harvey's FMV = county appraisal-district value ÷ 0.8 (an extra figure, never a replacement).
+function valuesSection(p) {
+  const d = p.data || {}, est = d.estimatedValue, ap = d.appraisedValue, fmv = ap ? fmvFromAppraised(ap) : null;
+  return `<section class="card"><div class="head"><h3>Values</h3><span class="hint">FMV = county appraised value ÷ ${FMV_RATIO}</span></div>
+    <form id="valForm" class="grid">
+      <label>Est. value (BatchData)<input value="${est ? esc(usd(est)) : "—"}" disabled></label>
+      <label>County appraised value<input name="appraised" inputmode="decimal" value="${ap ? esc(ap) : ""}" placeholder="From DCAD / TAD / CCAD"></label>
+      <label>FMV<output id="valFmv" style="display:block;padding:9px 0;font-weight:600">${fmv ? esc(usd(fmv)) : "—"}</output></label>
+      <div class="wide"><button class="btn">Save value</button> <span class="hint">${ap && d.appraisedSource ? "Source: " + esc(d.appraisedSource) + ". " : ""}The dashboards and the Deal Advisor show FMV next to Est. value.</span></div></form></section>`;
+}
 async function openProperty(id) {
   const { property: p, deals: ds, contacts, activities } = await api("property/" + id);
   const missing = Object.keys(TRACKS).filter((k) => !ds.some((d) => d.track === k));
@@ -236,6 +246,7 @@ async function openProperty(id) {
     <section class="card"><div class="head"><h3>Tracks</h3><span class="hint">One deal per track</span></div>
       <div style="display:grid;gap:10px">${ds.map(dealCard).join("") || `<p class="hint">Not on any track yet.</p>`}</div>
       ${missing.length ? `<div class="acts" style="margin-top:10px"><span class="hint">Add to:</span>${missing.map((k) => `<button class="btn small" data-addtrack="${k}">${esc(TRACKS[k].label)}</button>`).join("")}</div>` : ""}</section>
+    ${valuesSection(p)}
     <section class="card"><div class="head"><h3>Owners and contacts</h3></div>
       <div class="list">${contacts.map((c) => `<div class="row"><div><div class="t">${esc(c.name || "Unnamed")} <span class="pill mute">${esc(c.role)}</span></div>
         <div class="s">${esc([c.phone, c.email, c.lang === "es" ? "Spanish" : ""].filter(Boolean).join(" · ") || "No phone or email")}${c.mailing ? "<br>Mail: " + esc(c.mailing) : ""}</div></div>
@@ -292,6 +303,9 @@ async function openProperty(id) {
   $("addContact").onsubmit = async (e) => { e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target));
     try { const r = await send("contact", "POST", { ...fd, property_id: id }); toast(r.merged ? "Matched an existing contact and linked it" : "Contact added"); openProperty(id); } catch (er) { toast(er.message); } };
   wireOwnerEmail(p, ds, contacts);
+  $("valForm").oninput = (e) => { const v = Number(String(e.target.form.appraised.value).replace(/[$,\s]/g, "")); $("valFmv").textContent = v > 0 ? usd(fmvFromAppraised(v)) : "—"; };
+  $("valForm").onsubmit = async (e) => { e.preventDefault();
+    try { await send("property/" + id, "PATCH", { appraised: e.target.appraised.value }); toast("Saved"); openProperty(id); } catch (er) { toast(er.message); } };
   $("propForm").onsubmit = async (e) => { e.preventDefault();
     try { await send("property/" + id, "PATCH", Object.fromEntries(new FormData(e.target))); toast("Saved"); openProperty(id); }
     catch (er) { toast(er.message); if (er.data && er.data.existing) openProperty(er.data.existing); } };

@@ -7,7 +7,7 @@
 // Data: the "hub" tables (src/hub.sql). Matching keys come from js/hub-keys.js so nothing is duplicated:
 // one property per address, one contact per phone/email, one deal per property per track.
 
-import { propertyKey, phoneKey, emailKey, fmtPhone, splitAddr, normState, zipState, TRACKS, CLOSED_STAGES } from "../js/hub-keys.js";
+import { propertyKey, phoneKey, emailKey, fmtPhone, splitAddr, normState, zipState, TRACKS, CLOSED_STAGES, fmvFromAppraised } from "../js/hub-keys.js";
 import { CURB, CURB_QUOTE } from "../js/services-catalog.js";
 import { recordPayment, isTestOrder } from "./services.js";
 import { isShabbatDate } from "../js/shabbat.js";
@@ -256,6 +256,13 @@ export async function handleOfficeApi(request, env, url) {
         const clash = key && await db.prepare("SELECT id FROM properties WHERE addr_key = ? AND id != ?").bind(key, seg[1]).first();
         if (clash) return json({ ok: false, message: "Another property already has this address. Open it instead.", existing: clash.id }, 409);
         if (key) { set.push("addr_key = ?"); vals.push(key); }
+      }
+      if ("appraised" in b) { // county appraisal-district value; FMV = appraised ÷ 0.8 (fmvFromAppraised), kept beside BatchData's Est. value
+        const cur = await db.prepare("SELECT data FROM properties WHERE id = ?").bind(seg[1]).first();
+        const data = parse(cur && cur.data) || {}, v = num(String(b.appraised).replace(/[$,\s]/g, ""));
+        if (v > 0) { data.appraisedValue = v; data.fmv = fmvFromAppraised(v); data.appraisedSource = clean(b.appraised_source, 80) || "Entered in the back office"; }
+        else { delete data.appraisedValue; delete data.fmv; delete data.appraisedSource; }
+        set.push("data = ?"); vals.push(JSON.stringify(data));
       }
       if (!set.length) return json({ ok: true });
       await db.prepare(`UPDATE properties SET ${set.join(", ")}, updated_at = ? WHERE id = ?`).bind(...vals, t, seg[1]).run();

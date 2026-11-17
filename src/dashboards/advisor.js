@@ -16,6 +16,17 @@ window.DealAdvisor = (function(){
     creative: {label:"Creative finance (seller financing, JV, terms)", stages:["New lead","Contacted","Terms requested","Underwriting","Offer out","Under contract","Closed","Dead"]},
   };
   const MAX_TURNS = 24, MAX_STORED = 9000, MAX_FILE_TEXT = 16000;
+  // Harvey's market value: FMV = county appraisal-district value ÷ 0.8. Shown beside BatchData's Est. value, never instead of it (same as fmvFromAppraised in js/hub-keys.js).
+  const FMV_RATIO = 0.8;
+  const fmv = v => { const n = Number(String(v ?? "").replace(/[$,\s]/g, "")); return n > 0 ? Math.round(n / FMV_RATIO) : null; };
+  // Save a county appraised value (and its FMV) on the master-list property, so the back office and the other dashboards see it.
+  async function saveAppraised(mcp, hubPid, value, source){
+    const v = Number(String(value ?? "").replace(/[$,\s]/g, ""));
+    if(!mcp || !hubPid || !(v > 0)) return false;
+    await mcp.callTool(CF, "d1_database_query", {database_id:DB_ID, params:[String(v), String(fmv(v)), String(source || "BatchData"), new Date().toISOString(), hubPid],
+      sql:"UPDATE properties SET data = json_set(COALESCE(data, '{}'), '$.appraisedValue', CAST(? AS REAL), '$.fmv', CAST(? AS REAL), '$.appraisedSource', ?), updated_at = ? WHERE id = ?"});
+    return true;
+  }
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
 
@@ -32,6 +43,7 @@ THE BUSINESS
 
 HOW TO ANSWER
 - Lead with the answer: recommended track and exit, in one or two sentences, then why, with the numbers worked out (show the arithmetic briefly). Then risks and red flags, then the questions to ask or documents to get next. Be direct and specific; no filler. Use short headings and bullets; tables only for comparisons.
+- Values: "Est. value" is BatchData's automated estimate. Harvey also uses his own market value, FMV = county appraisal-district value ÷ 0.8 (shown as fmv / appraisedValue with the deal). Report FMV beside Est. value whenever the appraised value is known, never in place of it, and say which one each calculation uses (the dashboard's own math uses Est. value / ARV). If a screenshot or document shows the county appraised (market) value, propose it as the "appraised" update so FMV is computed.
 - Compare data sources: public records/BatchData vs. what a seller, agent or investor claims vs. photos/documents. Point out every mismatch (beds, baths, square feet, owner name, liens, listing status, price) and what it might mean (unpermitted addition, outdated records, wrong owner, middleman).
 - When images are attached, say briefly what you see that matters (condition, repairs, rooms, roof, foundation clues, the text in a screenshot), because later turns will not include the images again.
 - Reference code: every deal has one (shown as REFERENCE CODE with the deal, like HL-SMEGG). Every email, letter or text you draft about this property must carry it exactly as given: in an email subject as "(Ref HL-XXXXX)" after the property address and again on its own line above the signature as "Reference: HL-XXXXX"; in a text as "Ref HL-XXXXX". Spanish: "(Ref HL-XXXXX)" and "Referencia: HL-XXXXX". Never make up or change a code.
@@ -421,7 +433,9 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       const track = picked.find(it => it.kind === "track");
       card.querySelectorAll("button").forEach(b => b.disabled = true); errEl.textContent = "Saving…";
       try{
+        const apv = patch.appraised; // adapters may consume it
         if(Object.keys(patch).length) await cfg.apply(rec.id, patch);
+        if(apv != null){ try{ const ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null; if(ids && ids.hubPid) await saveAppraised(await getMcp(), ids.hubPid, apv, "From the Deal Advisor"); }catch(_){} }
         if(track){ await addTrack(rec, track.v); done.push(`added to ${TRACKS[track.v].label.split(" (")[0]}`); }
         t.applied = "Applied: " + done.join(", ");
         S.turns.push({role:"user", content:`(I applied these changes: ${done.join("; ")}.)`, hidden:true, at:new Date().toISOString()});
@@ -457,5 +471,5 @@ If the deal record should change (corrected property facts, numbers, notes, stag
 
     return { open, close, refresh: () => { if(!panel.hidden) sync(); }, get isOpen(){ return !panel.hidden; } };
   }
-  return { mount, md, splitReply };
+  return { mount, md, splitReply, fmv, FMV_RATIO, saveAppraised };
 })();
