@@ -99,6 +99,7 @@ async function route(request, env, ctx, url) {
     if (url.pathname.startsWith("/order/")) return handleOrderPage(request, env, url);
     if (url.pathname === "/api/health") return json({ ok: true }, 200, request);
     if (url.pathname === "/api/hours") return hours();
+    if (url.pathname === "/api/automation") return automation(env); // read by the scheduled lead searches (BatchData spending switch)
     if (url.pathname === "/api/worker/apply") return handleWorkerApply(request, env);
     if (url.pathname === "/api/affiliates") return handleAffiliatesPublic(request, env);
     if (url.pathname.startsWith("/api/office/")) return handleOfficeApi(request, env, url);
@@ -227,6 +228,16 @@ function cors(request) {
 }
 function json(obj, status, request) {
   return new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json; charset=utf-8", ...cors(request) } });
+}
+
+// GET /api/automation: switches the scheduled tasks check before they run. auto_lead_search (back office Overview,
+// owner only) gates the Sub-To and Creative Finance lead searches, which spend BatchData credits. Off unless set to 'true'.
+async function automation(env) {
+  let row = null;
+  try { row = await env.DB.prepare("SELECT value, updated_at FROM settings WHERE key = 'auto_lead_search'").first(); } catch {}
+  const on = !!row && row.value === "true";
+  return new Response(JSON.stringify({ auto_lead_search: on, status: on ? "ON" : "OFF", updated_at: row ? row.updated_at : null }),
+    { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 }
 
 // GET /api/hours: open/closed for Shabbat, for the AI phone line (ElevenLabs tool "check_business_hours").

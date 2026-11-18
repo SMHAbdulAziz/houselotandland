@@ -649,7 +649,7 @@ export async function handleOfficeApi(request, env, url) {
     }
     // ---- office settings (W-9 request link)
     if (m === "GET" && path === "settings") {
-      const rows = (await db.prepare("SELECT key, value FROM settings WHERE key IN ('w9_link', 'mail_address')").all()).results;
+      const rows = (await db.prepare("SELECT key, value FROM settings WHERE key IN ('w9_link', 'mail_address', 'auto_lead_search')").all()).results;
       return json({ ok: true, ...Object.fromEntries(rows.map((r) => [r.key, r.value])), texting: !!(env.BRIDGE_URL && env.BRIDGE_TOKEN) });
     }
     // ---- texts through the private gateway (msg.houselotandland.org → Harvey's Android; queued, he releases them)
@@ -659,6 +659,12 @@ export async function handleOfficeApi(request, env, url) {
         const v = clean(b.w9_link, 500) || "";
         if (v && !/^https:\/\/[^\s]+$/.test(v)) return json({ ok: false, message: "Paste the full secure link (starting with https://)." }, 400);
         await db.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('w9_link', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at").bind(v, t).run();
+      }
+      if ("auto_lead_search" in b) { // owner only (settings): the scheduled Sub-To and Creative lead searches check it via /api/automation
+        const v = b.auto_lead_search === true ? "true" : "false";
+        await db.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('auto_lead_search', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at").bind(v, t).run();
+        await db.prepare("INSERT INTO activities (id, at, kind, summary, by, source) VALUES (?, ?, 'settings', ?, ?, 'office')")
+          .bind("a_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16), t, `Automatic lead searches turned ${v === "true" ? "on" : "off"}`, u.email).run();
       }
       if ("mail_address" in b) { // printed at the bottom of owner emails (CAN-SPAM)
         const v = clean(b.mail_address, 200) || "";

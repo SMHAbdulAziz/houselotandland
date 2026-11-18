@@ -85,3 +85,10 @@ label.check input{width:auto}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom));background:var(--ink);color:#fff;padding:9px 16px;border-radius:9px;z-index:40;font-size:.9rem;max-width:calc(100% - 32px)}
 @media(max-width:600px){.who{display:none}.card{padding:14px}}
 th button.sort{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-transform:inherit;letter-spacing:inherit;white-space:nowrap}
+
+.switchrow{display:flex;gap:10px;align-items:center;cursor:pointer;font-size:15px}
+.switchrow input{appearance:none;-webkit-appearance:none;width:44px;height:24px;border-radius:999px;background:#c9ced6;position:relative;cursor:pointer;flex:none;transition:background .15s;margin:0}
+.switchrow input::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.switchrow input:checked{background:#1F7A4D}
+.switchrow input:checked::after{left:23px}
+.switchrow input:focus-visible{outline:2px solid #2B4C7E;outline-offset:2px}

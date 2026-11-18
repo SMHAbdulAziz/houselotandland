@@ -131,6 +131,9 @@ async function overview() {
       ${s.aff ? `<a class="kpi" href="#affiliates"><b>${s.aff.open || 0}</b><span>Open affiliate referrals${s.aff.toPay ? ` · <b style="color:var(--bad);font-size:inherit">${s.aff.toPay} to pay</b>` : ""}</span></a>` : ""}
       ${can("crew") ? `<a class="kpi" href="#workers"><b>${(wk.active || 0) + (wk.approved || 0)}</b><span>Approved and active workers</span></a>` : ""}
     </section>
+    ${can("settings") ? `<section class="card" id="autoCard"><div class="head"><h2>Automatic lead searches</h2><span class="hint">Sub-To Lead Search (Mondays) and Creative Finance Lead Search (Wednesdays) pull records and skip traces from BatchData, which costs credits.</span></div>
+      <label class="switchrow"><input type="checkbox" id="autoLead" role="switch"> <b id="autoLeadState">Loading…</b></label>
+      <p class="hint" id="autoLeadHint" style="margin:6px 0 0">When off, both searches stop before they spend anything, including the tracker's "Search now" button. Lead searches you start yourself on the Deal Desk still work.</p></section>` : ""}
     ${s.sales ? salesSection(s.sales) : ""}
     <section class="card"><div class="head"><h2>Pipelines</h2><span class="hint">One property can be on several tracks; it's still one record.</span></div>
       <div class="tracks">${Object.entries(TRACKS).filter(([k]) => trackOk(k)).map(([k, tr]) => {
@@ -145,6 +148,19 @@ async function overview() {
         <div class="log">${s.recent.length ? s.recent.map((a) => `<div><time>${esc(fmtWhen(a.at))}</time>${a.property_id ? `<button class="link btn small" data-prop="${esc(a.property_id)}" style="border:0;padding:0;color:var(--blue);background:none">${esc(a.address || a.pname || "Property")}</button> · ` : ""}${esc(a.summary)}</div>`).join("") : `<div class="empty">No activity yet.</div>`}</div></section>
     </div>`;
   $("view").querySelectorAll("[data-track]").forEach((a) => a.addEventListener("click", () => { dealFilter = { track: a.dataset.track, stage: "", q: "", open: "1" }; }));
+  if (can("settings")) autoLeadSwitch();
+}
+// Owner switch for the scheduled lead searches (they read /api/automation before spending BatchData credits).
+async function autoLeadSwitch() {
+  const box = $("autoLead"), st = $("autoLeadState"); if (!box) return;
+  const show = (on) => { box.checked = on; st.textContent = on ? "On: the weekly searches will run" : "Off: no automatic searches, no BatchData spending"; st.style.color = on ? "var(--ok, #1F7A4D)" : "var(--bad)"; };
+  try { show((await api("settings")).auto_lead_search === "true"); } catch (e) { st.textContent = e.message; return; }
+  box.onchange = async () => {
+    const on = box.checked; box.disabled = true;
+    try { await send("settings", "PUT", { auto_lead_search: on }); show(on); toast(on ? "Automatic lead searches are on" : "Automatic lead searches are off"); }
+    catch (e) { show(!on); toast(e.message); }
+    box.disabled = false;
+  };
 }
 function dueRow(d) {
   const late = d.next_touch < today();
