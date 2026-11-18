@@ -120,6 +120,9 @@ async function handleLead(request, env) {
     return json({ success: false, message: es ? "Ingrese la dirección de la propiedad." : "Please enter the property address." }, 400, request);
   }
 
+  if (formType === "offer" && "property-condition" in body && !f.property_condition)
+    return json({ success: false, message: es ? "Elija la condición de la propiedad." : "Please choose the property's condition." }, 400, request);
+
   const missing = ["name", "phone", "email"].filter((k) => !f[k]);
   if (missing.length) return json({ success: false, message: "Please fill in: " + missing.join(", ") }, 400, request);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return json({ success: false, message: "Please enter a valid email address." }, 400, request);

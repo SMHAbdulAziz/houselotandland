@@ -50,6 +50,7 @@
     "Commercial": "Comercial",
     "Other": "Otro",
     "Property Condition": "Condición de la Propiedad",
+    "Property Condition *": "Condición de la Propiedad *",
     "Select condition": "Seleccione la condición",
     "Excellent": "Excelente",
     "Good": "Buena",
