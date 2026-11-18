@@ -19,8 +19,13 @@ const label = (p) => p.address || p.pname || p.name || "Untitled";
 function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 2800); }
 
 async function api(path, opts = {}) {
-  const r = await fetch("/api/office/" + path, { ...opts, headers: { "content-type": "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined });
-  let j = {}; try { j = await r.json(); } catch {}
+  let r;
+  // A sign-in that expired sends the request to the Cloudflare login page, which the browser blocks ("Failed to fetch").
+  const expired = "Your back office sign-in has expired. Reload this page to sign in again (you'll get a new code by email).";
+  try { r = await fetch("/api/office/" + path, { ...opts, redirect: "manual", headers: { "content-type": "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined }); }
+  catch { throw Object.assign(new Error(navigator.onLine === false ? "You're offline. Check the connection and try again." : expired), { status: 0 }); }
+  if (r.type === "opaqueredirect" || (r.status >= 300 && r.status < 400)) throw Object.assign(new Error(expired), { status: 401 });
+  let j = {}; try { j = await r.json(); } catch { if (r.ok) throw Object.assign(new Error(expired), { status: 401 }); }
   if (!r.ok || j.ok === false) throw Object.assign(new Error(j.message || "Something went wrong."), { data: j, status: r.status });
   return j;
 }
