@@ -160,12 +160,13 @@ let dealPageSize = (() => { try { const v = localStorage.getItem("hll_deals_page
 const DEAL_SORT = { property: (d) => label(d).replace(/^\d+\s*/, "") + " " + String(parseInt(label(d)) || 0).padStart(7, "0"), place: (d) => [d.state, d.city].join(" "),
   stage: (d) => (TRACKS[d.track]?.label || "") + String((TRACKS[d.track]?.stages || []).indexOf(d.stage)).padStart(2, "0"), owner: (d) => d.cname || "",
   asking: (d) => d.asking == null ? "" : String(Math.round(d.asking)).padStart(12, "0"), touch: (d) => d.next_touch || "", added: (d) => d.created_at || "" };
-const DEAL_QUICK = [["all", "All"], ["due", "Follow-up due"], ["notouch", "No next touch"], ["noowner", "No owner"], ["noprice", "No asking price"]];
+const DEAL_QUICK = [["all", "All"], ["due", "Follow-up due"], ["notouch", "No next touch"], ["noowner", "No owner"], ["noprice", "No asking price"], ["webform", "Form submitted"]];
 function dealQuick(d, q) {
   if (q === "due") return d.next_touch && d.next_touch <= today() && !CLOSED_STAGES.has(d.stage);
   if (q === "notouch") return !d.next_touch;
   if (q === "noowner") return !d.cname && !d.cphone && !d.cemail;
   if (q === "noprice") return d.asking == null;
+  if (q === "webform") return /website|web form|form/i.test(d.source || ""); // leads from the houselotandland.org cash-offer form
   return true;
 }
 async function deals() {
