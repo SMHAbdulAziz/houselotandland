@@ -333,6 +333,8 @@ function handleFormSubmission(form, formType) {
         'property-details': formData.get('property-details'),
         referrer: formData.get('referrer') || '',
         referrer_other: formData.get('referrer') === 'other' ? (formData.get('referrer_other') || '') : '',
+        heard_from: formData.get('heard_from') || '',
+        heard_other: formData.get('heard_from') === 'other' ? (formData.get('heard_other') || '') : '',
         consent: formData.get('consent'),
         consent_text: (form.querySelector('#consent-text') || {}).textContent ? form.querySelector('#consent-text').textContent.replace(/\s+/g, ' ').trim() : '',
         hll_hp: formData.get('hll_hp') || '',
@@ -805,5 +807,13 @@ function initHeroCarousel() {
         var list = (j && j.affiliates) || [], otherOpt = sel.querySelector('option[value="other"]');
         list.forEach(function (a) { var o = document.createElement('option'); o.value = a.id; o.textContent = a.name; sel.insertBefore(o, otherOpt); });
     }).catch(function () {});
+    sync();
+})();
+// "How did you hear about us?" (optional): "Other" shows a short text box.
+(function () {
+    var sel = document.getElementById('heard-from'), grp = document.getElementById('heard-other-group'), other = document.getElementById('heard-other');
+    if (!sel || !grp) return;
+    var sync = function () { var on = sel.value === 'other'; grp.hidden = !on; grp.style.display = on ? '' : 'none'; if (!on) other.value = ''; };
+    sel.addEventListener('change', sync);
     sync();
 })();

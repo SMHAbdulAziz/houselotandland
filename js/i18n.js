@@ -7,6 +7,34 @@
 (function () {
   var ES = {
     "Who referred you to us?": "¿Quién le recomendó con nosotros?",
+    "Who referred you to us? *": "¿Quién le recomendó con nosotros? *",
+    "Select one": "Elija una opción",
+    "How did you hear about us?": "¿Cómo se enteró de nosotros?",
+    "Select one (optional)": "Elija una opción (opcional)",
+    "Where did you hear about us?": "¿Dónde se enteró de nosotros?",
+    "Tell us where": "Díganos dónde",
+    "Social media": "Redes sociales",
+    "Online search": "Búsqueda en internet",
+    "Websites and listings": "Sitios web y anuncios",
+    "Mail, phone and signs": "Correo, teléfono y letreros",
+    "People": "Personas",
+    "Google search": "Búsqueda en Google",
+    "Google Maps / Google Business Profile": "Google Maps / Perfil de Google",
+    "Bing, Yahoo or another search engine": "Bing, Yahoo u otro buscador",
+    "ChatGPT or another AI assistant": "ChatGPT u otro asistente de IA",
+    "Zillow, Realtor.com or another real estate site": "Zillow, Realtor.com u otro sitio de bienes raíces",
+    "Letter or postcard in the mail": "Carta o postal por correo",
+    "Text message": "Mensaje de texto",
+    "Phone call": "Llamada telefónica",
+    "Yard sign or roadside sign": "Letrero en la calle o en un jardín",
+    "Sign on a vehicle": "Letrero en un vehículo",
+    "Flyer or door hanger": "Volante o colgante de puerta",
+    "Radio, TV or podcast": "Radio, televisión o podcast",
+    "Event, workshop or seminar": "Evento, taller o seminario",
+    "Friend or family": "Amigo o familiar",
+    "Real estate agent": "Agente de bienes raíces",
+    "Another investor": "Otro inversionista",
+    "I've worked with you before": "Ya he trabajado con ustedes",
     "No one referred me": "Nadie me recomendó",
     "Referrer's name *": "Nombre de quien le recomendó *",
     "Name of the person who referred you": "Nombre de la persona que le recomendó",
@@ -251,9 +279,9 @@
       var lead = en.match(/^\s*/)[0], trail = en.match(/\s*$/)[0];
       n.nodeValue = current === "es" && ES[key] !== undefined ? lead + ES[key] + trail : en;
     }
-    document.querySelectorAll("[placeholder],[aria-label],[title],img[alt]").forEach(function (el) {
+    document.querySelectorAll("[placeholder],[aria-label],[title],img[alt],optgroup[label]").forEach(function (el) {
       var saved = attrOriginals.get(el) || {};
-      ["placeholder", "aria-label", "title", "alt"].forEach(function (a) {
+      ["placeholder", "aria-label", "title", "alt", "label"].forEach(function (a) {
         if (!el.hasAttribute(a)) return;
         if (!(a in saved)) saved[a] = el.getAttribute(a);
         var k = norm(saved[a]);

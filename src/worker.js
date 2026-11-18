@@ -25,6 +25,35 @@ const NEW_BUSINESS = /^\/api\/(lead|loan|service|worker\/apply|offer\/[^/]+\/(ch
 const NOTICE_PAGES = /^\/(offer\/[^/]+|sign\/[^/]+|order\/[^/]+|find)\/?$/;
 
 const REF_ALPHABET ="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+// "How did you hear about us?" on the cash-offer form (optional). Keys are the form's option values.
+const HEARD_FROM = {
+  "facebook": "Facebook",
+  "instagram": "Instagram",
+  "tiktok": "TikTok",
+  "youtube": "YouTube",
+  "nextdoor": "Nextdoor",
+  "linkedin": "LinkedIn",
+  "x": "X (Twitter)",
+  "google": "Google search",
+  "google-maps": "Google Maps / Google Business Profile",
+  "other-search": "Bing, Yahoo or another search engine",
+  "ai": "ChatGPT or another AI assistant",
+  "zillow": "Zillow, Realtor.com or another real estate site",
+  "craigslist": "Craigslist",
+  "marketplace": "Facebook Marketplace",
+  "mail": "Letter or postcard in the mail",
+  "text": "Text message",
+  "call": "Phone call",
+  "sign": "Yard sign or roadside sign",
+  "vehicle": "Sign on a vehicle",
+  "flyer": "Flyer or door hanger",
+  "media": "Radio, TV or podcast",
+  "event": "Event, workshop or seminar",
+  "friend": "Friend or family",
+  "agent": "Real estate agent",
+  "investor": "Another investor",
+  "past": "I've worked with you before",
+};
 const MAX_LEN = { name: 120, phone: 40, email: 160, property_address: 300, property_type: 60, property_condition: 60, timeline: 60, details: 3000 };
 
 export default {
@@ -128,6 +157,13 @@ async function handleLead(request, env) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return json({ success: false, message: "Please enter a valid email address." }, 400, request);
   if (f.phone.replace(/\D/g, "").length < 10) return json({ success: false, message: "Please enter a 10-digit phone number." }, 400, request);
 
+  // "Who referred you?" is required on the current form (it always sends heard_from); older cached pages may omit it.
+  if (formType === "offer" && "heard_from" in body && !clean(body.referrer, 60))
+    return json({ success: false, message: es ? "Díganos quién le recomendó, o elija \"Nadie me recomendó\"." : "Please tell us who referred you, or choose \"No one referred me\"." }, 400, request);
+  // "How did you hear about us?" (optional): saved on the lead and shown in the details so the Deal Desk sees it.
+  const hv = clean(body.heard_from, 30), heardFrom = hv === "other" ? (clean(body.heard_other, 120) ? "Other: " + clean(body.heard_other, 120) : "Other") : (HEARD_FROM[hv] || "");
+  if (heardFrom) f.details = [f.details, `Heard about us: ${heardFrom}`].filter(Boolean).join("\n\n").slice(0, MAX_LEN.details + 200);
+
   // "Who referred you?" (end of the cash-offer form): an affiliate from the back-office list, or "Other" + a typed name.
   const referrer = formType === "offer" ? await referrerFromLead(env.DB, body, clean(body.lang, 5) === "es") : null;
   if (referrer && referrer.error) return json({ success: false, message: referrer.error }, 400, request);
@@ -150,14 +186,14 @@ async function handleLead(request, env) {
   const id = "web_" + crypto.randomUUID();
   const ref = makeRef();
   await env.DB.prepare(
-    `INSERT INTO leads (id, ref, created_at, form_type, name, phone, email, property_address, property_type, property_condition, timeline, details, lang, consent, consent_text, ip_hash, user_agent, country, referrer_type, referrer_id, referrer_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO leads (id, ref, created_at, form_type, name, phone, email, property_address, property_type, property_condition, timeline, details, lang, consent, consent_text, ip_hash, user_agent, country, referrer_type, referrer_id, referrer_name, heard_from)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     id, ref, new Date().toISOString(), formType,
     f.name, f.phone, f.email, f.property_address, f.property_type, f.property_condition, f.timeline, f.details,
     lang, consent, consentText, ipHash,
     clean(request.headers.get("user-agent"), 300), (request.cf && request.cf.country) || "",
-    referrer ? referrer.type : null, referrer ? referrer.id : null, referrer ? referrer.name : null
+    referrer ? referrer.type : null, referrer ? referrer.id : null, referrer ? referrer.name : null, heardFrom || null
   ).run();
   if (referrer) await recordReferral(env.DB, referrer, { id, ref, name: f.name, phone: f.phone, property_address: f.property_address });
 

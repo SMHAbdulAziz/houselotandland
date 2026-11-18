@@ -417,15 +417,63 @@
                                 <textarea id="property-details" name="property-details" placeholder="Tell us more about your property, situation, or any questions you have..." rows="3"></textarea>
                             </div>
                             <div class="form-group">
-                                <label for="referrer">Who referred you to us?</label>
-                                <select id="referrer" name="referrer">
-                                    <option value="">No one referred me</option>
+                                <label for="referrer">Who referred you to us? *</label>
+                                <select id="referrer" name="referrer" required>
+                                    <option value="">Select one</option>
+                                    <option value="none">No one referred me</option>
                                     <option value="other">Other</option>
                                 </select>
                             </div>
                             <div class="form-group" id="referrer-other-group" hidden>
                                 <label for="referrer-other">Referrer's name *</label>
                                 <input type="text" id="referrer-other" name="referrer_other" placeholder="Name of the person who referred you" maxlength="120" autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label for="heard-from">How did you hear about us?</label>
+                                <select id="heard-from" name="heard_from">
+                                    <option value="">Select one (optional)</option>
+                                    <optgroup label="Social media">
+                                        <option value="facebook">Facebook</option>
+                                        <option value="instagram">Instagram</option>
+                                        <option value="tiktok">TikTok</option>
+                                        <option value="youtube">YouTube</option>
+                                        <option value="nextdoor">Nextdoor</option>
+                                        <option value="linkedin">LinkedIn</option>
+                                        <option value="x">X (Twitter)</option>
+                                    </optgroup>
+                                    <optgroup label="Online search">
+                                        <option value="google">Google search</option>
+                                        <option value="google-maps">Google Maps / Google Business Profile</option>
+                                        <option value="other-search">Bing, Yahoo or another search engine</option>
+                                        <option value="ai">ChatGPT or another AI assistant</option>
+                                    </optgroup>
+                                    <optgroup label="Websites and listings">
+                                        <option value="zillow">Zillow, Realtor.com or another real estate site</option>
+                                        <option value="craigslist">Craigslist</option>
+                                        <option value="marketplace">Facebook Marketplace</option>
+                                    </optgroup>
+                                    <optgroup label="Mail, phone and signs">
+                                        <option value="mail">Letter or postcard in the mail</option>
+                                        <option value="text">Text message</option>
+                                        <option value="call">Phone call</option>
+                                        <option value="sign">Yard sign or roadside sign</option>
+                                        <option value="vehicle">Sign on a vehicle</option>
+                                        <option value="flyer">Flyer or door hanger</option>
+                                        <option value="media">Radio, TV or podcast</option>
+                                        <option value="event">Event, workshop or seminar</option>
+                                    </optgroup>
+                                    <optgroup label="People">
+                                        <option value="friend">Friend or family</option>
+                                        <option value="agent">Real estate agent</option>
+                                        <option value="investor">Another investor</option>
+                                        <option value="past">I've worked with you before</option>
+                                    </optgroup>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="heard-other-group" hidden>
+                                <label for="heard-other">Where did you hear about us?</label>
+                                <input type="text" id="heard-other" name="heard_other" placeholder="Tell us where" maxlength="120" autocomplete="off">
                             </div>
                             <div class="form-group checkbox-group">
                                 <label class="checkbox-label">
