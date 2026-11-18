@@ -12,6 +12,7 @@ import { CURB, CURB_QUOTE } from "../js/services-catalog.js";
 import { recordPayment, isTestOrder } from "./services.js";
 import { isShabbatDate } from "../js/shabbat.js";
 import { officeAffiliateApi } from "./affiliates.js";
+import { member, can, trackOk, trackSql, propertyOk, scrubContact, me, teamApi } from "./team.js";
 
 const JSONH = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: JSONH });
@@ -27,7 +28,7 @@ const parse = (s) => { try { return s ? JSON.parse(s) : null; } catch { return n
 let certs = null, certsAt = 0;
 const b64u = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(s.length / 4) * 4, "=")), (c) => c.charCodeAt(0));
 export async function officeUser(request, env) {
-  if (env.OFFICE_DEV === "1") return { email: "dev@localhost" };
+  if (env.OFFICE_DEV === "1") { const as = (request.headers.get("cookie") || "").match(/(?:^|;\s*)dev_as=([^;]+)/); return { email: as ? decodeURIComponent(as[1]) : "dev@local.test" }; }
   const team = env.ACCESS_TEAM_DOMAIN, aud = env.ACCESS_AUD;
   if (!team || !aud) return { setup: true };
   const cookie = (request.headers.get("cookie") || "").match(/(?:^|;\s*)CF_Authorization=([^;]+)/);
@@ -53,11 +54,57 @@ const LOCKED = (title, msg) => new Response(`<!doctype html><meta charset=utf-8>
 <body style="font:16px/1.6 system-ui,sans-serif;background:#f1f5f9;color:#1e293b;margin:0"><main style="max-width:560px;margin:12vh auto;background:#fff;border-radius:14px;padding:28px;box-shadow:0 10px 30px -12px #0f172a33">
 <h1 style="margin:0 0 8px;font:700 1.4rem Georgia,serif">${title}</h1><p>${msg}</p></main>`, { status: 403, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
 
+// Which permission each back-office call needs (src/team.js). Returns false when allowed, true or a message when not.
+// Track limits are checked here for single deals/properties and applied to lists in the handlers.
+async function officeGate(db, u, m, path, seg, b) {
+  if (u.owner) return false;
+  const any = (...ps) => ps.some((p) => can(u, p));
+  const dealTrack = async (id) => (await db.prepare("SELECT track FROM deals WHERE id = ?").bind(id).first() || {}).track;
+  const propOk = async (pid) => pid ? propertyOk(db, u, pid) : true;
+  if (seg[0] === "aff") return !can(u, "affiliates");
+  if (m === "GET" && ["summary", "settings"].includes(path)) return false;
+  if (m === "GET" && ["deals", "search"].includes(path)) return !any("deals", "add", "import");
+  if (m === "GET" && seg[0] === "property") return !any("deals", "add", "import") || !(await propOk(seg[1])) && "That property isn't on your tracks.";
+  if (m === "GET" && seg[0] === "contact") return !can(u, "contacts");
+  if (m === "POST" && path === "property") return !can(u, "add") || (b.track && !trackOk(u, b.track) && "You can't add properties to that track.");
+  if (m === "PATCH" && seg[0] === "property") return !any("deals.edit", "add") || !(await propOk(seg[1])) && "That property isn't on your tracks.";
+  if ((m === "PATCH" && seg[0] === "contact") || (m === "POST" && path === "contact")) return !can(u, "contacts.edit") || !(await propOk(b.property_id));
+  if (m === "POST" && path === "deal") return !any("deals.edit", "add") || !trackOk(u, b.track) && "You can't add deals to that track." || !(await propOk(b.property_id));
+  if (m === "PATCH" && seg[0] === "deal") return !can(u, "deals.edit") || !trackOk(u, await dealTrack(seg[1])) && "That deal isn't on your tracks.";
+  if (m === "DELETE" && seg[0] === "deal") return !can(u, "deals.delete") || !trackOk(u, await dealTrack(seg[1])) && "That deal isn't on your tracks.";
+  if (m === "POST" && path === "deals/delete") {
+    if (!can(u, "deals.delete")) return true;
+    for (const id of (Array.isArray(b.ids) ? b.ids : []).slice(0, 2000)) if (!trackOk(u, await dealTrack(id))) return "Some selected deals aren't on your tracks.";
+    return false;
+  }
+  if (m === "DELETE" && seg[0] === "property") {
+    if (!can(u, "deals.delete")) return true;
+    const rows = (await db.prepare("SELECT track FROM deals WHERE property_id = ?").bind(seg[1]).all()).results;
+    return rows.some((r) => !trackOk(u, r.track)) && "This property is also on tracks you don't work. Remove it from your track instead.";
+  }
+  if (m === "POST" && path === "activity") return !any("deals.edit", "email") || !(await propOk(b.property_id));
+  if (path === "workers" || seg[0] === "worker" || (seg[0] === "job" && m !== "GET")) return !can(u, "crew");
+  if (path === "quotes" || seg[0] === "quote") return !can(u, "quotes");
+  if (seg[0] === "import" || path === "import/gmaps-link" || path === "counties") return !can(u, "import") && !(path === "import/fill-counties" && any("deals", "add"));
+  if (path === "geocode") return !any("import", "add");
+  if (path === "jobs" || seg[0] === "job-detail" || path === "open-services" || (m === "PATCH" && seg[0] === "service")) return !can(u, "jobs");
+  if (path === "payment") return !can(u, "payments");
+  if (m === "PUT" && path === "settings") return !(can(u, "settings") || (can(u, "email") && Object.keys(b).every((k) => k === "mail_address")) || (can(u, "crew") && Object.keys(b).every((k) => k === "w9_link")));
+  if (m === "POST" && path === "text") {
+    if (!can(u, "text")) return "Texting isn't turned on for you. Ask Harvey.";
+    const kind = (TEXT_TEMPLATES[b.template] || {}).kind;
+    if (kind === "worker") return b.kind === "affiliate" ? !can(u, "affiliates") : !can(u, "crew");
+    return !can(u, "contacts") || !(await propOk(b.property_id));
+  }
+  return true; // anything not listed: owner only
+}
+
 /** /office and /office/* : the back-office page and its files, after the Access check. */
 export async function handleOfficePage(request, env, url) {
   const u = await officeUser(request, env);
   if (u && u.setup) return LOCKED("Back office locked", "The back office opens once Cloudflare Access is set up for houselotandland.org/office. Nothing here is public.");
   if (!u) return LOCKED("Not signed in", "Sign in through Cloudflare Access to open the back office.");
+  if (!(await member(env.DB, u.email))) return LOCKED("Not on the team yet", `You're signed in as ${String(u.email).replace(/[<>&"]/g, "")}, which isn't on the House Lot & Land team. Ask Harvey to add this email on the Team tab, then reload.`);
   if (url.pathname === "/office") return Response.redirect(url.origin + "/office/", 302);
   const res = await env.ASSETS.fetch(new Request(new URL(url.pathname, url.origin), request));
   const h = new Headers(res.headers); h.set("cache-control", "no-store"); h.set("x-robots-tag", "noindex");
@@ -180,59 +227,82 @@ const W_STATUS = ["applied", "approved", "active", "inactive", "declined"];
 const W9 = ["not requested", "requested", "received"];
 
 export async function handleOfficeApi(request, env, url) {
-  const u = await officeUser(request, env);
-  if (!u || u.setup) return json({ ok: false, message: u && u.setup ? "Back office isn't set up yet." : "Not signed in." }, 401);
+  const who = await officeUser(request, env);
+  if (!who || who.setup) return json({ ok: false, message: who && who.setup ? "Back office isn't set up yet." : "Not signed in." }, 401);
   const db = env.DB, path = url.pathname.replace(/^\/api\/office\/?/, ""), m = request.method, t = now();
+  const u = await member(db, who.email); // team member: role, tracks, permissions (src/team.js)
+  if (!u) return json({ ok: false, message: "This email isn't on the team. Ask Harvey to add you." }, 403);
   let b = {};
   if (m !== "GET" && m !== "DELETE") { try { b = await request.json(); } catch { return json({ ok: false, message: "Bad request." }, 400); } }
   const seg = path.split("/");
+  const deny = (msg) => json({ ok: false, message: msg || "Your role doesn't include this. Ask Harvey if you need it." }, 403);
   try {
+    if (m === "GET" && path === "me") return json({ ok: true, me: me(u) });
+    if (seg[0] === "team") return await teamApi(db, m, seg, b, u, t, json);
+    const gate = await officeGate(db, u, m, path, seg, b);
+    if (gate) return deny(gate === true ? null : gate);
     if (seg[0] === "aff") return await officeAffiliateApi(db, m, seg, b, u, t, url, json);
     if (m === "GET" && path === "summary") {
-      const deals = (await db.prepare("SELECT track, stage, COUNT(*) AS n FROM deals GROUP BY track, stage").all()).results;
-      const due = (await db.prepare(`${DEAL_SELECT} WHERE d.next_touch IS NOT NULL AND d.next_touch <= ? ORDER BY d.next_touch LIMIT 200`).bind(today()).all()).results
-        .filter((r) => !CLOSED_STAGES.has(r.stage));
+      const ts = trackSql(u), seeDeals = can(u, "deals") || can(u, "add") || can(u, "import");
+      const deals = seeDeals ? (await db.prepare(`SELECT track, stage, COUNT(*) AS n FROM deals d WHERE ${ts.sql} GROUP BY track, stage`).bind(...ts.vals).all()).results : [];
+      const due = seeDeals ? (await db.prepare(`${DEAL_SELECT} WHERE d.next_touch IS NOT NULL AND d.next_touch <= ? AND ${ts.sql} ORDER BY d.next_touch LIMIT 200`).bind(today(), ...ts.vals).all()).results
+        .filter((r) => !CLOSED_STAGES.has(r.stage)).map((r) => scrubContact(u, r)) : [];
       const workers = (await db.prepare("SELECT status, COUNT(*) AS n FROM workers GROUP BY status").all()).results;
-      const recent = (await db.prepare(`SELECT a.*, p.address, p.name AS pname FROM activities a LEFT JOIN properties p ON p.id = a.property_id ORDER BY a.at DESC LIMIT 15`).all()).results;
+      const recent = u.owner ? (await db.prepare(`SELECT a.*, p.address, p.name AS pname FROM activities a LEFT JOIN properties p ON p.id = a.property_id ORDER BY a.at DESC LIMIT 15`).all()).results
+        : (await db.prepare(`SELECT a.*, p.address, p.name AS pname FROM activities a LEFT JOIN properties p ON p.id = a.property_id
+            WHERE a.by = ? OR (a.property_id IS NOT NULL AND EXISTS (SELECT 1 FROM deals d WHERE d.property_id = a.property_id AND ${ts.sql})) ORDER BY a.at DESC LIMIT 15`).bind(u.email, ...ts.vals).all()).results;
       const counts = (await db.prepare("SELECT (SELECT COUNT(*) FROM properties) AS properties, (SELECT COUNT(*) FROM contacts) AS contacts, (SELECT COUNT(*) FROM deals) AS deals").first());
       const openSvc = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE status IN ('requested','quoted','paid','scheduled','quote_requested','awaiting_payment')").first()).n;
       await repairOneLineAddresses(db, t); // fixes one-line addresses from older imports the first time the overview opens
       const quoteNeeded = (await db.prepare("SELECT COUNT(*) AS n FROM service_requests WHERE service = 'curb' AND status IN ('requested','test') AND amount IS NULL AND paid_at IS NULL").first()).n;
       const newLoans = (await db.prepare("SELECT COUNT(*) AS n FROM loan_apps WHERE status IN ('new','reviewing')").first().catch(() => ({ n: 0 }))).n;
       const aff = await db.prepare("SELECT (SELECT COUNT(*) FROM referrals WHERE status = 'open') AS open, (SELECT COUNT(*) FROM referrals WHERE status = 'closed' AND payout > 0) AS toPay, (SELECT COUNT(*) FROM affiliates WHERE status = 'active') AS active").first().catch(() => ({ open: 0, toPay: 0, active: 0 }));
-      return json({ ok: true, user: u.email, deals, due, workers, recent, counts, openSvc, quoteNeeded, newLoans, aff, tracks: TRACKS, sales: await salesSummary(db) });
+      return json({ ok: true, user: u.email, me: me(u), deals, due, recent, tracks: TRACKS,
+        workers: can(u, "crew") ? workers : [], counts: u.owner ? counts : null, openSvc: can(u, "jobs") ? openSvc : null, quoteNeeded: can(u, "quotes") ? quoteNeeded : null,
+        newLoans: trackOk(u, "funding") ? newLoans : null, aff: can(u, "affiliates") ? aff : null, sales: can(u, "payments") ? await salesSummary(db) : null });
     }
     if (m === "GET" && path === "deals") {
-      const w = [], v = [];
+      const ts = trackSql(u), w = [ts.sql], v = [...ts.vals];
       if (TRACKS[url.searchParams.get("track")]) { w.push("d.track = ?"); v.push(url.searchParams.get("track")); }
       if (url.searchParams.get("stage")) { w.push("d.stage = ?"); v.push(url.searchParams.get("stage")); }
       if (url.searchParams.get("open") === "1") w.push(`d.stage NOT IN (${[...CLOSED_STAGES].map(() => "?").join(",")})`), v.push(...CLOSED_STAGES);
       const q = clean(url.searchParams.get("q"), 80);
       if (q) { w.push("(p.address LIKE ? OR p.name LIKE ? OR p.city LIKE ? OR c.name LIKE ? OR c.phone_key LIKE ? OR d.ref LIKE ?)"); const like = `%${q}%`; v.push(like, like, like, like, `%${q.replace(/\D/g, "") || "~"}%`, like); }
       const rows = (await db.prepare(`${DEAL_SELECT} ${w.length ? "WHERE " + w.join(" AND ") : ""} ORDER BY COALESCE(d.next_touch, '9999'), d.updated_at DESC LIMIT 5000`).bind(...v).all()).results;
-      return json({ ok: true, rows });
+      return json({ ok: true, rows: u.owner ? rows : rows.map((r) => scrubContact(u, r)) });
     }
     if (m === "GET" && path === "search") {
       const q = clean(url.searchParams.get("q"), 80) || "", like = `%${q}%`, digits = q.replace(/\D/g, "");
+      const ts = trackSql(u), noDeal = can(u, "add") || can(u, "import") ? " OR NOT EXISTS (SELECT 1 FROM deals d0 WHERE d0.property_id = p.id)" : "";
+      const scope = u.owner ? "" : `AND (EXISTS (SELECT 1 FROM deals d WHERE d.property_id = p.id AND ${ts.sql})${noDeal})`;
       const props = (await db.prepare(`SELECT p.*, (SELECT GROUP_CONCAT(track || ':' || stage, ' · ') FROM deals d WHERE d.property_id = p.id) AS tracks FROM properties p
-        WHERE p.address LIKE ? OR p.name LIKE ? OR p.city LIKE ? OR p.zip = ? OR p.state = ? ORDER BY p.updated_at DESC LIMIT 50`).bind(like, like, like, q, q.toUpperCase()).all()).results;
-      const contacts = (await db.prepare(`SELECT * FROM contacts WHERE name LIKE ? OR email LIKE ? ${digits.length >= 4 ? "OR phone_key LIKE ?" : ""} ORDER BY updated_at DESC LIMIT 50`)
-        .bind(...[like, like, ...(digits.length >= 4 ? [`%${digits}%`] : [])]).all()).results;
+        WHERE (p.address LIKE ? OR p.name LIKE ? OR p.city LIKE ? OR p.zip = ? OR p.state = ?) ${scope} ORDER BY p.updated_at DESC LIMIT 50`).bind(like, like, like, q, q.toUpperCase(), ...(scope ? ts.vals : [])).all()).results;
+      const contacts = !can(u, "contacts") ? [] : u.owner
+        ? (await db.prepare(`SELECT * FROM contacts WHERE name LIKE ? OR email LIKE ? ${digits.length >= 4 ? "OR phone_key LIKE ?" : ""} ORDER BY updated_at DESC LIMIT 50`)
+          .bind(...[like, like, ...(digits.length >= 4 ? [`%${digits}%`] : [])]).all()).results
+        : (await db.prepare(`SELECT c.* FROM contacts c WHERE (c.name LIKE ? OR c.email LIKE ? ${digits.length >= 4 ? "OR c.phone_key LIKE ?" : ""})
+            AND EXISTS (SELECT 1 FROM property_contacts pc JOIN deals d ON d.property_id = pc.property_id WHERE pc.contact_id = c.id AND ${ts.sql}) ORDER BY c.updated_at DESC LIMIT 50`)
+          .bind(...[like, like, ...(digits.length >= 4 ? [`%${digits}%`] : []), ...ts.vals]).all()).results;
       return json({ ok: true, props, contacts });
     }
     if (m === "GET" && seg[0] === "property" && seg[1]) {
       const p = await db.prepare("SELECT * FROM properties WHERE id = ?").bind(seg[1]).first();
       if (!p) return json({ ok: false, message: "Not found." }, 404);
-      const deals = (await db.prepare(`${DEAL_SELECT} WHERE d.property_id = ? ORDER BY d.created_at`).bind(p.id).all()).results;
-      const contacts = (await db.prepare("SELECT c.*, pc.role FROM property_contacts pc JOIN contacts c ON c.id = pc.contact_id WHERE pc.property_id = ?").bind(p.id).all()).results;
+      const deals = (await db.prepare(`${DEAL_SELECT} WHERE d.property_id = ? ORDER BY d.created_at`).bind(p.id).all()).results.filter((d) => trackOk(u, d.track)).map((d) => scrubContact(u, d));
+      const contacts = (await db.prepare("SELECT c.*, pc.role FROM property_contacts pc JOIN contacts c ON c.id = pc.contact_id WHERE pc.property_id = ?").bind(p.id).all()).results.map((c) => scrubContact(u, c));
       const acts = (await db.prepare("SELECT * FROM activities WHERE property_id = ? ORDER BY at DESC LIMIT 200").bind(p.id).all()).results;
       return json({ ok: true, property: { ...p, data: parse(p.data) }, deals: deals.map((d) => ({ ...d, data: parse(d.data) })), contacts, activities: acts });
     }
     if (m === "GET" && seg[0] === "contact" && seg[1]) {
       const c = await db.prepare("SELECT * FROM contacts WHERE id = ?").bind(seg[1]).first();
       if (!c) return json({ ok: false, message: "Not found." }, 404);
-      const props = (await db.prepare(`SELECT p.*, pc.role, (SELECT GROUP_CONCAT(track || ':' || stage, ' · ') FROM deals d WHERE d.property_id = p.id) AS tracks
+      let props = (await db.prepare(`SELECT p.*, pc.role, (SELECT GROUP_CONCAT(track || ':' || stage, ' · ') FROM deals d WHERE d.property_id = p.id) AS tracks
         FROM property_contacts pc JOIN properties p ON p.id = pc.property_id WHERE pc.contact_id = ?`).bind(c.id).all()).results;
+      if (!u.owner) {
+        const ok = []; for (const p of props) if (await propertyOk(db, u, p.id)) ok.push(p);
+        if (!ok.length) return json({ ok: false, message: "That contact isn't on your tracks." }, 403);
+        props = ok;
+      }
       return json({ ok: true, contact: c, props });
     }
     // Create (or match) a property with an owner and a first track.
@@ -532,13 +602,15 @@ export async function handleOfficeApi(request, env, url) {
           (SELECT COALESCE(SUM(amount),0) FROM service_payments p WHERE p.request_id = s.id) AS paid_total,
           (SELECT COALESCE(SUM(pay),0) FROM worker_jobs j WHERE j.service_request_id = s.id AND j.status != 'cancelled') AS crew_pay
         FROM service_requests s ORDER BY COALESCE(s.appointment_at, s.created_at) DESC LIMIT 500`).all()).results;
-      return json({ ok: true, rows: rows.map((r) => ({ ...r, answers: parse(r.answers) || {}, extra: parse(r.extra) || {}, test: isTestOrder(r) })) });
+      const money = can(u, "payments");
+      return json({ ok: true, money, rows: rows.map((r) => ({ ...r, answers: parse(r.answers) || {}, extra: parse(r.extra) || {}, test: isTestOrder(r),
+        ...(money ? {} : { amount_paid: null, paid_total: null }), ...(can(u, "crew") ? {} : { crew_pay: null, labor_cost: null }) })) });
     }
     if (m === "GET" && seg[0] === "job-detail" && seg[1]) {
       const r = await db.prepare("SELECT * FROM service_requests WHERE id = ?").bind(seg[1]).first();
       if (!r) return json({ ok: false, message: "Not found." }, 404);
       const jobs = (await db.prepare("SELECT j.*, w.name AS wname, w.phone AS wphone FROM worker_jobs j LEFT JOIN workers w ON w.id = j.worker_id WHERE j.service_request_id = ? ORDER BY j.work_date").bind(r.id).all()).results;
-      const pays = (await db.prepare("SELECT * FROM service_payments WHERE request_id = ? ORDER BY at").bind(r.id).all()).results;
+      const pays = can(u, "payments") ? (await db.prepare("SELECT * FROM service_payments WHERE request_id = ? ORDER BY at").bind(r.id).all()).results : null;
       const crew = (await db.prepare("SELECT id, name, phone, trades FROM workers WHERE status IN ('approved','active') ORDER BY name").all()).results;
       return json({ ok: true, request: { ...r, answers: parse(r.answers) || {}, extra: parse(r.extra) || {}, ip_hash: undefined, user_agent: undefined, test: isTestOrder(r) }, jobs, payments: pays, crew, origin: url.origin });
     }

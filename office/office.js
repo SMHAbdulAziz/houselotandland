@@ -64,11 +64,41 @@ function shabbatBanner() {
 }
 
 // ---------------- router ----------------
-const VIEWS = { overview, deals, add, import: importView, jobs, quotes, workers, affiliates, links };
+const VIEWS = { overview, deals, add, import: importView, jobs, quotes, workers, affiliates, links, team: teamView };
+// ---------------- who is signed in (role and permissions come from the server; it enforces them too) ----------------
+let ME = { perms: [], tracks: Object.keys(TRACKS), owner: true };
+const can = (p) => ME.owner || ME.perms.includes(p);
+const trackOk = (k) => ME.owner || ME.tracks.includes(k);
+const TAB_NEEDS = { overview: () => true, deals: () => can("deals") || can("add") || can("import"), add: () => can("add"), import: () => can("import"),
+  jobs: () => can("jobs"), quotes: () => can("quotes"), workers: () => can("crew"), affiliates: () => can("affiliates"), links: () => ME.owner, team: () => can("team") };
+function firstTabView() { const t = Object.keys(TAB_NEEDS).find((k) => k !== "overview" && TAB_NEEDS[k]()); if (t) { location.hash = t; return; } $("view").innerHTML = `<div class="card"><p>Your role doesn't include any tabs yet. Ask Harvey.</p></div>`; }
+// Hide what this person can't use (the server refuses it anyway).
+const HIDE = [
+  [() => !can("deals.delete"), "[data-rmdeal], #dDel"], [() => !can("deals.delete"), "#delProp", "section"],
+  [() => !can("deals.edit"), "#dStage, #dTouch, #dApply, [data-deal] button, [data-deal] select, [data-deal] input, [data-deal] textarea"],
+  [() => !can("deals.edit") && !can("add"), "#propForm .wide, #valForm .wide, [data-addtrack]"],
+  [() => !can("deals.edit") && !can("email"), "#logForm"],
+  [() => !can("contacts.edit"), "#addContact", "details"], [() => !can("contacts.edit"), "[data-dnc], [data-unconsent]"], [() => !can("contacts.edit"), "[data-consent]", "details"],
+  [() => !can("email"), "#oeCard"], [() => !can("text"), "#oeText, #oeTextMsg, #oeTextTo"],
+  [() => !ME.owner, 'a[href*="claude.ai/artifact"]'],
+  [() => !can("payments"), "#paySec"], [() => !can("crew"), "#cForm", "section"], [() => !can("crew"), '#jForm [name="labor_cost"]', "label"],
+];
+function permHide(root) {
+  if (ME.owner || !root.querySelectorAll) return;
+  for (const [cond, sel, up] of HIDE) if (cond()) root.querySelectorAll(sel).forEach((el) => { const t = up ? el.closest(up) || el : el; t.hidden = true; t.style.display = "none"; });
+  root.querySelectorAll("[data-track], [data-addtrack]").forEach((el) => { const k = el.dataset.track || el.dataset.addtrack; if (TRACKS[k] && !trackOk(k)) el.style.display = "none"; });
+}
+new MutationObserver((ms) => { for (const m of ms) m.addedNodes.forEach((n) => n.nodeType === 1 && permHide(n.parentNode || n)); }).observe(document.body, { childList: true, subtree: true });
+async function loadMe() {
+  try { ME = (await api("me")).me; } catch (e) { if (e.status === 403) { document.body.innerHTML = `<main style="max-width:560px;margin:12vh auto;font:16px system-ui"><h1>Not on the team yet</h1><p>${esc(e.message)}</p></main>`; throw e; } }
+  $("who").textContent = ME.owner ? ME.email : `${ME.name || ME.email} · ${ME.roleLabel}`;
+  document.querySelectorAll("#tabs a").forEach((a) => { a.hidden = !(TAB_NEEDS[a.dataset.tab] || (() => true))(); });
+}
 let dealFilter = { track: "", stage: "", q: "", open: "1" };
 async function route() {
   shabbatBanner();
-  const [tab, arg] = (location.hash.slice(1) || "overview").split("/");
+  let [tab, arg] = (location.hash.slice(1) || "overview").split("/");
+  if (TAB_NEEDS[tab] && !TAB_NEEDS[tab]()) tab = "overview";
   document.querySelectorAll("#tabs a").forEach((a) => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
   const fn = VIEWS[tab] || overview;
   $("view").innerHTML = `<p class="hint">Loading…</p>`;
@@ -80,25 +110,25 @@ $("searchForm").addEventListener("submit", (e) => { e.preventDefault(); dealFilt
 // ---------------- overview ----------------
 async function overview() {
   fillFileCounties(); // background: counties for properties on file that lack one
+  if (!can("deals") && !can("add") && !can("import")) return firstTabView(); // field ops etc.: start on their own tab
   const s = await api("summary");
-  $("who").textContent = s.user;
   const byTrack = {};
   for (const r of s.deals) (byTrack[r.track] ||= []).push(r);
-  const wk = Object.fromEntries(s.workers.map((r) => [r.status, r.n]));
+  const wk = Object.fromEntries((s.workers || []).map((r) => [r.status, r.n]));
   const open = s.deals.filter((r) => !CLOSED_STAGES.has(r.stage)).reduce((a, r) => a + r.n, 0);
   $("view").innerHTML = `
     <section class="kpis">
       <a class="kpi" href="#deals"><b>${open}</b><span>Open deals</span></a>
       <a class="kpi" href="#deals"><b>${s.due.length}</b><span>Follow-ups due</span></a>
-      <a class="kpi" href="#deals"><b>${s.counts.properties}</b><span>Properties · ${s.counts.contacts} contacts</span></a>
-      <a class="kpi" href="#quotes"><b>${s.quoteNeeded || 0}</b><span>Curb Appeal quotes to send</span></a>
-      <a class="kpi" href="#workers"><b>${wk.applied || 0}</b><span>Worker applications to review</span></a>
-      <a class="kpi" href="#affiliates"><b>${(s.aff && s.aff.open) || 0}</b><span>Open affiliate referrals${s.aff && s.aff.toPay ? ` · <b style="color:var(--bad);font-size:inherit">${s.aff.toPay} to pay</b>` : ""}</span></a>
-      <a class="kpi" href="#workers"><b>${(wk.active || 0) + (wk.approved || 0)}</b><span>Approved and active workers</span></a>
+      ${s.counts ? `<a class="kpi" href="#deals"><b>${s.counts.properties}</b><span>Properties · ${s.counts.contacts} contacts</span></a>` : ""}
+      ${s.quoteNeeded != null ? `<a class="kpi" href="#quotes"><b>${s.quoteNeeded || 0}</b><span>Curb Appeal quotes to send</span></a>` : ""}
+      ${can("crew") ? `<a class="kpi" href="#workers"><b>${wk.applied || 0}</b><span>Worker applications to review</span></a>` : ""}
+      ${s.aff ? `<a class="kpi" href="#affiliates"><b>${s.aff.open || 0}</b><span>Open affiliate referrals${s.aff.toPay ? ` · <b style="color:var(--bad);font-size:inherit">${s.aff.toPay} to pay</b>` : ""}</span></a>` : ""}
+      ${can("crew") ? `<a class="kpi" href="#workers"><b>${(wk.active || 0) + (wk.approved || 0)}</b><span>Approved and active workers</span></a>` : ""}
     </section>
-    ${salesSection(s.sales)}
+    ${s.sales ? salesSection(s.sales) : ""}
     <section class="card"><div class="head"><h2>Pipelines</h2><span class="hint">One property can be on several tracks; it's still one record.</span></div>
-      <div class="tracks">${Object.entries(TRACKS).map(([k, tr]) => {
+      <div class="tracks">${Object.entries(TRACKS).filter(([k]) => trackOk(k)).map(([k, tr]) => {
         const rows = byTrack[k] || [], n = rows.reduce((a, r) => a + r.n, 0);
         return `<a class="track" href="#deals" data-track="${k}" style="text-decoration:none;color:inherit"><h3>${esc(tr.label)} <span class="pill">${n}</span></h3>
           ${tr.stages.map((st) => { const c = (rows.find((r) => r.stage === st) || {}).n || 0; return c ? `<div class="bar"><span>${esc(st)}</span><i>${c}</i></div>` : ""; }).join("") || `<span class="hint">No deals yet</span>`}</a>`;
@@ -154,7 +184,7 @@ function drawDeals() {
   const allShown = shown.length && shown.every((d) => dv.sel.has(d.id));
   $("view").innerHTML = `<section class="card">
     <div class="head"><h2>Deals</h2><span class="hint">${rows.length} on file${list.length !== rows.length ? ` · ${list.length} match` : ""}${dealFilter.q ? ` for “${esc(dealFilter.q)}”` : ""} · ${dv.sel.size} selected</span></div>
-    <div class="chips" style="margin-bottom:8px">${[["", "All tracks"], ...Object.entries(TRACKS).map(([k, v]) => [k, v.label])].map(([k, l]) => `<button class="chip" data-t="${k}" aria-pressed="${dealFilter.track === k}">${esc(l)}</button>`).join("")}
+    <div class="chips" style="margin-bottom:8px">${[["", "All tracks"], ...Object.entries(TRACKS).filter(([k]) => trackOk(k)).map(([k, v]) => [k, v.label])].map(([k, l]) => `<button class="chip" data-t="${k}" aria-pressed="${dealFilter.track === k}">${esc(l)}</button>`).join("")}
       <button class="chip" data-open aria-pressed="${dealFilter.open === "1"}">Open only</button></div>
     ${tr ? `<div class="chips" style="margin-bottom:8px">${["", ...tr.stages].map((st) => `<button class="chip" data-st="${esc(st)}" aria-pressed="${dealFilter.stage === st}">${esc(st || "Any stage")}</button>`).join("")}</div>` : ""}
     <div class="chips" style="margin-bottom:10px">${DEAL_QUICK.map(([k, l]) => `<button class="chip" data-dq="${k}" aria-pressed="${dv.quick === k}">${esc(l)} <span class="hint">${rows.filter((d) => dealQuick(d, k)).length}</span></button>`).join("")}</div>
@@ -240,7 +270,7 @@ function valuesSection(p) {
 }
 async function openProperty(id) {
   const { property: p, deals: ds, contacts, activities } = await api("property/" + id);
-  const missing = Object.keys(TRACKS).filter((k) => !ds.some((d) => d.track === k));
+  const missing = Object.keys(TRACKS).filter((k) => trackOk(k) && !ds.some((d) => d.track === k));
   $("dBody").innerHTML = `
     <div><h2 id="dTitle">${esc(label(p))}</h2><p class="hint" style="margin:4px 0 0">${esc([p.name && p.address ? p.name : "", cityLine(p), p.county && p.county + " County", p.prop_type].filter(Boolean).join(" · "))}</p></div>
     <section class="card"><div class="head"><h3>Tracks</h3><span class="hint">One deal per track</span></div>
@@ -414,7 +444,7 @@ async function add() {
       <label>Name (for parks or complexes)<input name="name"></label><label>City<input name="city"></label><label>State${stateSelect("state", "")}</label><label>ZIP<input name="zip" inputmode="numeric"></label><label>County<input name="county"></label>
       <label>Type<select name="prop_type">${TYPES.map((t) => `<option>${t}</option>`).join("")}</select></label><label>Units / sites<input name="units" inputmode="numeric"></label>
       <label>Owner name<input name="cname"></label><label>Owner phone<input name="cphone" inputmode="tel"></label><label>Owner email<input name="cemail" type="email"></label>
-      <label>Track<select name="track">${Object.entries(TRACKS).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("")}</select></label>
+      <label>Track<select name="track">${Object.entries(TRACKS).filter(([k]) => trackOk(k)).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("")}</select></label>
       <label>Source<input name="source" placeholder="Driving for dollars, referral…"></label>
       <label class="wide">Notes<textarea name="notes"></textarea></label>
       <div class="wide"><button class="btn gold">Add property</button></div></form><p id="addMsg" class="hint"></p></section>`;
@@ -650,7 +680,7 @@ function drawPreview() {
   const allShownOn = shown.length && shown.every((r) => r.on);
   $("impPreview").innerHTML = `<section class="card"><div class="head"><h2>${esc(imp.list || "Preview")}</h2><span class="hint">${rows.length} places · ${rows.filter((r) => r.found).length} on file · ${sel.length} selected</span></div>
     <div class="grid" style="margin-bottom:10px">
-      <label>Add to track<select id="impTrack"><option value="">No track (just the property)</option>${Object.entries(TRACKS).map(([k, v]) => `<option value="${k}" ${imp.track === k ? "selected" : ""}>${esc(v.label)}</option>`).join("")}</select></label>
+      <label>Add to track<select id="impTrack"><option value="">No track (just the property)</option>${Object.entries(TRACKS).filter(([k]) => trackOk(k)).map(([k, v]) => `<option value="${k}" ${imp.track === k ? "selected" : ""}>${esc(v.label)}</option>`).join("")}</select></label>
       <label>Type<select id="impType"><option value="">Not set</option>${TYPES.map((t) => `<option ${imp.ptype === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       <label class="wide">Source label<input id="impSource" value="${esc(imp.source ?? ("Google Maps list: " + (imp.list || "")))}"></label></div>
     <p>${imp.src !== "onfile" ? `<button class="btn" type="button" id="impGeo" ${pins + fwd ? "" : "disabled"}>Find street addresses (${pins} pins${fwd ? `, ${fwd} missing ZIP` : ""})</button>
@@ -1212,5 +1242,59 @@ async function links() {
     `<a class="linkcard" href="${esc(u)}" ${/^https?:/.test(u) ? 'target="_blank" rel="noopener"' : ""}><b>${esc(n)}${/^https?:/.test(u) ? " ↗" : ""}</b><span>${esc(d)}</span></a>`).join("")}</div></section>`).join("");
 }
 
-route();
+// ---------------- team (owner only) ----------------
+const TRACK_LABEL = (k) => (TRACKS[k] && TRACKS[k].label) || k;
+async function teamView() {
+  const t = await api("team");
+  const roleOpts = (cur) => Object.entries(t.roles).map(([k, r]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${esc(r.label)}</option>`).join("");
+  $("view").innerHTML = `
+    <section class="card"><div class="head"><h2>Team</h2><span class="hint">${t.members.filter((x) => x.active).length} active</span></div>
+      <p class="hint" style="margin:0 0 12px">Each person signs in at houselotandland.org/office with their own email (Cloudflare sends a one-time code). They see only their role's tabs and tracks; the server refuses anything else. Every change they make is logged with their email.</p>
+      <div class="list">${t.members.map((m) => `<button class="row link" data-member="${esc(m.email)}" style="text-align:left;width:100%">
+        <div><div class="t">${esc(m.name || m.email)} <span class="pill ${m.role === "owner" ? "ok" : ""}">${esc((t.roles[m.role] || {}).label || m.role)}</span>${m.active ? "" : ` <span class="pill mute">Inactive</span>`}${m.custom ? ` <span class="pill mute">Custom</span>` : ""}</div>
+        <div class="s">${esc(m.email)} · ${m.role === "owner" ? "Everything" : esc(m.tracks.length ? m.tracks.map(TRACK_LABEL).join(", ") : "No deal tracks")}${m.perms.includes("text") && m.role !== "owner" ? " · Can text" : ""} · ${m.last_seen ? "Last in " + esc(fmtWhen(m.last_seen)) : "Hasn't signed in yet"}</div></div></button>`).join("") || `<p class="hint">No one yet.</p>`}</div></section>
+    <section class="card"><div class="head"><h3>Add a team member</h3></div>
+      <form id="tmAdd" class="grid"><label>Name<input name="name" required></label><label>Email they sign in with<input name="email" type="email" required></label>
+        <label>Role<select name="role">${roleOpts("acquisitions")}</select></label>
+        <p class="wide hint" id="tmRoleHint" style="margin:0"></p>
+        <div class="wide"><button class="btn gold">Add</button> <span class="hint">You can fine-tune their tracks and permissions after adding them.</span></div></form></section>
+    <section class="card"><div class="head"><h3>What each role can do</h3></div>
+      <div class="list">${Object.entries(t.roles).map(([k, r]) => `<div class="row"><div><div class="t">${esc(r.label)}</div>
+        <div class="s">${k === "owner" ? "Everything, including the Team tab." : `Tracks: ${esc(r.tracks.length ? r.tracks.map(TRACK_LABEL).join(", ") : "none")}. ${esc(r.perms.map((p) => t.perms[p]).join("; "))}.`}</div></div></div>`).join("")}</div></section>`;
+  const hint = () => { const r = t.roles[$("tmAdd").role.value]; $("tmRoleHint").textContent = r.perms.map((p) => t.perms[p]).join(" · "); };
+  $("tmAdd").role.onchange = hint; hint();
+  $("tmAdd").onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
+    try { await send("team", "POST", f); toast("Added. Send them the link: houselotandland.org/office"); teamView(); openMember(f.email.toLowerCase(), true); } catch (er) { toast(er.message); } };
+  $("view").querySelectorAll("[data-member]").forEach((b) => b.onclick = () => openMember(b.dataset.member));
+}
+async function openMember(email, fresh) {
+  const t = await api("team"), m = t.members.find((x) => x.email === email); if (!m) return;
+  const isOwner = m.role === "owner", perms = Object.keys(t.perms).filter((p) => p !== "team");
+  $("dBody").innerHTML = `
+    <div><h2 id="dTitle">${esc(m.name || m.email)}</h2><p class="hint" style="margin:4px 0 0">${esc(m.email)} · added ${esc(fmtDate(m.created_at))}${m.added_by ? " by " + esc(m.added_by) : ""}${m.last_seen ? " · last in " + esc(fmtWhen(m.last_seen)) : " · hasn't signed in yet"}</p></div>
+    ${fresh ? `<section class="card" style="border-color:var(--gold)"><p style="margin:0">Next: send ${esc(m.name || "them")} the link <b>houselotandland.org/office</b>. They enter this email, get a one-time code, and they're in.</p></section>` : ""}
+    <section class="card"><form id="tmForm" class="grid">
+      <label>Name<input name="name" value="${esc(m.name || "")}"></label>
+      <label>Role<select name="role">${Object.entries(t.roles).map(([k, r]) => `<option value="${k}" ${k === m.role ? "selected" : ""}>${esc(r.label)}</option>`).join("")}</select></label>
+      ${isOwner ? `<p class="wide hint" style="margin:0">Owners can do everything.</p>` : `
+      <fieldset class="wide" style="border:0;padding:0;margin:0"><legend class="hint">Deal tracks they work</legend><div class="acts" style="flex-wrap:wrap">
+        ${t.trackKeys.map((k) => `<label class="check"><input type="checkbox" name="track" value="${k}" ${m.tracks.includes(k) ? "checked" : ""}> ${esc(TRACK_LABEL(k))}</label>`).join("")}</div></fieldset>
+      <fieldset class="wide" style="border:0;padding:0;margin:0"><legend class="hint">What they can do</legend><div style="display:grid;gap:4px">
+        ${perms.map((p) => `<label class="check"><input type="checkbox" name="perm" value="${p}" ${m.perms.includes(p) ? "checked" : ""}> ${esc(t.perms[p])}</label>`).join("")}</div></fieldset>`}
+      <label class="wide">Notes<textarea name="notes">${esc(m.notes || "")}</textarea></label>
+      <div class="wide"><button class="btn gold">Save</button> ${isOwner ? "" : `<button type="button" class="btn small" id="tmReset">Reset to role defaults</button>`}
+        ${m.email === t.me ? "" : `<button type="button" class="btn small" id="tmActive">${m.active ? "Deactivate" : "Reactivate"}</button> <button type="button" class="btn small danger" id="tmDel">Remove</button>`}</div></form></section>`;
+  $("drawer").hidden = false;
+  const f = $("tmForm"), back = () => { teamView(); openMember(email); };
+  f.role.onchange = () => { if (!isOwner) { const r = t.roles[f.role.value]; f.querySelectorAll("[name=track]").forEach((c) => c.checked = r.tracks.includes(c.value)); f.querySelectorAll("[name=perm]").forEach((c) => c.checked = r.perms.includes(c.value)); } };
+  f.onsubmit = async (e) => { e.preventDefault();
+    const body = { name: f.name.value, role: f.role.value, notes: f.notes.value };
+    if (!isOwner && f.role.value !== "owner") { body.tracks = [...f.querySelectorAll("[name=track]:checked")].map((c) => c.value); body.perms = [...f.querySelectorAll("[name=perm]:checked")].map((c) => c.value); }
+    try { await send("team/" + encodeURIComponent(email), "PATCH", body); toast("Saved"); back(); } catch (er) { toast(er.message); } };
+  if ($("tmReset")) $("tmReset").onclick = async () => { try { await send("team/" + encodeURIComponent(email), "PATCH", { tracks: null, perms: null }); toast("Back to role defaults"); back(); } catch (er) { toast(er.message); } };
+  if ($("tmActive")) $("tmActive").onclick = async () => { try { await send("team/" + encodeURIComponent(email), "PATCH", { active: !m.active }); toast(m.active ? "Deactivated: they can't sign in" : "Reactivated"); back(); } catch (er) { toast(er.message); } };
+  if ($("tmDel")) armClick($("tmDel"), "Click again to remove", async () => { await send("team/" + encodeURIComponent(email), "DELETE"); toast("Removed"); $("drawer").hidden = true; teamView(); });
+}
+
+loadMe().then(route).catch(() => {});
 setInterval(shabbatBanner, 60000);
