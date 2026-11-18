@@ -166,7 +166,7 @@ function dealQuick(d, q) {
   if (q === "notouch") return !d.next_touch;
   if (q === "noowner") return !d.cname && !d.cphone && !d.cemail;
   if (q === "noprice") return d.asking == null;
-  if (q === "webform") return /website|web form|form/i.test(d.source || ""); // leads from the houselotandland.org cash-offer form
+  if (q === "webform") return /website form|web form/i.test(d.source || ""); // leads from the houselotandland.org cash-offer form
   return true;
 }
 async function deals() {
