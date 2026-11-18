@@ -230,6 +230,20 @@ function validateField(field) {
         }
     }
     
+    // Address parts
+    if (fieldName === 'property-zip' && value && !/^\d{5}(-?\d{4})?$/.test(value)) {
+        isValid = false;
+        errorMessage = T_('Enter a 5-digit ZIP code');
+    }
+    if (fieldName === 'property-street' && value && (value.length < 4 || !/[a-z]/i.test(value))) {
+        isValid = false;
+        errorMessage = T_('Enter the street address, like 1234 Main St');
+    }
+    if (fieldName === 'property-city' && value && (/\d/.test(value) || value.length < 2)) {
+        isValid = false;
+        errorMessage = T_('Enter the city name');
+    }
+
     // Name validation
     if (fieldName === 'name' && value) {
         if (value.length < 2) {
@@ -309,7 +323,10 @@ function handleFormSubmission(form, formType) {
         name: formData.get('name'),
         phone: formData.get('phone'),
         email: formData.get('email'),
-        'property-address': formData.get('property-address'),
+        'property-street': formData.get('property-street'),
+        'property-city': formData.get('property-city'),
+        'property-state': formData.get('property-state'),
+        'property-zip': formData.get('property-zip'),
         'property-type': formData.get('property-type'),
         'property-condition': formData.get('property-condition'),
         timeline: formData.get('timeline'),

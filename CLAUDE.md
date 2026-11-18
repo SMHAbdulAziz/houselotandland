@@ -14,7 +14,7 @@ This file is never served publicly (`.assetsignore` excludes `*.md`).
 ## Data: D1 database `hll-leads` (id 41cd2c24-fb52-41ae-95b9-748ee75b2d31)
 | Table | What it holds | Written by |
 | --- | --- | --- |
-| `leads` | Website form submissions (status new/synced/test) | `POST /api/lead` |
+| `leads` | Website form submissions (status new/synced/test). Since Nov 18, 2026 the cash-offer form asks street, city, state and ZIP separately (all required; the Worker rejects a ZIP whose state doesn't match) and saves `property_address` as "1234 Main St, City, ST 75201" so the hourly task and the desk can split it | `POST /api/lead` |
 | `offers` | One row per seller offer page: payload JSON, choice, call-back, ownership answers, search fields | Deal Desk (publish), site (seller actions) |
 | `offer_events` | View/choose/callback/ownership log | site |
 | `find_attempts` | Rate limit for `/find` | site |

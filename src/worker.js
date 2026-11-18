@@ -15,6 +15,7 @@ import { handleOfficePage, handleOfficeApi } from "./office.js";
 import { handleWorkerApply } from "./workers.js";
 import { handleAffiliatesPublic, referrerFromLead, recordReferral } from "./affiliates.js";
 import { shabbatStatus, closedMessage, TZ } from "../js/shabbat.js";
+import { normState, zipState } from "../js/hub-keys.js";
 
 // New-business actions refused from sunset Friday to sunset Saturday (Shabbat). Viewing orders, documents,
 // offer pages and "Find my offer" stays open, and Stripe webhooks are still recorded.
@@ -100,6 +101,24 @@ async function handleLead(request, env) {
     timeline: clean(body.timeline, MAX_LEN.timeline),
     details: clean(body["property-details"] ?? body.details ?? body.message, MAX_LEN.details),
   };
+
+  // Property address: the cash-offer form sends street, city, state and ZIP separately (Nov 18, 2026), so every lead gets a
+  // complete address the Deal Desk and back office can file. Saved as one line, "1234 Main St, Dallas, TX 75201".
+  const es = clean(body.lang, 5) === "es";
+  if (["property-street", "property-city", "property-state", "property-zip"].some((k) => k in body)) {
+    const street = clean(body["property-street"], 160), city = clean(body["property-city"], 80);
+    const st = normState(clean(body["property-state"], 30)), zip = (clean(body["property-zip"], 10).match(/^(\d{5})(?:-?\d{4})?$/) || [])[1] || "";
+    const bad = !street || !/[a-z]/i.test(street) ? (es ? "Ingrese la calle y el número de la propiedad." : "Please enter the property's street address.")
+      : !city || /\d/.test(city) ? (es ? "Ingrese la ciudad de la propiedad." : "Please enter the property's city.")
+      : !st ? (es ? "Elija el estado de la propiedad." : "Please choose the property's state.")
+      : !zip ? (es ? "Ingrese un código postal de 5 dígitos." : "Please enter a 5-digit ZIP code.")
+      : zipState(zip) && zipState(zip) !== st ? (es ? `El código postal ${zip} es de ${zipState(zip)}, no de ${st}. Revise el estado o el código postal.` : `ZIP code ${zip} is in ${zipState(zip)}, not ${st}. Please check the state or ZIP code.`)
+      : "";
+    if (bad) return json({ success: false, message: bad }, 400, request);
+    f.property_address = `${street.replace(/,+$/, "")}, ${city}, ${st} ${zip}`;
+  } else if (formType === "offer" && !f.property_address) {
+    return json({ success: false, message: es ? "Ingrese la dirección de la propiedad." : "Please enter the property address." }, 400, request);
+  }
 
   const missing = ["name", "phone", "email"].filter((k) => !f[k]);
   if (missing.length) return json({ success: false, message: "Please fill in: " + missing.join(", ") }, 400, request);

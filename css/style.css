@@ -359,6 +359,12 @@ a:hover {
     min-height: 100px;
 }
 
+.addr-fields { border: 0; padding: 0; margin: 0 0 var(--spacing-md); min-width: 0; }
+.addr-fields legend { padding: 0; margin-bottom: var(--spacing-xs); font-weight: 600; color: var(--text-dark); font-size: var(--font-size-sm); }
+.addr-fields .form-group { margin-bottom: var(--spacing-sm); }
+.addr-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.9fr); gap: var(--spacing-sm); }
+@media (max-width: 560px) { .addr-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .addr-row .addr-city { grid-column: 1 / -1; } }
+
 .form-group select {
     cursor: pointer;
     appearance: none;
