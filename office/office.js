@@ -69,13 +69,13 @@ function shabbatBanner() {
 }
 
 // ---------------- router ----------------
-const VIEWS = { overview, deals, add, import: importView, jobs, quotes, workers, affiliates, links, team: teamView };
+const VIEWS = { overview, deals, add, import: importView, jobs, quotes, workers, affiliates, links, team: teamView, settings: settingsView };
 // ---------------- who is signed in (role and permissions come from the server; it enforces them too) ----------------
 let ME = { perms: [], tracks: Object.keys(TRACKS), owner: true };
 const can = (p) => ME.owner || ME.perms.includes(p);
 const trackOk = (k) => ME.owner || ME.tracks.includes(k);
 const TAB_NEEDS = { overview: () => true, deals: () => can("deals") || can("add") || can("import"), add: () => can("add"), import: () => can("import"),
-  jobs: () => can("jobs"), quotes: () => can("quotes"), workers: () => can("crew"), affiliates: () => can("affiliates"), links: () => ME.owner, team: () => can("team") };
+  jobs: () => can("jobs"), quotes: () => can("quotes"), workers: () => can("crew"), affiliates: () => can("affiliates"), links: () => ME.owner, team: () => can("team"), settings: () => can("settings") };
 function firstTabView() { const t = Object.keys(TAB_NEEDS).find((k) => k !== "overview" && TAB_NEEDS[k]()); if (t) { location.hash = t; return; } $("view").innerHTML = `<div class="card"><p>Your role doesn't include any tabs yet. Ask Harvey.</p></div>`; }
 // Hide what this person can't use (the server refuses it anyway).
 const HIDE = [
@@ -112,6 +112,86 @@ async function route() {
 addEventListener("hashchange", route);
 $("searchForm").addEventListener("submit", (e) => { e.preventDefault(); dealFilter = { track: "", stage: "", q: $("q").value.trim(), open: "" }; location.hash = "deals"; route(); });
 
+// ---------------- settings (owner) ----------------
+// Automatic searches (which scheduled searches run, which pulls each may make, per-run limits; read by the tasks through
+// /api/automation), business details used by emails and W-9 requests, and a read-only check of the rest of the setup.
+async function settingsView() {
+  const st = await api("settings/all");
+  let cfg = JSON.parse(JSON.stringify(st.automation));
+  const S = st.searches, yes = (b, on = "Set up", off = "Not set up") => `<span class="pill ${b ? "ok" : "warn"}">${b ? on : off}</span>`;
+  const sw = (id, on, label, extra = "") => `<label class="switchrow"><input type="checkbox" role="switch" id="${id}" ${on ? "checked" : ""} ${extra}> <span>${label}</span></label>`;
+  const searchCard = (k) => {
+    const d = S[k], c = cfg.searches[k];
+    return `<div class="srch ${c.on ? "" : "off"}" data-srch="${k}">
+      <div class="srch-head">${sw("on_" + k, c.on, `<b>${esc(d.name)}</b>`)}<span class="hint">${esc(d.when)} · adds to the ${esc(d.dashboard)}</span></div>
+      <div class="srch-body">
+        ${Object.entries(d.pulls).map(([p, pd]) => `<label class="inline"><input type="checkbox" data-pull="${k}.${p}" ${c.pulls[p] ? "checked" : ""}> <span class="pl">${esc(pd.label)}</span>
+          <span class="pill ${pd.cost === "batchdata" ? "warn" : ""}">${pd.cost === "batchdata" ? "BatchData credits" : "Free"}</span></label>`).join("")}
+        ${Object.keys(d.limits).length ? `<div class="limits">${Object.entries(d.limits).map(([l, ld]) => `<label>${esc(ld.label)}<input type="number" min="0" max="${ld.max}" step="1" data-limit="${k}.${l}" value="${c.limits[l]}"></label>`).join("")}</div>` : ""}
+      </div></div>`;
+  };
+  $("view").innerHTML = `
+    <section class="card"><div class="head"><h2>Automatic searches</h2><span class="hint" id="autoSaved">${st.automation_updated ? "Last changed " + esc(fmtWhen(st.automation_updated)) : ""}</span></div>
+      <p class="hint" style="margin-top:0">Pick which scheduled searches run and what each may pull. Each search checks these settings before it starts, and anything turned off is skipped. Searches you start yourself on the dashboards (Find leads, Enrich, Skip trace) aren't affected.</p>
+      <div class="bdmaster">${sw("bdAllowed", cfg.batchdata_allowed, `<b>Allow automatic searches to spend BatchData credits</b>`)}
+        <span class="hint" id="bdHint"></span></div>
+      <div class="srchs">${Object.keys(S).map(searchCard).join("")}</div>
+      <div class="actions" style="margin-top:12px"><button class="btn primary" id="autoSave" disabled>Save changes</button><button class="btn" id="autoUndo" disabled>Undo</button><span class="hint" id="autoEst"></span></div>
+    </section>
+    <div class="two">
+      <section class="card"><div class="head"><h2>Business details</h2></div>
+        <form id="bizForm" class="grid1">
+          <label>Mailing address (printed at the bottom of owner emails; required by CAN-SPAM)<input name="mail_address" value="${esc(st.mail_address)}" placeholder="Street, City, TX ZIP"></label>
+          <label>W-9 request link (sent to workers and affiliates)<input name="w9_link" value="${esc(st.w9_link)}" placeholder="https://…"></label>
+          <div class="actions"><button class="btn primary">Save</button></div>
+        </form></section>
+      <section class="card"><div class="head"><h2>Connections and approvals</h2><span class="hint">Read only</span></div>
+        <div class="kvs">
+          <div><span>Texting (messaging bridge)</span>${yes(st.texting, "Connected", "Not connected")}</div>
+          <div><span>Stripe payments</span>${yes(st.stripe, "Connected", "Not connected: orders wait for an invoice")}</div>
+          <div><span>Stripe webhook</span>${yes(st.stripe_webhook)}</div>
+          <div><span>Back office sign-in (Cloudflare Access)</span>${yes(!st.access_locked, "On", "Locked")}</div>
+          <div><span>Seller agreements</span>${yes(st.agreements_approved, "Attorney approved", "Waiting for attorney")}</div>
+          <div><span>Homestead Trust and contract templates</span>${yes(st.legal_templates_approved, "Attorney approved", "Draft: customers join a waitlist")}</div>
+        </div>
+        <p class="hint">Approvals change only on your word after attorney review. Texting and Stripe keys are set in Cloudflare.</p>
+        <p class="hint"><a href="/terms.html" target="_blank">Terms of Use</a> · <a href="/privacy.html" target="_blank">Privacy Policy</a> · <a href="#team">Team and access</a></p></section>
+    </div>
+    <section class="card"><div class="head"><h2>Settings history</h2></div>
+      <div class="log">${st.log.length ? st.log.map((a) => `<div><time>${esc(fmtWhen(a.at))}</time>${esc(a.summary)} <span class="hint">${esc(a.by || "")}</span></div>`).join("") : `<div class="empty">No changes yet.</div>`}</div></section>`;
+  const saved = JSON.stringify(st.automation);
+  const paint = () => {
+    $("bdHint").textContent = cfg.batchdata_allowed ? "BatchData pulls run where they're checked below." : "Paused: no automatic search will spend BatchData credits, whatever is checked below.";
+    for (const k of Object.keys(S)) {
+      const box = $("view").querySelector(`[data-srch="${k}"]`); box.classList.toggle("off", !cfg.searches[k].on);
+      box.querySelectorAll("[data-pull], [data-limit]").forEach((el) => { const p = (el.dataset.pull || "").split(".")[1];
+        el.disabled = !cfg.searches[k].on || (p && S[k].pulls[p].cost === "batchdata" && !cfg.batchdata_allowed) || (el.dataset.limit && !cfg.batchdata_allowed); });
+    }
+    // Rough worst case per week, in BatchData records (search results + lookups/skip traces).
+    let n = 0;
+    if (cfg.batchdata_allowed) for (const k of ["subto", "creative"]) { const c = cfg.searches[k]; if (!c.on) continue;
+      if (c.pulls.batchdata_search) n += c.limits.max_records; if (c.pulls.batchdata_enrich) n += c.limits.max_enrich * (k === "subto" ? 2 : 1); }
+    $("autoEst").textContent = n ? `Up to about ${n} BatchData records a week at these limits.` : "No automatic BatchData spending.";
+    const dirty = JSON.stringify(cfg) !== saved; $("autoSave").disabled = !dirty; $("autoUndo").disabled = !dirty;
+  };
+  $("bdAllowed").onchange = (e) => { cfg.batchdata_allowed = e.target.checked; paint(); };
+  for (const k of Object.keys(S)) $("on_" + k).onchange = (e) => { cfg.searches[k].on = e.target.checked; paint(); };
+  $("view").querySelectorAll("[data-pull]").forEach((el) => el.onchange = () => { const [k, p] = el.dataset.pull.split("."); cfg.searches[k].pulls[p] = el.checked; paint(); });
+  $("view").querySelectorAll("[data-limit]").forEach((el) => el.oninput = () => { const [k, l] = el.dataset.limit.split("."); cfg.searches[k].limits[l] = Math.max(0, Math.min(+el.max, Math.round(+el.value || 0))); paint(); });
+  $("autoUndo").onclick = () => settingsView();
+  $("autoSave").onclick = async () => {
+    $("autoSave").disabled = true;
+    try { await send("settings/automation", "PUT", { automation: cfg }); toast("Automatic searches saved"); settingsView(); }
+    catch (e) { toast(e.message); $("autoSave").disabled = false; }
+  };
+  $("bizForm").onsubmit = async (e) => {
+    e.preventDefault();
+    try { await send("settings", "PUT", { mail_address: e.target.mail_address.value.trim(), w9_link: e.target.w9_link.value.trim() }); mailAddress = null; w9Link = null; toast("Saved"); }
+    catch (er) { toast(er.message); }
+  };
+  paint();
+}
+
 // ---------------- overview ----------------
 async function overview() {
   fillFileCounties(); // background: counties for properties on file that lack one
@@ -131,9 +211,6 @@ async function overview() {
       ${s.aff ? `<a class="kpi" href="#affiliates"><b>${s.aff.open || 0}</b><span>Open affiliate referrals${s.aff.toPay ? ` · <b style="color:var(--bad);font-size:inherit">${s.aff.toPay} to pay</b>` : ""}</span></a>` : ""}
       ${can("crew") ? `<a class="kpi" href="#workers"><b>${(wk.active || 0) + (wk.approved || 0)}</b><span>Approved and active workers</span></a>` : ""}
     </section>
-    ${can("settings") ? `<section class="card" id="autoCard"><div class="head"><h2>Automatic lead searches</h2><span class="hint">Sub-To Lead Search (Mondays) and Creative Finance Lead Search (Wednesdays) pull records and skip traces from BatchData, which costs credits.</span></div>
-      <label class="switchrow"><input type="checkbox" id="autoLead" role="switch"> <b id="autoLeadState">Loading…</b></label>
-      <p class="hint" id="autoLeadHint" style="margin:6px 0 0">When off, both searches stop before they spend anything, including the tracker's "Search now" button. Lead searches you start yourself on the Deal Desk still work.</p></section>` : ""}
     ${s.sales ? salesSection(s.sales) : ""}
     <section class="card"><div class="head"><h2>Pipelines</h2><span class="hint">One property can be on several tracks; it's still one record.</span></div>
       <div class="tracks">${Object.entries(TRACKS).filter(([k]) => trackOk(k)).map(([k, tr]) => {
@@ -148,19 +225,6 @@ async function overview() {
         <div class="log">${s.recent.length ? s.recent.map((a) => `<div><time>${esc(fmtWhen(a.at))}</time>${a.property_id ? `<button class="link btn small" data-prop="${esc(a.property_id)}" style="border:0;padding:0;color:var(--blue);background:none">${esc(a.address || a.pname || "Property")}</button> · ` : ""}${esc(a.summary)}</div>`).join("") : `<div class="empty">No activity yet.</div>`}</div></section>
     </div>`;
   $("view").querySelectorAll("[data-track]").forEach((a) => a.addEventListener("click", () => { dealFilter = { track: a.dataset.track, stage: "", q: "", open: "1" }; }));
-  if (can("settings")) autoLeadSwitch();
-}
-// Owner switch for the scheduled lead searches (they read /api/automation before spending BatchData credits).
-async function autoLeadSwitch() {
-  const box = $("autoLead"), st = $("autoLeadState"); if (!box) return;
-  const show = (on) => { box.checked = on; st.textContent = on ? "On: the weekly searches will run" : "Off: no automatic searches, no BatchData spending"; st.style.color = on ? "var(--ok, #1F7A4D)" : "var(--bad)"; };
-  try { show((await api("settings")).auto_lead_search === "true"); } catch (e) { st.textContent = e.message; return; }
-  box.onchange = async () => {
-    const on = box.checked; box.disabled = true;
-    try { await send("settings", "PUT", { auto_lead_search: on }); show(on); toast(on ? "Automatic lead searches are on" : "Automatic lead searches are off"); }
-    catch (e) { show(!on); toast(e.message); }
-    box.disabled = false;
-  };
 }
 function dueRow(d) {
   const late = d.next_touch < today();

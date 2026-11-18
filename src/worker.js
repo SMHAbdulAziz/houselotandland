@@ -16,6 +16,7 @@ import { handleWorkerApply } from "./workers.js";
 import { handleAffiliatesPublic, referrerFromLead, recordReferral } from "./affiliates.js";
 import { shabbatStatus, closedMessage, TZ } from "../js/shabbat.js";
 import { normState, zipState } from "../js/hub-keys.js";
+import { loadAutomation, publicView } from "./automation.js";
 
 // New-business actions refused from sunset Friday to sunset Saturday (Shabbat). Viewing orders, documents,
 // offer pages and "Find my offer" stays open, and Stripe webhooks are still recorded.
@@ -230,14 +231,13 @@ function json(obj, status, request) {
   return new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json; charset=utf-8", ...cors(request) } });
 }
 
-// GET /api/automation: switches the scheduled tasks check before they run. auto_lead_search (back office Overview,
-// owner only) gates the Sub-To and Creative Finance lead searches, which spend BatchData credits. Off unless set to 'true'.
+// GET /api/automation: what the scheduled searches may do (back office Settings tab, owner only; src/automation.js).
+// Each task reads it first and skips whatever is off. BatchData pulls stay off when BatchData spending is paused.
 async function automation(env) {
-  let row = null;
-  try { row = await env.DB.prepare("SELECT value, updated_at FROM settings WHERE key = 'auto_lead_search'").first(); } catch {}
-  const on = !!row && row.value === "true";
-  return new Response(JSON.stringify({ auto_lead_search: on, status: on ? "ON" : "OFF", updated_at: row ? row.updated_at : null }),
-    { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
+  let body;
+  try { const { cfg, updated_at } = await loadAutomation(env.DB); body = publicView(cfg, updated_at); }
+  catch { body = { error: "unavailable", auto_lead_search: false, batchdata_allowed: false, searches: {} }; }
+  return new Response(JSON.stringify(body, null, 1), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 }
 
 // GET /api/hours: open/closed for Shabbat, for the AI phone line (ElevenLabs tool "check_business_hours").

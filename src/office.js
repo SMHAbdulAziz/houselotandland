@@ -7,6 +7,7 @@
 // Data: the "hub" tables (src/hub.sql). Matching keys come from js/hub-keys.js so nothing is duplicated:
 // one property per address, one contact per phone/email, one deal per property per track.
 
+import { SEARCHES, sanitize, loadAutomation, saveAutomation } from "./automation.js";
 import { propertyKey, phoneKey, emailKey, fmtPhone, splitAddr, normState, zipState, TRACKS, CLOSED_STAGES, fmvFromAppraised } from "../js/hub-keys.js";
 import { CURB, CURB_QUOTE } from "../js/services-catalog.js";
 import { recordPayment, isTestOrder } from "./services.js";
@@ -649,8 +650,37 @@ export async function handleOfficeApi(request, env, url) {
     }
     // ---- office settings (W-9 request link)
     if (m === "GET" && path === "settings") {
-      const rows = (await db.prepare("SELECT key, value FROM settings WHERE key IN ('w9_link', 'mail_address', 'auto_lead_search')").all()).results;
+      const rows = (await db.prepare("SELECT key, value FROM settings WHERE key IN ('w9_link', 'mail_address')").all()).results;
       return json({ ok: true, ...Object.fromEntries(rows.map((r) => [r.key, r.value])), texting: !!(env.BRIDGE_URL && env.BRIDGE_TOKEN) });
+    }
+    // ---- Settings tab (owner only): automatic searches, plus a read-only view of the rest of the setup
+    if (m === "GET" && path === "settings/all") {
+      const rows = (await db.prepare("SELECT key, value, updated_at FROM settings").all()).results;
+      const val = (k) => (rows.find((r) => r.key === k) || {}).value || "";
+      const { cfg, updated_at } = await loadAutomation(db);
+      const log = (await db.prepare("SELECT at, summary, by FROM activities WHERE kind = 'settings' ORDER BY at DESC LIMIT 12").all()).results;
+      return json({ ok: true, automation: cfg, automation_updated: updated_at, searches: SEARCHES,
+        mail_address: val("mail_address"), w9_link: val("w9_link"),
+        agreements_approved: val("agreements_approved") === "true", legal_templates_approved: val("legal_templates_approved") === "true",
+        texting: !!(env.BRIDGE_URL && env.BRIDGE_TOKEN), stripe: !!env.STRIPE_SECRET_KEY, stripe_webhook: !!env.STRIPE_WEBHOOK_SECRET,
+        access_locked: !(env.ACCESS_TEAM_DOMAIN && env.ACCESS_AUD), log });
+    }
+    if (m === "PUT" && path === "settings/automation") {
+      const { cfg: cur } = await loadAutomation(db);
+      const next = sanitize(b.automation || {}, cur);
+      await saveAutomation(db, next, t);
+      // Log what changed, in words.
+      const said = [];
+      if (next.batchdata_allowed !== cur.batchdata_allowed) said.push(`BatchData in automatic searches ${next.batchdata_allowed ? "allowed" : "paused"}`);
+      for (const [k, d] of Object.entries(SEARCHES)) {
+        const a = cur.searches[k], z = next.searches[k];
+        if (a.on !== z.on) said.push(`${d.name} turned ${z.on ? "on" : "off"}`);
+        for (const p of Object.keys(d.pulls)) if (a.pulls[p] !== z.pulls[p]) said.push(`${d.name}: ${d.pulls[p].label.split(" (")[0]} ${z.pulls[p] ? "on" : "off"}`);
+        for (const l of Object.keys(d.limits)) if (a.limits[l] !== z.limits[l]) said.push(`${d.name}: ${d.limits[l].label.toLowerCase()} ${a.limits[l]} → ${z.limits[l]}`);
+      }
+      if (said.length) await db.prepare("INSERT INTO activities (id, at, kind, summary, by, source) VALUES (?, ?, 'settings', ?, ?, 'office')")
+        .bind("a_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16), t, said.join("; ").slice(0, 900), u.email).run();
+      return json({ ok: true, automation: next });
     }
     // ---- texts through the private gateway (msg.houselotandland.org → Harvey's Android; queued, he releases them)
     if (m === "POST" && path === "text") return json(await gatewayText(env, db, b, u, t));
@@ -659,12 +689,6 @@ export async function handleOfficeApi(request, env, url) {
         const v = clean(b.w9_link, 500) || "";
         if (v && !/^https:\/\/[^\s]+$/.test(v)) return json({ ok: false, message: "Paste the full secure link (starting with https://)." }, 400);
         await db.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('w9_link', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at").bind(v, t).run();
-      }
-      if ("auto_lead_search" in b) { // owner only (settings): the scheduled Sub-To and Creative lead searches check it via /api/automation
-        const v = b.auto_lead_search === true ? "true" : "false";
-        await db.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('auto_lead_search', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at").bind(v, t).run();
-        await db.prepare("INSERT INTO activities (id, at, kind, summary, by, source) VALUES (?, ?, 'settings', ?, ?, 'office')")
-          .bind("a_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16), t, `Automatic lead searches turned ${v === "true" ? "on" : "off"}`, u.email).run();
       }
       if ("mail_address" in b) { // printed at the bottom of owner emails (CAN-SPAM)
         const v = clean(b.mail_address, 200) || "";
