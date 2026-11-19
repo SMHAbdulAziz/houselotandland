@@ -353,11 +353,17 @@ If the deal record should change (corrected property facts, numbers, notes, stag
     /* ----- send ----- */
     form.onsubmit = async e => {
       e.preventDefault();
-      const rec = cfg.current(); if(!rec || S.busy) return;
-      const text = ta.value.trim(); if(!text && !S.files.length) return;
-      const sample = await getSample();
-      if(!sample){ toast("The Deal Advisor needs Claude, which isn't available in this view. Open the dashboard in claude.ai."); return; }
+      // Send never fails silently: every early exit says why.
+      const rec = cfg.current();
+      if(!rec){ toast("Pick a deal on this dashboard first, then ask about it."); return; }
+      if(S.busy){ note.textContent = "Still working on the last answer. Press Stop to cancel it."; return; }
+      const text = ta.value.trim(); if(!text && !S.files.length){ ta.focus(); note.textContent = "Type a question or attach a file."; return; }
+      note.textContent = "Connecting to Claude…"; sendBtn.disabled = true;
+      let sample = null;
+      try{ sample = await getSample(); }finally{ sendBtn.disabled = false; note.textContent = ""; }
+      if(!sample){ S.sample = null; toast("Claude isn't available to this dashboard right now. Reload the page, and allow Claude if claude.ai asks."); return; }
       S.busy = true; render();
+      try{
       const files = S.files.slice(); S.files = []; renderFiles();
       const imLim = S.limits && S.limits.images, maxImg = imLim ? imLim.maxCount || 0 : 0;
       const images = [], fileNotes = [], names = [];
@@ -386,12 +392,16 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       while(hist.length && hist[0].role !== "user") hist.shift();
       const input = [{role:"user", content: RULES(cfg) + "\n\n" + ctx}, ...hist];
       const ctl = S.ctl = new AbortController();
-      let shown = "";
+      let shown = "", timedOut = false;
+      // If Claude never starts answering, stop waiting after 2 minutes instead of leaving Send stuck.
+      const watchdog = setTimeout(() => { if(!shown){ timedOut = true; ctl.abort(); } }, 120000);
       try{
         const opts = {signal:ctl.signal, cache:false, modelTier:"complex", model:MODEL, onText: ({text:t}) => { shown = t; if(S.recId === myRec) render(t); }};
         if(images.length) opts.images = images;
-        const r = await sample(input, opts);
-        if(S.recId !== myRec){ S.busy = false; return; }
+        // Stop and the 2-minute timeout always end the wait, even if the request ignores the abort.
+        const ended = new Promise((_, rej) => ctl.signal.addEventListener("abort", () => rej(Object.assign(new Error("cancelled"), {code:"cancelled", text: shown || ""})), {once:true}));
+        const r = await Promise.race([sample(input, opts), ended]);
+        if(S.recId !== myRec) return;
         const sp = splitReply(r.text);
         S.turns.push({role:"assistant", content:r.text, actions:sp.actions || null, at:new Date().toISOString(), truncated:!!r.truncated});
         if(r.truncated) S.turns.push({role:"note", content:"That answer was cut short. Ask me to continue."});
@@ -399,15 +409,17 @@ If the deal record should change (corrected property facts, numbers, notes, stag
         const c = err && err.code;
         if(S.recId === myRec){
           if(err && err.text) S.turns.push({role:"assistant", content:err.text + "\n\n*(interrupted)*", at:new Date().toISOString()});
-          const msg = c === "cancelled" ? "Stopped." : c === "not_granted" || c === "sampling_disabled" ? "Claude isn't allowed for this dashboard. Allow it when claude.ai asks, then try again."
+          const msg = timedOut ? "No answer from Claude after 2 minutes. Try again; if it keeps happening, reload the page." : c === "cancelled" ? "Stopped." : c === "not_granted" || c === "sampling_disabled" ? "Claude isn't allowed for this dashboard. Allow it when claude.ai asks, then try again."
             : c === "rate_limited" ? "You've hit a Claude usage limit for now. Try again in a little while." : c === "prompt_too_large" ? "That's too much text at once. Start a New chat or attach less."
             : c === "image_rejected" ? "One of the images couldn't be used. Try a JPG or PNG under 20 MB." : c === "refused" ? "Claude declined that request. Rephrase it and try again."
-            : c === "images_unavailable" ? "Images can't be sent from this view; text works." : "Something went wrong reaching Claude. Try again.";
+            : c === "images_unavailable" ? "Images can't be sent from this view; text works." : `Something went wrong reaching Claude${c ? " (" + c + ")" : ""}. Try again.`;
           S.turns.push({role:"note", content:msg});
         }
       }
-      S.busy = false; S.ctl = null;
-      if(S.recId === myRec){ saveThread(); render(); }
+      clearTimeout(watchdog);
+      if(S.recId === myRec){ saveThread(); }
+      }catch(err){ S.turns.push({role:"note", content:`Something went wrong preparing that message${err && err.message ? ": " + err.message : ""}. Try again.`}); }
+      finally{ S.busy = false; S.ctl = null; render(); }
     };
 
     /* ----- applying proposed changes ----- */
