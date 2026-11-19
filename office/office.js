@@ -1436,6 +1436,11 @@ async function openMember(email, fresh) {
 }
 
 // The dock (office/dock.js: Assistant, Messages, Tasks) uses these.
+// Sign out: ends this back office session at Cloudflare Access (next visit asks for a new email code).
+$("signOut").addEventListener("click", () => {
+  try { sessionStorage.clear(); } catch {}
+  location.href = "/cdn-cgi/access/logout";
+});
 window.HLL = { api, send, toast, esc, fmtWhen, openProperty, route, me: () => ME, can };
 loadMe().then(() => { route(); window.dispatchEvent(new Event("hll:ready")); }).catch(() => {});
 setInterval(shabbatBanner, 60000);

@@ -116,3 +116,6 @@ th button.sort{background:none;border:0;padding:0;font:inherit;color:inherit;cur
 .revout{display:grid;gap:8px;margin-top:10px}.revout h3{margin:8px 0 0;font-size:1rem}
 .revout details{border:1px solid var(--line);border-radius:10px;padding:8px 10px}.revout summary{cursor:pointer;font-weight:600;font-size:.9rem}
 .revmsg{border-top:1px dashed var(--line);padding:6px 0;font-size:.88rem;overflow-wrap:anywhere}.revmsg.user b{color:var(--navy)}
+.who{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.signout{background:transparent;border:1px solid #475569;color:#e2e8f0;border-radius:8px;padding:5px 10px;font-size:.8rem;font-weight:600;cursor:pointer}
+.signout:hover{background:#1e3260;border-color:#94a3b8}.signout:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
