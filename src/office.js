@@ -13,6 +13,7 @@ import { CURB, CURB_QUOTE } from "../js/services-catalog.js";
 import { recordPayment, isTestOrder } from "./services.js";
 import { isShabbatDate } from "../js/shabbat.js";
 import { officeAffiliateApi } from "./affiliates.js";
+import { teamworkApi } from "./teamwork.js";
 import { member, can, trackOk, trackSql, propertyOk, scrubContact, me, teamApi } from "./team.js";
 
 const JSONH = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
@@ -230,12 +231,19 @@ const W9 = ["not requested", "requested", "received"];
 export async function handleOfficeApi(request, env, url) {
   const who = await officeUser(request, env);
   if (!who || who.setup) return json({ ok: false, message: who && who.setup ? "Back office isn't set up yet." : "Not signed in." }, 401);
-  const db = env.DB, path = url.pathname.replace(/^\/api\/office\/?/, ""), m = request.method, t = now();
-  const u = await member(db, who.email); // team member: role, tracks, permissions (src/team.js)
+  const u = await member(env.DB, who.email); // team member: role, tracks, permissions (src/team.js)
   if (!u) return json({ ok: false, message: "This email isn't on the team. Ask Harvey to add you." }, 403);
   let b = {};
-  if (m !== "GET" && m !== "DELETE") { try { b = await request.json(); } catch { return json({ ok: false, message: "Bad request." }, 400); } }
+  if (request.method !== "GET" && request.method !== "DELETE") { try { b = await request.json(); } catch { return json({ ok: false, message: "Bad request." }, 400); } }
+  return officeCall(env, u, request.method, url, b, request);
+}
+
+/** One back-office API call as team member `u`, with every permission check. The assistant (src/assistant.js) calls this
+ *  for its lookups, so it can never see more than the person it is helping. */
+export async function officeCall(env, u, m, url, b = {}, request = null) {
+  const db = env.DB, path = url.pathname.replace(/^\/api\/office\/?/, ""), t = now();
   const seg = path.split("/");
+  if (["assistant", "chat", "tasks", "task"].includes(seg[0])) return await teamworkApi(env, u, m, seg, b, url, json, (p, q = "") => officeCall(env, u, "GET", new URL(`/api/office/${p}${q}`, url), {}));
   const deny = (msg) => json({ ok: false, message: msg || "Your role doesn't include this. Ask Harvey if you need it." }, 403);
   try {
     if (m === "GET" && path === "me") return json({ ok: true, me: me(u) });

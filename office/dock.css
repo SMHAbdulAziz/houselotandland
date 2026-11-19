@@ -1,0 +1,76 @@
+/* The dock: Assistant, Messages and Tasks on every back office page (office/dock.js). */
+#dock{--dk-w:420px}
+.dk-launch{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:60;border:0;border-radius:999px;padding:12px 18px;
+  background:var(--navy);color:#fff;font-weight:700;box-shadow:0 10px 30px -10px rgba(11,23,48,.6);cursor:pointer;display:flex;align-items:center;gap:8px}
+.dk-launch:hover{background:var(--navy2)}
+.dk-launch:focus-visible,.dk-panel button:focus-visible,.dk-panel textarea:focus-visible,.dk-panel select:focus-visible,.dk-panel input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.dk-badge{background:var(--gold);color:var(--navy);border-radius:999px;min-width:22px;padding:1px 7px;font-size:.78rem;text-align:center}
+.dk-panel{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:calc(max(16px,env(safe-area-inset-bottom)) + 58px);z-index:61;width:var(--dk-w);max-width:calc(100vw - 32px);
+  height:min(660px,calc(100vh - 110px));background:var(--card);border-radius:16px;box-shadow:0 24px 60px -20px rgba(15,23,42,.55);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line)}
+.dk-head{display:flex;align-items:center;background:var(--navy);color:#fff;padding:0 6px 0 8px}
+.dk-tabs{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto}
+.dk-tabs button{background:none;border:0;color:#cbd5e1;padding:12px 10px;font-weight:600;font-size:.9rem;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;display:flex;gap:6px;align-items:center}
+.dk-tabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--gold)}
+.dk-x{background:none;border:0;color:#fff;font-size:1.6rem;line-height:1;padding:4px 10px;cursor:pointer}
+.dk-n{background:var(--gold);color:var(--navy);border-radius:999px;padding:0 6px;font-size:.72rem;font-weight:700;margin-left:4px}
+.dk-shabbat{background:var(--warnbg);color:#78350f;padding:8px 12px;font-size:.82rem;font-weight:600}
+.dk-body{flex:1;min-height:0;display:flex;flex-direction:column}
+.dk-body>div{flex:1;min-height:0;display:flex;flex-direction:column}
+.dk-note{font-size:.76rem;color:var(--muted);padding:8px 14px;border-bottom:1px solid var(--line);display:flex;gap:8px;justify-content:space-between;align-items:center}
+.dk-link{background:none;border:0;color:var(--blue);padding:0;cursor:pointer;font-weight:600;font-size:.82rem;text-align:left}
+.dk-log,.dk-thread,.dk-list,.dk-tlist{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.dk-hint{color:var(--muted);font-size:.82rem;margin:0}
+.dk-err{color:var(--bad);font-size:.85rem;margin:0}
+.dk-hello{background:var(--bg);border-radius:12px;padding:12px;font-size:.9rem}
+.dk-chips,.dk-scopes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.dk-chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 10px;font-size:.8rem;cursor:pointer;color:var(--ink);text-align:left}
+.dk-chip:hover,.dk-chip.on{border-color:var(--navy);background:var(--navy);color:#fff}
+.dk-msg{max-width:92%;border-radius:12px;padding:8px 12px;font-size:.9rem;line-height:1.45;overflow-wrap:anywhere}
+.dk-msg p{margin:0 0 6px}.dk-msg p:last-child{margin:0}.dk-msg ul{margin:4px 0 6px;padding-left:18px}.dk-msg code{background:#e2e8f0;border-radius:4px;padding:0 4px;font-size:.85em}
+.dk-msg.user{align-self:flex-end;background:var(--navy);color:#fff}
+.dk-msg.assistant{align-self:flex-start;background:var(--bg);color:var(--ink)}
+.dk-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.dk-act{border:1px solid var(--blue);background:#fff;color:var(--blue);border-radius:8px;padding:5px 10px;font-size:.8rem;font-weight:600;cursor:pointer}
+.dk-act:hover{background:var(--bluebg)}.dk-act:disabled{border-color:var(--line);color:var(--ok);background:var(--okbg);cursor:default}
+.dk-typing{display:flex;gap:4px;padding:12px}
+.dk-typing span{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:dkb 1s infinite}
+.dk-typing span:nth-child(2){animation-delay:.15s}.dk-typing span:nth-child(3){animation-delay:.3s}
+@keyframes dkb{0%,80%,100%{opacity:.25}40%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.dk-typing span{animation:none;opacity:.6}}
+.dk-ask{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#fff}
+.dk-ask textarea{flex:1;min-width:0;resize:none;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.9rem;max-height:120px}
+.dk-send{border:0;background:var(--gold);color:var(--navy);font-weight:700;border-radius:10px;padding:0 14px;cursor:pointer;min-height:38px}
+.dk-send:hover{background:var(--gold2)}
+.dk-row-head{display:flex;justify-content:space-between;align-items:center;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:4px}
+.dk-item{display:grid;grid-template-columns:1fr auto;gap:0 8px;text-align:left;border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;color:var(--ink)}
+.dk-item:hover{border-color:var(--navy)}
+.dk-item.unread .dk-it{font-weight:700}
+.dk-it{display:flex;align-items:center;gap:6px;min-width:0}
+.dk-sub{grid-column:1;font-size:.78rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.dk-tlist .dk-sub,.dk-thead .dk-sub{white-space:normal}
+.dk-when{font-size:.72rem;color:var(--muted);grid-column:2;grid-row:1}
+.dk-on{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;flex:none}
+.dk-new{display:grid;gap:4px;font-size:.8rem;color:var(--muted)}
+.dk-new select{border:1px solid var(--line);border-radius:8px;padding:7px 8px;background:#fff;font-size:.88rem}
+.dk-thead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line)}
+.dk-m{display:grid;gap:2px;font-size:.9rem}
+.dk-mh{display:flex;gap:6px;align-items:baseline}
+.dk-mb{overflow-wrap:anywhere;line-height:1.45}
+.dk-mb mark{background:var(--bluebg);color:var(--blue);border-radius:4px;padding:0 3px}.dk-mb mark.me{background:var(--warnbg);color:#78350f}
+.dk-m.mine .dk-mh b{color:var(--navy)}
+.dk-del{margin-left:auto;background:none;border:0;color:var(--muted);cursor:pointer;font-size:1.05rem;line-height:1;padding:0 4px}
+.dk-del:hover{color:var(--bad)}
+.dk-tasks .dk-scopes{padding:10px 14px 0;margin:0}
+.dk-tform{display:grid;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.dk-tform input,.dk-tform select{border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:.88rem;min-width:0;background:#fff}
+.dk-trow{display:grid;grid-template-columns:1fr auto auto;gap:6px}
+.dk-task{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start;border-bottom:1px solid var(--line);padding-bottom:8px;font-size:.9rem}
+.dk-task input{margin-top:4px;width:18px;height:18px}
+.dk-task.done b{text-decoration:line-through;color:var(--muted)}
+.dk-late{color:var(--bad);font-weight:700}
+@media (max-width:600px){
+  .dk-panel{inset:0;width:100%;max-width:none;height:auto;border-radius:0;bottom:0;right:0}
+  .dk-launch{padding:10px 14px}
+  .dk-trow{grid-template-columns:1fr 1fr}.dk-trow .dk-send{grid-column:1/-1}
+}
+@media print{#dock{display:none}}

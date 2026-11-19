@@ -113,3 +113,6 @@ th button.sort{background:none;border:0;padding:0;font:inherit;color:inherit;cur
 .srch-body label.inline{flex-wrap:wrap}
 .srch-body .pl{flex:1 1 200px}
 .srch-body label.inline input[type=checkbox]{width:auto;flex:0 0 auto}
+.revout{display:grid;gap:8px;margin-top:10px}.revout h3{margin:8px 0 0;font-size:1rem}
+.revout details{border:1px solid var(--line);border-radius:10px;padding:8px 10px}.revout summary{cursor:pointer;font-weight:600;font-size:.9rem}
+.revmsg{border-top:1px dashed var(--line);padding:6px 0;font-size:.88rem;overflow-wrap:anywhere}.revmsg.user b{color:var(--navy)}

@@ -157,6 +157,13 @@ async function settingsView() {
         <p class="hint">Approvals change only on your word after attorney review. Texting and Stripe keys are set in Cloudflare.</p>
         <p class="hint"><a href="/terms.html" target="_blank">Terms of Use</a> · <a href="/privacy.html" target="_blank">Privacy Policy</a> · <a href="#team">Team and access</a></p></section>
     </div>
+    <div class="two">
+      <section class="card" id="asstCard"><div class="head"><h2>Assistant</h2><span class="hint">The ✦ Assistant in every page's corner</span></div><p class="hint">Loading…</p></section>
+      <section class="card" id="reviewCard"><div class="head"><h2>Team conversations</h2><span class="hint">Owner review, for security and maintenance</span></div>
+        <p class="hint" style="margin-top:0">Each person's assistant chats and direct messages are private to them; only you can review them here. Team members see a notice saying so.</p>
+        <label>Person<select id="revWho"><option value="">Choose…</option></select></label>
+        <div id="revOut" class="revout"></div></section>
+    </div>
     <section class="card"><div class="head"><h2>Settings history</h2></div>
       <div class="log">${st.log.length ? st.log.map((a) => `<div><time>${esc(fmtWhen(a.at))}</time>${esc(a.summary)} <span class="hint">${esc(a.by || "")}</span></div>`).join("") : `<div class="empty">No changes yet.</div>`}</div></section>`;
   const saved = JSON.stringify(st.automation);
@@ -190,6 +197,52 @@ async function settingsView() {
     catch (er) { toast(er.message); }
   };
   paint();
+  assistantSettingsCard(); reviewCard();
+}
+async function assistantSettingsCard() {
+  const box = $("asstCard"); if (!box) return;
+  let a; try { a = await api("assistant/settings"); } catch (e) { box.querySelector("p").textContent = e.message; return; }
+  const opt = (v, l, on, dis) => `<option value="${v}" ${on ? "selected" : ""} ${dis ? "disabled" : ""}>${l}</option>`;
+  box.innerHTML = `<div class="head"><h2>Assistant</h2><span class="pill ${a.provider === "none" ? "warn" : "ok"}">${a.provider === "none" ? "Not connected" : a.provider === "anthropic" ? "Claude (Anthropic)" : "Cloudflare Workers AI"}</span></div>
+    <form id="asstForm" class="grid1">
+      <label>Which AI answers<select name="provider">
+        ${opt("workers-ai", "Cloudflare Workers AI: free daily allowance on your Cloudflare plan, simpler answers", a.provider === "workers-ai", !a.workers_ai_available)}
+        ${opt("anthropic", "Claude by Anthropic: best answers, billed per use to your Anthropic API account" + (a.anthropic_available ? "" : " (add ANTHROPIC_API_KEY first)"), a.provider === "anthropic", !a.anthropic_available)}</select></label>
+      <label>Model<select name="model">${(a.provider === "anthropic" ? a.anthropic_models : a.workers_models).map((m) => opt(m, m + (m.includes("haiku") || m.includes("8b") ? " (lowest cost)" : m.includes("opus") ? " (highest cost)" : ""), m === a.model)).join("")}</select></label>
+      <div class="actions"><button class="btn primary">Save</button></div>
+    </form>
+    <p class="hint">${a.anthropic_available ? "Your Anthropic key is set in Cloudflare." : "To use Claude: create an API key at console.anthropic.com, then add it in Cloudflare (Workers → houselotandland → Settings → Variables and secrets) as a secret named ANTHROPIC_API_KEY."} Every conversation is saved for your review below.</p>`;
+  $("asstForm").provider.onchange = (e) => { a.provider = e.target.value; const ms = a.provider === "anthropic" ? a.anthropic_models : a.workers_models;
+    $("asstForm").model.innerHTML = ms.map((m) => opt(m, m, false)).join(""); };
+  $("asstForm").onsubmit = async (e) => { e.preventDefault();
+    try { await send("assistant/settings", "PUT", { provider: e.target.provider.value, model: e.target.model.value }); toast("Assistant saved"); assistantSettingsCard(); } catch (er) { toast(er.message); } };
+}
+async function reviewCard() {
+  const sel = $("revWho"); if (!sel) return;
+  const [team, asst] = await Promise.all([api("team"), api("assistant/review")]);
+  const n = Object.fromEntries((asst.people || []).map((p) => [p.email, p.n]));
+  sel.innerHTML = `<option value="">Choose…</option>` + team.members.map((m) => `<option value="${esc(m.email)}">${esc(m.name || m.email)}${n[m.email] ? ` (${n[m.email]} assistant messages)` : ""}</option>`).join("");
+  sel.onchange = async () => {
+    const who = sel.value, out = $("revOut"); if (!who) { out.innerHTML = ""; return; }
+    out.innerHTML = `<p class="hint">Loading…</p>`;
+    const [a, d] = await Promise.all([api("assistant/review/" + encodeURIComponent(who)), api("chat/review?email=" + encodeURIComponent(who))]);
+    const convs = {};
+    a.messages.filter((m) => m.role !== "system").forEach((m) => (convs[m.conv] = convs[m.conv] || []).push(m));
+    out.innerHTML = `<h3>Assistant chats</h3>${Object.keys(convs).length ? Object.entries(convs).reverse().map(([c, ms]) => `<details><summary>Conversation ${c} · ${esc(fmtWhen(ms[0].at))} · ${ms.length} messages</summary>
+        ${ms.map((m) => `<div class="revmsg ${m.role}"><b>${m.role === "user" ? esc(who) : "Assistant"}</b> <span class="hint">${esc(fmtWhen(m.at))}${m.page ? " · " + esc(m.page) : ""}</span><div>${esc(m.content).replace(/\n/g, "<br>")}</div>
+          ${(m.actions || []).length ? `<div class="hint">Suggested: ${m.actions.map((x) => esc(x.label) + (x.done ? " ✓ used" : "")).join(" · ")}</div>` : ""}</div>`).join("")}</details>`).join("")
+        : `<p class="hint">No assistant chats.</p>`}
+      ${a.messages.length ? `<button class="btn" id="revDel" type="button">Delete ${esc(who)}'s assistant history</button>` : ""}
+      <h3>Direct messages</h3>${d.channels.length ? d.channels.map((c) => `<details data-ch="${esc(c.id)}"><summary>With ${esc(c.members.filter((e) => e !== who).join(", ") || "themselves")} · ${c.n} messages${c.last_at ? " · last " + esc(fmtWhen(c.last_at)) : ""}</summary><div class="hint">Loading…</div></details>`).join("") : `<p class="hint">No direct messages.</p>`}
+      <p class="hint">Channel messages (like #general) are visible to the whole team in Messages.</p>`;
+    out.querySelectorAll("details[data-ch]").forEach((el) => el.addEventListener("toggle", async () => {
+      if (!el.open || el.dataset.loaded) return; el.dataset.loaded = 1;
+      const j = await api("chat/" + encodeURIComponent(el.dataset.ch));
+      el.querySelector("div").outerHTML = j.messages.map((m) => `<div class="revmsg"><b>${esc(m.author)}</b> <span class="hint">${esc(fmtWhen(m.at))}${m.deleted ? " · deleted" : ""}</span><div>${esc(m.body).replace(/\n/g, "<br>")}</div></div>`).join("") || `<p class="hint">Empty.</p>`;
+    }));
+    const del = $("revDel");
+    if (del) armClick(del, "Click again to delete for good", async () => { await send("assistant/review/" + encodeURIComponent(who), "DELETE"); toast("Deleted"); sel.onchange(); });
+  };
 }
 
 // ---------------- overview ----------------
@@ -1382,5 +1435,7 @@ async function openMember(email, fresh) {
   if ($("tmDel")) armClick($("tmDel"), "Click again to remove", async () => { await send("team/" + encodeURIComponent(email), "DELETE"); toast("Removed"); $("drawer").hidden = true; teamView(); });
 }
 
-loadMe().then(route).catch(() => {});
+// The dock (office/dock.js: Assistant, Messages, Tasks) uses these.
+window.HLL = { api, send, toast, esc, fmtWhen, openProperty, route, me: () => ME, can };
+loadMe().then(() => { route(); window.dispatchEvent(new Event("hll:ready")); }).catch(() => {});
 setInterval(shabbatBanner, 60000);

@@ -58,7 +58,7 @@ export async function member(db, email) {
   const tracks = r.role === "owner" ? TRACK_KEYS : (arr(r.tracks) || preset.tracks).filter((k) => TRACK_KEYS.includes(k));
   const perms = r.role === "owner" ? Object.keys(PERMS) : (arr(r.perms) || preset.perms).filter((k) => PERMS[k] && k !== "team");
   db.prepare("UPDATE team SET last_seen = ? WHERE email = ? AND (last_seen IS NULL OR last_seen < ?)")
-    .bind(new Date().toISOString(), email, new Date(Date.now() - 600e3).toISOString()).run().catch(() => {});
+    .bind(new Date().toISOString(), email, new Date(Date.now() - 120e3).toISOString()).run().catch(() => {});
   return { email, name: r.name || "", role: r.role, roleLabel: preset.label, tracks: new Set(tracks), perms: new Set(perms), owner: r.role === "owner" };
 }
 function full(email, roleLabel) { return { email, name: "", role: "owner", roleLabel, tracks: new Set(TRACK_KEYS), perms: new Set(Object.keys(PERMS)), owner: true }; }
