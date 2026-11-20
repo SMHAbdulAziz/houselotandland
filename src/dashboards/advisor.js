@@ -187,7 +187,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
         <form class="da-comp"><div class="da-att"></div>
           <textarea placeholder="Ask about this deal, paste an email or numbers, or drop photos, screenshots and PDFs…"></textarea>
           <div class="da-bar"><button class="da-btn da-file" type="button">📎 Attach</button><input type="file" multiple hidden accept="image/*,.pdf,.txt,.csv,.tsv,.md,.json,.eml,.html,.htm,.xml">
-            <span class="da-sp da-note"></span><button class="da-btn da-stop" type="button" hidden>Stop</button><button class="da-btn pri da-send" type="submit">Send</button></div></form>
+            <span class="da-sp da-note"></span><button class="da-btn da-stop" type="button" hidden>Stop</button><button class="da-btn pri da-send" type="button">Send</button></div></form>
       </aside>`;
     document.body.appendChild(root);
     const q = s => root.querySelector(s);
@@ -322,11 +322,11 @@ If the deal record should change (corrected property facts, numbers, notes, stag
     fileIn.onchange = () => { addFiles(fileIn.files); fileIn.value = ""; };
     attBox.onclick = e => { const b = e.target.closest("[data-rm]"); if(b){ S.files.splice(+b.dataset.rm, 1); renderFiles(); } };
     ta.addEventListener("paste", e => { const fs = Array.from(e.clipboardData && e.clipboardData.files || []); if(fs.length){ e.preventDefault(); addFiles(fs); } });
-    ta.addEventListener("keydown", e => { if(e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); form.requestSubmit(); } });
+    ta.addEventListener("keydown", e => { if(e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); send(); } });
     panel.addEventListener("dragover", e => { if(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")){ e.preventDefault(); panel.classList.add("da-drop"); } });
     panel.addEventListener("dragleave", e => { if(e.target === panel) panel.classList.remove("da-drop"); });
     panel.addEventListener("drop", e => { e.preventDefault(); panel.classList.remove("da-drop"); addFiles(e.dataTransfer.files); });
-    chips.onclick = e => { const b = e.target.closest("[data-i]"); if(!b) return; ta.value = CHIPS[+b.dataset.i][1]; form.requestSubmit(); };
+    chips.onclick = e => { const b = e.target.closest("[data-i]"); if(!b) return; ta.value = CHIPS[+b.dataset.i][1]; send(); };
     stopBtn.onclick = () => { if(S.ctl) S.ctl.abort(); };
 
     /* ----- reference code: the dashboard's own (Deal Desk), else one already on the property in the back office, else a stable
@@ -368,8 +368,11 @@ If the deal record should change (corrected property facts, numbers, notes, stag
     }
 
     /* ----- send ----- */
-    form.onsubmit = async e => {
-      e.preventDefault();
+    // Send runs from the button, Ctrl/Cmd+Enter and the chips directly. It doesn't rely on a form submit,
+    // which the dashboard viewer can block (a blocked submit fires nothing at all).
+    form.addEventListener("submit", e => { e.preventDefault(); send(); });
+    sendBtn.onclick = () => send();
+    async function send(){
       // Send never fails silently: every early exit says why.
       const rec = cfg.current();
       if(!rec){ toast("Pick a deal on this dashboard first, then ask about it."); return; }
@@ -442,7 +445,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       if(S.recId === myRec){ saveThread(); }
       }catch(err){ S.turns.push({role:"note", content: timedOut ? "Reading the attachments took too long. Try again, or paste the text instead of attaching." : ctl.signal.aborted ? "Stopped." : `Something went wrong preparing that message${err && err.message ? ": " + err.message : ""}. Try again.`}); note.textContent = ""; }
       finally{ clearTimeout(watchdog); S.turns.forEach(t => { if(t.role === "user" && !t.content) t.content = t.display; }); S.busy = false; S.ctl = null; render(); }
-    };
+    }
 
     /* ----- applying proposed changes ----- */
     log.addEventListener("click", async e => {
