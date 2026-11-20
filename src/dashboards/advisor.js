@@ -115,7 +115,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
   }
   async function readPdf(file, wantPages){
     const lib = await loadPdfJs();
-    const doc = await lib.getDocument({data: new Uint8Array(await file.arrayBuffer()), isEvalSupported:false}).promise;
+    const doc = await lib.getDocument({data: new Uint8Array(file._buf ? file._buf.slice(0) : await file.arrayBuffer()), isEvalSupported:false}).promise;
     let text = "";
     for(let p = 1; p <= Math.min(doc.numPages, 40) && text.length < MAX_FILE_TEXT; p++){
       const pg = await doc.getPage(p); const tc = await pg.getTextContent();
@@ -275,9 +275,17 @@ If the deal record should change (corrected property facts, numbers, notes, stag
         if(!isImg && !isPdf && !isText){ toast(`${f.name}: I can read photos, PDFs, and text, CSV or email files. Save spreadsheets as CSV.`); continue; }
         if(f.size > 25 * 1024 * 1024){ toast(`${f.name} is too large (25 MB max).`); continue; }
         if(S.files.length >= 12){ toast("Up to 12 files at a time."); break; }
-        S.files.push(f);
+        S.files.push(f); f._reading = readNow(f);
       }
       renderFiles();
+    }
+    // Read the file's bytes as soon as it's attached (10-second limit). A file the computer can't hand over (for example
+    // one stored in iCloud or Google Drive that isn't downloaded) is dropped with a message, instead of freezing Send later.
+    const limit = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+    async function readNow(f){
+      try{ f._buf = await limit(f.arrayBuffer(), 10000); }
+      catch(_){ const i = S.files.indexOf(f); if(i >= 0) S.files.splice(i, 1); renderFiles();
+        note.textContent = `Couldn't open ${f.name}. If it's in iCloud or Google Drive, download it to your computer first, or paste its text instead.`; }
     }
     const toast = msg => { if(cfg.toast) cfg.toast(msg); else note.textContent = msg; };
 
@@ -362,44 +370,49 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       let sample = null;
       try{ sample = await getSample(); }finally{ sendBtn.disabled = false; note.textContent = ""; }
       if(!sample){ S.sample = null; toast("Claude isn't available to this dashboard right now. Reload the page, and allow Claude if claude.ai asks."); return; }
-      S.busy = true; render();
+      S.busy = true;
+      const ctl = S.ctl = new AbortController();
+      let shown = "", timedOut = false;
+      // If Claude never starts answering, stop waiting after 2 minutes instead of leaving Send stuck.
+      const watchdog = setTimeout(() => { if(!shown){ timedOut = true; ctl.abort(); } }, 120000);
+      // Stop and the 2-minute timeout always end the wait, even if the request ignores the abort.
+      const ended = new Promise((_, rej) => ctl.signal.addEventListener("abort", () => rej(Object.assign(new Error("cancelled"), {code:"cancelled", text: shown || ""})), {once:true}));
+      ended.catch(() => {});
+      const within = (p, ms) => Promise.race([p, ended, limit(new Promise(() => {}), ms)]);
       try{
       const files = S.files.slice(); S.files = []; renderFiles();
+      // Show the question and "Thinking…" right away; attachments are read after.
+      const userTurn = {role:"user", content:"", display:text || "(attached files)", files:files.map(f => f.name), at:new Date().toISOString()};
+      S.turns.push(userTurn); ta.value = ""; render("");
       const imLim = S.limits && S.limits.images, maxImg = imLim ? imLim.maxCount || 0 : 0;
       const images = [], fileNotes = [], names = [];
       try{
         for(const f of files){
           names.push(f.name);
           if(/^image\//.test(f.type)){ if(images.length < maxImg){ images.push(f); fileNotes.push(`[Image attached: ${f.name}]`); } else fileNotes.push(`[Image ${f.name} not sent: too many images in one message]`); continue; }
+          try{ await within(f._reading || Promise.resolve(), 15000); }catch(err){ if(ctl.signal.aborted) throw err; }
+          if(!f._buf){ fileNotes.push(`[${f.name} could not be opened]`); continue; }
           if(/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)){
             note.textContent = `Reading ${f.name}…`;
-            try{ const r = await readPdf(f, Math.max(0, Math.min(3, maxImg - images.length)));
+            try{ const r = await within(readPdf(f, Math.max(0, Math.min(3, maxImg - images.length))), 45000);
               images.push(...r.images);
               fileNotes.push(`--- PDF: ${f.name} (${r.pages} page${r.pages > 1 ? "s" : ""}${r.images.length ? `, first ${r.images.length} attached as images` : ""}) ---\n${r.text.slice(0, MAX_FILE_TEXT) || "(no text layer: likely a scan; see the page images)"}`); }
-            catch(_){ fileNotes.push(`[PDF ${f.name} could not be read]`); }
+            catch(err){ if(ctl.signal.aborted) throw err; fileNotes.push(`[PDF ${f.name} could not be read here; ask Harvey to paste its text if it matters]`); }
             continue;
           }
-          fileNotes.push(`--- File: ${f.name} ---\n${(await f.text()).slice(0, MAX_FILE_TEXT)}`);
+          fileNotes.push(`--- File: ${f.name} ---\n${new TextDecoder().decode(f._buf).slice(0, MAX_FILE_TEXT)}`);
         }
-      }catch(_){}
-      renderFiles();
-      const content = [text || "(See the attached files.)", ...fileNotes].join("\n\n");
-      const userTurn = {role:"user", content, display:text || "(attached files)", files:names, at:new Date().toISOString()};
-      S.turns.push(userTurn); ta.value = ""; render("");
+      }catch(err){ if(ctl.signal.aborted) throw err; }
+      note.textContent = "";
+      userTurn.content = [text || "(See the attached files.)", ...fileNotes].join("\n\n");
       const myRec = rec.id;
-      let ctx = ""; try{ ctx = await contextText(rec); }catch(_){}
+      let ctx = ""; try{ ctx = await within(contextText(rec), 30000); }catch(err){ if(ctl.signal.aborted) throw err; }
       const hist = S.turns.filter(t => t.role === "user" || t.role === "assistant").slice(-MAX_TURNS).map(t => ({role:t.role, content:String(t.content || "").slice(0, 20000) || "(empty)"}));
       while(hist.length && hist[0].role !== "user") hist.shift();
       const input = [{role:"user", content: RULES(cfg) + "\n\n" + ctx}, ...hist];
-      const ctl = S.ctl = new AbortController();
-      let shown = "", timedOut = false;
-      // If Claude never starts answering, stop waiting after 2 minutes instead of leaving Send stuck.
-      const watchdog = setTimeout(() => { if(!shown){ timedOut = true; ctl.abort(); } }, 120000);
       try{
         const opts = {signal:ctl.signal, cache:false, modelTier:"complex", model:MODEL, onText: ({text:t}) => { shown = t; if(S.recId === myRec) render(t); }};
         if(images.length) opts.images = images;
-        // Stop and the 2-minute timeout always end the wait, even if the request ignores the abort.
-        const ended = new Promise((_, rej) => ctl.signal.addEventListener("abort", () => rej(Object.assign(new Error("cancelled"), {code:"cancelled", text: shown || ""})), {once:true}));
         const r = await Promise.race([sample(input, opts), ended]);
         if(S.recId !== myRec) return;
         const sp = splitReply(r.text);
@@ -418,8 +431,8 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       }
       clearTimeout(watchdog);
       if(S.recId === myRec){ saveThread(); }
-      }catch(err){ S.turns.push({role:"note", content:`Something went wrong preparing that message${err && err.message ? ": " + err.message : ""}. Try again.`}); }
-      finally{ S.busy = false; S.ctl = null; render(); }
+      }catch(err){ S.turns.push({role:"note", content: timedOut ? "Reading the attachments took too long. Try again, or paste the text instead of attaching." : ctl.signal.aborted ? "Stopped." : `Something went wrong preparing that message${err && err.message ? ": " + err.message : ""}. Try again.`}); note.textContent = ""; }
+      finally{ clearTimeout(watchdog); S.turns.forEach(t => { if(t.role === "user" && !t.content) t.content = t.display; }); S.busy = false; S.ctl = null; render(); }
     };
 
     /* ----- applying proposed changes ----- */
