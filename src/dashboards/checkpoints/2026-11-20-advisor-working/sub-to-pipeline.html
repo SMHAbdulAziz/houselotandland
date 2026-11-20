@@ -1,0 +1,1803 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Sub-To Pipeline</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working column — summary strip, then pipeline + follow-ups, deal list, analyzer workbench */
+:root{
+  --bg:#F2F4F1; --panel:#FFFFFF; --ink:#17201B; --muted:#5B6760; --line:#D9DFDA;
+  --accent:#1D6A4D; --accent-ink:#FFFFFF; --accent-soft:#E2EFE8;
+  --ok:#1F7A4D; --ok-soft:#DFF1E6; --warn:#A25B00; --warn-soft:#FBEBD3; --bad:#B23A2E; --bad-soft:#F8E1DE;
+  --f-display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1411; --panel:#161E19; --ink:#E6ECE8; --muted:#97A49C; --line:#29332D;
+  --accent:#4FB487; --accent-ink:#0B130F; --accent-soft:#1A2E24;
+  --ok:#5CC48F; --ok-soft:#173025; --warn:#E9A24A; --warn-soft:#33261A; --bad:#EE7B6E; --bad-soft:#3A1F1C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1411; --panel:#161E19; --ink:#E6ECE8; --muted:#97A49C; --line:#29332D;
+  --accent:#4FB487; --accent-ink:#0B130F; --accent-soft:#1A2E24;
+  --ok:#5CC48F; --ok-soft:#173025; --warn:#E9A24A; --warn-soft:#33261A; --bad:#EE7B6E; --bad-soft:#3A1F1C; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-block:20px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.eyebrow{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-stretch:80%;font-weight:800;font-size:clamp(30px,6vw,44px);line-height:1;margin:4px 0 0;letter-spacing:-.01em;text-wrap:balance}
+h2{font-family:var(--f-display);font-stretch:85%;font-weight:700;font-size:20px;margin:0;text-wrap:balance}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button,select,input,textarea{font:inherit;color:inherit}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:4px 10px;font-size:13px}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.hint{color:var(--muted);font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.kpi{background:var(--panel);padding:14px 16px;display:grid;gap:2px}
+.kpi .v{font-family:var(--f-display);font-weight:700;font-size:28px;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12.5px;color:var(--muted)}
+.two{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px}
+@media (max-width:820px){.two{grid-template-columns:1fr}}
+.funnel{display:grid;gap:8px}
+.frow{display:grid;grid-template-columns:118px 1fr 34px;align-items:center;gap:10px;font-size:13.5px}
+.track{height:14px;background:var(--accent-soft);border-radius:4px;overflow:hidden}
+.bar{height:100%;background:var(--accent);border-radius:4px;min-width:2px;transition:width .3s}
+.frow.dead .bar{background:var(--muted)}
+.frow .c{text-align:right}
+.list{display:grid;gap:0}
+.item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);min-width:0}
+.item:first-child{border-top:0}
+.item .t{font-weight:600;overflow-wrap:anywhere}
+.item .s{font-size:12.5px;color:var(--muted)}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;background:var(--accent-soft);color:var(--accent)}
+.pill.go{background:var(--ok-soft);color:var(--ok)}
+.pill.review{background:var(--warn-soft);color:var(--warn)}
+.pill.overdue{background:var(--bad-soft);color:var(--bad)}
+.pill.ex{background:transparent;border:1px dashed var(--muted);color:var(--muted)}
+.tablewrap{overflow-x:auto;margin:0 -4px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:720px}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.r,th.r{text-align:right}
+tr.row{cursor:pointer}
+tr.row:hover td{background:var(--accent-soft)}
+tr.sel td{background:var(--accent-soft)}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:3px 10px;font-size:12.5px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.empty{padding:22px 4px;color:var(--muted);text-align:center}
+/* analyzer */
+.an-top{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.an-top select{min-width:0;flex:1 1 240px}
+.an-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,340px);gap:20px;margin-top:16px}
+@media (max-width:900px){.an-grid{grid-template-columns:1fr}}
+fieldset{border:0;padding:0;margin:0 0 16px;min-width:0}
+legend{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0;margin-bottom:8px}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.fields .wide{grid-column:1/-1}
+label{display:grid;gap:3px;font-size:12.5px;color:var(--muted);min-width:0}
+input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:14px;color:var(--ink);min-width:0}
+input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+textarea{min-height:64px;resize:vertical}
+.results{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);align-self:start;display:grid;gap:12px}
+.verdict{border-radius:10px;padding:14px;display:grid;gap:4px}
+.verdict.go{background:var(--ok-soft);color:var(--ok)}
+.verdict.review{background:var(--warn-soft);color:var(--warn)}
+.verdict .big{font-family:var(--f-display);font-weight:800;font-size:30px;font-stretch:80%;line-height:1}
+.rlist{display:grid;gap:0;font-size:13.5px}
+.rlist div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.rlist div span:last-child{font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right}
+.rlist .neg{color:var(--bad)}
+.checks{display:grid;gap:4px;font-size:13px}
+.checks div{display:flex;gap:8px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot.p{background:var(--ok)} .dot.f{background:var(--bad)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.mix{display:grid;gap:10px;margin-bottom:10px}
+.mixrow{display:grid;grid-template-columns:minmax(0,2fr) repeat(4,minmax(0,1fr)) auto;gap:8px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}
+.mixrow input,.mixrow select{background:var(--panel)}
+.mixrow .rowsum{grid-column:1/-1;font-size:12.5px;color:var(--muted);font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+@media (max-width:620px){.mixrow{grid-template-columns:repeat(2,minmax(0,1fr))}.mixrow .mname{grid-column:1/-1}.mixrow .rm{grid-column:2;justify-self:end}}
+.mixsum{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:13px;color:var(--ink);margin-top:8px}
+input:disabled{opacity:.65}
+.finder-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media (max-width:820px){.finder-grid{grid-template-columns:1fr}}
+.finder-actions{display:grid;gap:12px;align-content:start}
+.srcbox{border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:8px;background:var(--bg)}
+.srcbox h3{font-family:var(--f-display);font-stretch:85%;font-size:16px;margin:0}
+.srcbox p{margin:0}
+.srcbox .btn{justify-self:start}
+.runstate{font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vh{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.filebtn{position:relative;display:inline-block;color:var(--ink)}
+.filebtn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+label.inline{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink)}
+label.inline input{width:auto}
+.srclink{color:var(--accent);font-weight:600;text-decoration:none}
+.srclink:hover{text-decoration:underline}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;flex:none}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:20;max-width:calc(100% - 32px)}
+.notice{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:13.5px}
+@media (prefers-reduced-motion:reduce){.bar{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">House Lot &amp; Land Sales Co. LLC · Texas and across the U.S.</div>
+      <h1>Sub-To Pipeline</h1>
+    </div>
+    <div class="actions">
+      <button class="btn" id="findBtn" type="button" aria-expanded="false" aria-controls="finder">Find leads</button>
+      <button class="btn" id="hubBtn" type="button" title="Two-way sync with the Sub-To track in the back office (houselotandland.org/office)">Sync back office</button>
+      <button class="btn primary" id="newLeadBtn" type="button">New lead</button>
+    </div>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+  <div class="hint" id="hubStatus" aria-live="polite"></div>
+
+  <section class="panel" id="finder" aria-labelledby="h-find" hidden>
+    <div class="panel-head"><h2 id="h-find">Find leads</h2><span class="hint">Residential and commercial: expired, withdrawn, off-market and long days-on-market listings</span></div>
+    <div class="finder-grid">
+      <div>
+        <fieldset><legend>Lead signals</legend><div class="filters" id="crit-signals" role="group" aria-label="Lead signals"></div></fieldset>
+        <fieldset><legend>Property types</legend><div class="filters" id="crit-types" role="group" aria-label="Property types"></div></fieldset>
+        <fieldset><legend>Counties</legend><div class="filters" id="crit-counties" role="group" aria-label="Counties"></div></fieldset>
+        <div class="fields">
+          <label>Max price ($, 0 = any)<input id="crit-maxPrice" type="number" min="0" step="10000" inputmode="numeric"></label>
+          <label>Min units / sites (commercial)<input id="crit-minUnits" type="number" min="0" step="1" inputmode="numeric"></label>
+          <label>Min days on market<input id="crit-minDom" type="number" min="0" step="1" inputmode="numeric"></label>
+        </div>
+      </div>
+      <div class="finder-actions">
+        <div class="srcbox">
+          <h3>Search listing sites</h3>
+          <p class="hint">Claude searches listing sites (RVParkStore, MobileHomeParkStore, Crexi, LoopNet, brokers, Zillow, Redfin, Realtor.com) and public records (county trustee-sale notices, probate court citations), plus BatchData once it's connected. New leads appear here. A search takes about 10 to 20 minutes and also runs every Monday at 6:44 am.</p>
+          <button class="btn primary" id="searchBtn" type="button">Search now</button>
+          <div class="runstate" id="runState" aria-live="polite"></div>
+        </div>
+        <div class="srcbox">
+          <h3>Import a file</h3>
+          <p class="hint">CSV export from Crexi, LoopNet, Redfin, Zillow or PropStream. Duplicates and listings outside your criteria are skipped.</p>
+          <label class="btn filebtn" for="csvFile">Choose CSV file<input id="csvFile" type="file" accept=".csv,text/csv" class="vh"></label>
+          <label class="inline"><input type="checkbox" id="csvFilter" checked> Only rows that match my criteria</label>
+          <div id="importPreview" class="hint" aria-live="polite"></div>
+          <button class="btn primary" id="importBtn" type="button" hidden>Add leads</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="kpis" aria-label="Summary">
+    <div class="kpi"><span class="v" id="k-active">—</span><span class="l">Active leads</span></div>
+    <div class="kpi"><span class="v" id="k-due">—</span><span class="l">Follow-ups due today</span></div>
+    <div class="kpi"><span class="v" id="k-contract">—</span><span class="l">Under contract</span></div>
+    <div class="kpi"><span class="v" id="k-go">—</span><span class="l">Analyzed deals marked GO</span></div>
+    <div class="kpi"><span class="v" id="k-cf">—</span><span class="l">Portfolio cash flow / mo</span></div>
+  </section>
+
+  <div class="two">
+    <section class="panel" aria-labelledby="h-funnel">
+      <div class="panel-head"><h2 id="h-funnel">Pipeline</h2><span class="hint">Leads currently at each stage</span></div>
+      <div class="funnel" id="funnel"></div>
+    </section>
+    <section class="panel" aria-labelledby="h-due">
+      <div class="panel-head"><h2 id="h-due">Follow-ups due</h2><span class="hint" id="todayLbl"></span></div>
+      <div class="list" id="dueList"></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-deals">
+    <div class="panel-head">
+      <h2 id="h-deals">Leads &amp; deals</h2>
+      <input id="leadSearch" type="search" placeholder="Search address, owner, phone, notes…" aria-label="Search" autocomplete="off" style="max-width:320px;flex:1 1 220px">
+      <div class="filters" id="filters" role="group" aria-label="Filter by stage"></div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>Address</th><th>Stage</th><th class="r">Units · Bd/Ba</th><th class="r">Loan</th><th class="r">Rate</th>
+          <th class="r">PITI</th><th class="r">Rent − PITI</th><th class="r">Net CF / mo</th><th>Verdict</th><th>Next touch</th>
+        </tr></thead>
+        <tbody id="dealRows"></tbody>
+      </table>
+    </div>
+    <div id="leadPager" hidden></div>
+    <div class="empty" id="dealsEmpty" hidden>No leads yet. Tap <strong>New lead</strong>, or ask Claude to load this week's leads from the Expired Listing Finder.</div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-port">
+    <div class="panel-head"><h2 id="h-port">Portfolio</h2><span class="hint">Deals marked Closed</span></div>
+    <div class="kpis" style="border-radius:10px">
+      <div class="kpi"><span class="v" id="p-n">—</span><span class="l">Properties held</span></div>
+      <div class="kpi"><span class="v" id="p-eq">—</span><span class="l">Equity controlled</span></div>
+      <div class="kpi"><span class="v" id="p-debt">—</span><span class="l">Seller loan balances carried</span></div>
+      <div class="kpi"><span class="v" id="p-gap">—</span><span class="l">Gap money outstanding</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="analyzer" aria-labelledby="h-an">
+    <div class="panel-head"><h2 id="h-an">Deal analyzer</h2><span class="hint">Single-family math matches the Sub-To Deal Analyzer spreadsheet</span></div>
+    <div class="an-top">
+      <select id="leadPick" aria-label="Lead to analyze"></select>
+      <button class="btn small" type="button" id="resetBtn">Reset assumptions</button>
+    </div>
+    <form id="anForm" class="an-grid" novalidate>
+      <div>
+        <fieldset><legend>Property &amp; lead</legend>
+          <div class="fields">
+            <label class="wide">Address<input id="f-address" required placeholder="1234 Pecan Dr"></label>
+            <label>City<input id="f-city"></label>
+            <label>State<select id="f-state"></select></label>
+            <label>ZIP<input id="f-zip" inputmode="numeric" maxlength="10"></label>
+            <label>County<select id="f-county"></select></label>
+            <label>Property type<select id="f-propType"></select></label>
+            <label>Units / sites<input id="f-units" type="number" min="0" step="1" inputmode="numeric"></label>
+            <label class="wide">Listing link<input id="f-sourceUrl" type="url" placeholder="https://"></label>
+            <div class="wide hint" id="srcLine" hidden></div>
+            <label>Beds<input id="f-beds" type="number" min="0" step="1"></label>
+            <label>Baths<input id="f-baths" type="number" min="0" step="0.5"></label>
+            <label>Sq ft<input id="f-sqft" type="number" min="0"></label>
+            <label>Last list price ($)<input id="f-listPrice" type="number" min="0" step="1000"></label>
+            <label>Days on market<input id="f-dom" type="number" min="0"></label>
+            <label>Off-market date<input id="f-offMarket" type="date"></label>
+            <label>Owner<input id="f-owner"></label>
+            <label>Phone<input id="f-phone" inputmode="tel"></label>
+            <label>Email<input id="f-email" type="email"></label>
+            <label>Lead signal<select id="f-signal"></select></label>
+            <label class="wide">Mailing address<input id="f-mailing"></label>
+            <label>Stage<select id="f-status"></select></label>
+            <label>Next touch<input id="f-nextTouch" type="date"></label>
+            <label>Planned exit<select id="f-exit"></select></label>
+            <label class="wide">Notes<textarea id="f-notes"></textarea></label>
+          </div>
+        </fieldset>
+        <fieldset><legend>Existing loan (from mortgage statement)</legend>
+          <div class="fields" id="g-loan"></div>
+        </fieldset>
+        <fieldset><legend>Upfront cash</legend>
+          <div class="fields" id="g-cash"></div>
+        </fieldset>
+        <fieldset><legend>Unit mix &amp; pricing</legend>
+          <p class="hint" style="margin:0 0 10px">Leave empty for a single-family house. For apartments, RV or mobile home parks, add one row per floor plan, site type or accommodation, each with its own price. Occupancy here replaces the vacancy assumption.</p>
+          <div class="mix" id="mixRows"></div>
+          <div class="actions">
+            <button class="btn small" type="button" id="addMix">Add unit type</button>
+            <button class="btn small" type="button" id="tplMix" hidden>Load template</button>
+          </div>
+          <div class="mixsum" id="mixSum"></div>
+        </fieldset>
+        <fieldset><legend>Rent-and-hold assumptions</legend>
+          <div class="fields" id="g-rent"></div>
+        </fieldset>
+        <fieldset><legend>Funding &amp; exit</legend>
+          <div class="fields" id="g-fund"></div>
+        </fieldset>
+      </div>
+      <aside class="results" aria-live="polite">
+        <div class="verdict review" id="verdict"><span class="eyebrow" style="color:inherit">Verdict</span><span class="big" id="v-big">—</span><span id="v-sub" style="font-size:13px"></span></div>
+        <div class="rlist" id="rlist"></div>
+        <div class="checks" id="checks"></div>
+        <div class="actions">
+          <button class="btn primary" type="submit" id="saveBtn">Save to lead</button>
+          <button class="btn" type="button" id="touchBtn">Log a touch</button>
+          <button class="btn" type="button" id="advBtn" hidden>✦ Deal Advisor</button>
+          <button class="btn" type="button" id="enrichBtn" title="Uses one BatchData property lookup and one skip trace">Enrich with BatchData</button>
+          <button class="btn danger" type="button" id="delBtn">Delete</button>
+        </div>
+        <span class="hint" id="saveState"></span>
+        <div class="hint" id="enrichState" aria-live="polite"></div>
+      </aside>
+    </form>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* Deal Advisor: a chat with Claude about one deal, shared by the Deal Desk, Sub-To Pipeline and Creative Finance Tracker.
+   Inlined into each dashboard (claude.ai artifacts). Runs on the viewer's Claude plan through the `sample` capability
+   (images declared). Claude sees the deal, the dashboard's own numbers, the property's other tracks in the back office,
+   the saved conversation and anything attached (photos, screenshots, PDFs, text/CSV/email files). It never changes
+   anything by itself: proposed changes come back in a ```hll-actions block and wait for Harvey's click.
+   The conversation is saved per record in the dashboard's db at advisor/<record id>.
+   Deep link from the back office: <artifact url>#advise-<hub deal id with "_" as "-">  (e.g. #advise-d-2cmis2zb5nyi).
+   Source of truth: houselotandland repo, src/dashboards/advisor.js. Keep the three dashboards' copies identical. */
+window.DealAdvisor = (function(){
+  "use strict";
+  const DB_ID = "41cd2c24-fb52-41ae-95b9-748ee75b2d31", CF = "Cloudflare Developer Platform";
+  const MODEL = "claude-opus-5-5";
+  const TRACKS = {
+    wholesale: {label:"Wholesale (Deal Desk)", stages:["Lead","Analyzing","Offer sent","Under contract","Marketing","Assigned","Closed","Dead"]},
+    subto: {label:"Sub-To (take over the existing loan)", stages:["New","Contacted","Appointment","Offer sent","Under contract","Closed","Dead"]},
+    creative: {label:"Creative finance (seller financing, JV, terms)", stages:["New lead","Contacted","Terms requested","Underwriting","Offer out","Under contract","Closed","Dead"]},
+  };
+  const MAX_TURNS = 24, MAX_STORED = 9000, MAX_FILE_TEXT = 16000;
+  // Harvey's market value: FMV = county appraisal-district value ÷ 0.8. Shown beside BatchData's Est. value, never instead of it (same as fmvFromAppraised in js/hub-keys.js).
+  const FMV_RATIO = 0.8;
+  const fmv = v => { const n = Number(String(v ?? "").replace(/[$,\s]/g, "")); return n > 0 ? Math.round(n / FMV_RATIO) : null; };
+  // Save a county appraised value (and its FMV) on the master-list property, so the back office and the other dashboards see it.
+  async function saveAppraised(mcp, hubPid, value, source){
+    const v = Number(String(value ?? "").replace(/[$,\s]/g, ""));
+    if(!mcp || !hubPid || !(v > 0)) return false;
+    await mcp.callTool(CF, "d1_database_query", {database_id:DB_ID, params:[String(v), String(fmv(v)), String(source || "BatchData"), new Date().toISOString(), hubPid],
+      sql:"UPDATE properties SET data = json_set(COALESCE(data, '{}'), '$.appraisedValue', CAST(? AS REAL), '$.fmv', CAST(? AS REAL), '$.appraisedSource', ?), updated_at = ? WHERE id = ?"});
+    return true;
+  }
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+
+  const RULES = (cfg) => `You are the Deal Advisor inside House Lot & Land Sales Co. LLC's ${cfg.appLabel}. You work for Harvey Searcy, the owner (Dallas-Fort Worth, Texas; buys nationwide). He is the principal and decides; you advise him like a sharp, frugal real estate investor and acquisitions manager who knows his business.
+
+THE BUSINESS
+- Tracks (exit strategies) in his system:
+  • wholesale: put the property under contract below value and assign it to a cash buyer for a fee (Deal Desk; default fee about $15,000, minimum about $7,500; cash offers start near 70% of ARV minus repairs and fee). Offer options he uses: assignable cash offer, option to purchase, seller-finance terms. He prefers the option with the least cash out of his pocket. On land or 3+ acre deals he likes keeping some acreage free.
+  • subto: buy "subject to" the existing mortgage: take over the seller's payments, keep the loan in place, then rent and hold, JV rent-hold, or assign. Needs a below-market or workable loan, PITI the rent can cover, equity or a motivated seller (pre-foreclosure, probate/inherited, tired landlord, expired listing). Due-on-sale risk is managed with reserves.
+  • creative: seller financing / terms / JV / partnerships, mostly income property (RV parks, mobile home parks, storage, apartments) but any property where terms beat cash.
+  • pass: not worth pursuing.
+- Partnering: when another investor or wholesaler brings a deal, find out whether they own it or control it (assignable contract, price, closing date), and consider a JV or double close instead of paying retail.
+- Rules he never breaks: closed for all new business from sunset Friday to sunset Saturday (Shabbat); never call or text anyone without recorded consent (texts only through his bridge); offers and agreements go out only by his click; never collect SSNs, tax IDs or bank/account numbers; no legal or tax advice (say when an attorney, title company or CPA should confirm); in Texas the wholesaler disclosure (Occupations Code §1101.0045) applies to assigned contracts; buyer entity: "House Lot & Land Sales Co. LLC, a Texas-based limited liability company". He is frugal: flag anything that costs money (data credits, inspections, travel) and suggest the cheapest way to learn the same thing.
+
+HOW TO ANSWER
+- Lead with the answer: recommended track and exit, in one or two sentences, then why, with the numbers worked out (show the arithmetic briefly). Then risks and red flags, then the questions to ask or documents to get next. Be direct and specific; no filler. Use short headings and bullets; tables only for comparisons.
+- Values: "Est. value" is BatchData's automated estimate. Harvey also uses his own market value, FMV = county appraisal-district value ÷ 0.8 (shown as fmv / appraisedValue with the deal). Report FMV beside Est. value whenever the appraised value is known, never in place of it, and say which one each calculation uses (the dashboard's own math uses Est. value / ARV). If a screenshot or document shows the county appraised (market) value, propose it as the "appraised" update so FMV is computed.
+- Compare data sources: public records/BatchData vs. what a seller, agent or investor claims vs. photos/documents. Point out every mismatch (beds, baths, square feet, owner name, liens, listing status, price) and what it might mean (unpermitted addition, outdated records, wrong owner, middleman).
+- When images are attached, say briefly what you see that matters (condition, repairs, rooms, roof, foundation clues, the text in a screenshot), because later turns will not include the images again.
+- Reference code: every deal has one (shown as REFERENCE CODE with the deal, like HL-SMEGG). Every email, letter or text you draft about this property must carry it exactly as given: in an email subject as "(Ref HL-XXXXX)" after the property address and again on its own line above the signature as "Reference: HL-XXXXX"; in a text as "Ref HL-XXXXX". Spanish: "(Ref HL-XXXXX)" and "Referencia: HL-XXXXX". Never make up or change a code.
+- Never invent facts or comps. If you are estimating, say so. If information is missing, say what is missing and how to get it.
+- Today is ${today()}.
+
+PROPOSING CHANGES
+If the deal record should change (corrected property facts, numbers, notes, stage, next follow-up date, or adding the property to another track), end your reply with ONE fenced block exactly like this, and only include what should change:
+\`\`\`hll-actions
+{"updates": {"<field>": <value>}, "note": "<one or two lines to add to the deal notes>", "stage": "<stage>", "nextTouch": "YYYY-MM-DD", "addTrack": "<track>", "why": "<one short sentence>"}
+\`\`\`
+- "updates" keys must come from this list (use numbers for numeric fields): ${cfg.fields.map(f => f.key + (f.type === "number" ? " (number)" : f.type === "date" ? " (YYYY-MM-DD)" : f.options ? " (one of: " + f.options.join(" | ") + ")" : "")).join(", ")}.
+- "stage" must be one of: ${(cfg.stages || []).join(" | ")}.
+- "addTrack" may be "wholesale", "subto" or "creative" (not this dashboard's own track, "${cfg.track}"); it adds the property to that track in the back office so it appears on that dashboard too.
+- Harvey reviews each change and clicks Apply; nothing changes until he does. Do not mention the block in your prose beyond "I've proposed updates below." Leave the block out when nothing should change.`;
+
+  /* ---------- tiny Markdown renderer (escaped first) ---------- */
+  function inline(s){
+    return s.replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+  function md(src){
+    const lines = esc(src).split("\n"), out = []; let list = null, table = null, para = [];
+    const flushP = () => { if(para.length){ out.push("<p>" + inline(para.join("<br>")) + "</p>"); para = []; } };
+    const flushL = () => { if(list){ out.push(`<${list.t}>` + list.items.map(i => "<li>" + inline(i) + "</li>").join("") + `</${list.t}>`); list = null; } };
+    const flushT = () => { if(table){ const rows = table.filter(r => !/^\s*\|?\s*:?-{2,}/.test(r)).map(r => r.replace(/^\s*\||\|\s*$/g, "").split("|").map(c => inline(c.trim())));
+      if(rows.length) out.push('<div class="da-tw"><table><thead><tr>' + rows[0].map(c => "<th>" + c + "</th>").join("") + "</tr></thead><tbody>" + rows.slice(1).map(r => "<tr>" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>");
+      table = null; } };
+    for(const raw of lines){
+      const l = raw.replace(/\s+$/, "");
+      if(/^\s*\|.*\|\s*$/.test(l)){ flushP(); flushL(); (table = table || []).push(l); continue; } else flushT();
+      let m;
+      if(!l.trim()){ flushP(); flushL(); continue; }
+      if((m = l.match(/^(#{1,4})\s+(.*)$/))){ flushP(); flushL(); out.push(`<h4>${inline(m[2])}</h4>`); continue; }
+      if((m = l.match(/^\s*[-*•]\s+(.*)$/))){ flushP(); if(!list || list.t !== "ul"){ flushL(); list = {t:"ul", items:[]}; } list.items.push(m[1]); continue; }
+      if((m = l.match(/^\s*\d+[.)]\s+(.*)$/))){ flushP(); if(!list || list.t !== "ol"){ flushL(); list = {t:"ol", items:[]}; } list.items.push(m[1]); continue; }
+      if(/^\s*(-{3,}|\*{3,})\s*$/.test(l)){ flushP(); flushL(); out.push("<hr>"); continue; }
+      if(list && /^\s{2,}\S/.test(l)){ list.items[list.items.length-1] += " " + l.trim(); continue; }
+      flushL(); para.push(l);
+    }
+    flushP(); flushL(); flushT();
+    return out.join("");
+  }
+  // Split a reply into prose and the actions block (also hides a half-written block while streaming).
+  function splitReply(text){
+    const i = text.indexOf("```hll-actions");
+    if(i < 0) return {prose:text, actions:null};
+    const prose = text.slice(0, i).trimEnd(), rest = text.slice(i + 14), j = rest.indexOf("```");
+    if(j < 0) return {prose, actions:null, partial:true};
+    let actions = null; try{ actions = JSON.parse(rest.slice(0, j).trim()); }catch(_){ actions = null; }
+    const after = rest.slice(j + 3).trim();
+    return {prose: after ? prose + "\n\n" + after : prose, actions};
+  }
+
+  /* ---------- files ---------- */
+  let pdfjs = null;
+  function loadPdfJs(){
+    if(pdfjs) return pdfjs;
+    pdfjs = new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      s.onload = () => { const lib = window.pdfjsLib; if(!lib) return rej(new Error("pdf")); lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(lib); };
+      s.onerror = () => { pdfjs = null; rej(new Error("pdf")); };
+      document.head.appendChild(s);
+    });
+    return pdfjs;
+  }
+  async function readPdf(file, wantPages){
+    const lib = await loadPdfJs();
+    const doc = await lib.getDocument({data: new Uint8Array(file._buf ? file._buf.slice(0) : await file.arrayBuffer()), isEvalSupported:false}).promise;
+    let text = "";
+    for(let p = 1; p <= Math.min(doc.numPages, 40) && text.length < MAX_FILE_TEXT; p++){
+      const pg = await doc.getPage(p); const tc = await pg.getTextContent();
+      text += `\n[page ${p}]\n` + tc.items.map(i => i.str + (i.hasEOL ? "\n" : " ")).join("");
+    }
+    const images = [];
+    for(let p = 1; p <= Math.min(doc.numPages, wantPages); p++){
+      const pg = await doc.getPage(p); const vp = pg.getViewport({scale:1}); const scale = Math.min(2, 1400 / Math.max(vp.width, vp.height));
+      const v2 = pg.getViewport({scale}); const c = document.createElement("canvas"); c.width = v2.width; c.height = v2.height;
+      await pg.render({canvasContext:c.getContext("2d"), viewport:v2}).promise;
+      const b = await new Promise(r => c.toBlob(r, "image/jpeg", 0.85)); if(b) images.push(new File([b], `${file.name} p${p}.jpg`, {type:"image/jpeg"}));
+    }
+    return {text: text.trim(), pages: doc.numPages, images};
+  }
+  const TEXT_RE = /\.(txt|csv|tsv|md|json|eml|html?|xml|rtf|log)$/i;
+
+  /* ---------- styles ---------- */
+  const CSS = `
+.da-root{--da-bg:#fff;--da-ink:#151b26;--da-muted:#5a6577;--da-line:#d6dce5;--da-acc:#2b4c7e;--da-acc-ink:#fff;--da-soft:#e8eef7;--da-me:#2b4c7e;--da-me-ink:#fff;--da-ok:#1e7a46;--da-warn:#9a5b00;
+  font:14.5px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--da-ink)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .da-root{--da-bg:#171d27;--da-ink:#e5eaf2;--da-muted:#98a3b5;--da-line:#2a3342;--da-acc:#86a8dc;--da-acc-ink:#0e1420;--da-soft:#1e2a3d;--da-me:#2f4b75;--da-me-ink:#fff;--da-ok:#5cc58a;--da-warn:#e2a64a}}
+:root[data-theme="dark"] .da-root{--da-bg:#171d27;--da-ink:#e5eaf2;--da-muted:#98a3b5;--da-line:#2a3342;--da-acc:#86a8dc;--da-acc-ink:#0e1420;--da-soft:#1e2a3d;--da-me:#2f4b75;--da-me-ink:#fff;--da-ok:#5cc58a;--da-warn:#e2a64a}
+.da-fab{position:fixed;right:18px;bottom:18px;z-index:9000;border:0;border-radius:999px;padding:12px 18px;background:var(--da-acc);color:var(--da-acc-ink);font:600 14.5px/1 system-ui,sans-serif;box-shadow:0 8px 24px -8px rgba(0,0,0,.45);cursor:pointer}
+.da-fab[hidden]{display:none}
+.da-panel{position:fixed;top:0;right:0;bottom:0;width:min(480px,100vw);z-index:9001;background:var(--da-bg);border-left:1px solid var(--da-line);box-shadow:-12px 0 32px -16px rgba(0,0,0,.4);display:flex;flex-direction:column}
+.da-panel[hidden]{display:none}
+.da-root *,.da-root *::before,.da-root *::after{box-sizing:border-box}
+.da-root button,.da-root textarea{font:inherit;letter-spacing:normal;text-transform:none;margin:0;box-shadow:none;width:auto;min-height:0;height:auto}
+.da-head{flex:none;display:flex;align-items:flex-start;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--da-line)}
+.da-head .da-t{flex:1;min-width:0}.da-head b{display:block;font-size:16px}.da-head small{display:block;color:var(--da-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.da-root .da-btn{display:inline-block;line-height:1.3;border:1px solid var(--da-line);background:transparent;color:var(--da-ink);border-radius:9px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+.da-root .da-btn:hover{background:var(--da-soft)}.da-root .da-btn.pri{background:var(--da-acc);color:var(--da-acc-ink);border-color:var(--da-acc)}.da-btn:disabled{opacity:.55;cursor:default}
+.da-x{border:0;background:transparent;color:var(--da-muted);font-size:22px;line-height:1;cursor:pointer;padding:2px 4px}
+.da-log{flex:1 1 auto;min-height:0;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.da-msg{max-width:100%;overflow-wrap:anywhere}.da-msg.me{align-self:flex-end;max-width:88%;background:var(--da-me);color:var(--da-me-ink);border-radius:14px 14px 4px 14px;padding:8px 12px;white-space:pre-wrap}
+.da-msg.ai{border-left:3px solid var(--da-acc);padding:2px 0 2px 12px}.da-msg.ai p{margin:.35em 0}.da-msg.ai h4{margin:.8em 0 .3em;font-size:14.5px}.da-msg.ai ul,.da-msg.ai ol{margin:.3em 0;padding-left:1.3em}.da-msg.ai code{background:var(--da-soft);border-radius:4px;padding:0 4px}
+.da-msg.sys{align-self:center;color:var(--da-muted);font-size:12.5px;text-align:center}
+.da-files{font-size:12px;opacity:.85;margin-top:4px}
+.da-tw{overflow:auto;max-width:100%}.da-root .da-msg table{width:auto;min-width:0;max-width:none;table-layout:auto;border-collapse:collapse;font-size:13px;margin:.4em 0;background:none}.da-root .da-msg th,.da-root .da-msg td{border:1px solid var(--da-line);padding:4px 7px;text-align:left;vertical-align:top;white-space:normal;font:inherit;font-size:13px;letter-spacing:normal;text-transform:none;color:var(--da-ink);background:none;position:static}.da-root .da-msg th{font-weight:600}
+.da-think{color:var(--da-muted);font-style:italic}
+.da-act{border:1px solid var(--da-line);border-radius:12px;padding:10px 12px;background:var(--da-soft)}
+.da-act h5{margin:0 0 6px;font-size:13.5px}.da-act label{display:flex;font-weight:400;color:var(--da-ink);gap:8px;align-items:flex-start;font-size:13.5px;margin:4px 0}.da-act input{margin-top:3px;width:auto;flex:none}
+.da-act .da-why{color:var(--da-muted);font-size:12.5px;margin:0 0 6px}.da-act .da-row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}.da-act .da-done{color:var(--da-ok);font-size:13px}
+.da-chips{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 8px}.da-chip{border:1px solid var(--da-line);border-radius:999px;padding:4px 10px;background:transparent;color:var(--da-ink);font-size:12.5px;cursor:pointer}.da-chip:hover{background:var(--da-soft)}
+.da-comp{flex:none;margin:0;display:block;border-top:1px solid var(--da-line);padding:10px 16px 14px}
+.da-att{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.da-att span{display:inline-flex;gap:6px;align-items:center;font-size:12px;border:1px solid var(--da-line);border-radius:8px;padding:3px 6px}.da-att button{border:0;background:none;color:var(--da-muted);cursor:pointer;padding:0}
+.da-root .da-comp textarea{display:block;width:100%;min-height:64px;height:64px;max-height:200px;resize:vertical;border:1px solid var(--da-line);border-radius:10px;padding:8px 10px;background:transparent;color:var(--da-ink);font:inherit}
+.da-comp .da-bar{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}.da-comp .da-bar .da-sp{flex:1}.da-comp .da-note{font-size:12px;color:var(--da-muted)}
+.da-drop{outline:2px dashed var(--da-acc);outline-offset:-8px}
+.da-err{color:var(--da-warn);font-size:13px}
+@media (max-width:560px){.da-fab{right:12px;bottom:12px;padding:11px 15px}}`;
+
+  function mount(cfg){
+    if(!document.getElementById("da-style")){ const st = document.createElement("style"); st.id = "da-style"; st.textContent = CSS; document.head.appendChild(st); }
+    const root = document.createElement("div"); root.className = "da-root";
+    root.innerHTML = `<button class="da-fab" type="button">✦ Deal Advisor</button>
+      <aside class="da-panel" hidden aria-label="Deal Advisor">
+        <div class="da-head"><div class="da-t"><b>Deal Advisor</b><small class="da-sub">Pick a deal to start</small></div>
+          <button class="da-btn da-new" type="button" title="Start a new conversation on this deal">New chat</button><button class="da-x" type="button" aria-label="Close">×</button></div>
+        <div class="da-log" aria-live="polite"></div>
+        <div class="da-chips"></div>
+        <form class="da-comp"><div class="da-att"></div>
+          <textarea placeholder="Ask about this deal, paste an email or numbers, or drop photos, screenshots and PDFs…"></textarea>
+          <div class="da-bar"><button class="da-btn da-file" type="button">📎 Attach</button><input type="file" multiple hidden accept="image/*,.pdf,.txt,.csv,.tsv,.md,.json,.eml,.html,.htm,.xml">
+            <span class="da-sp da-note"></span><button class="da-btn da-stop" type="button" hidden>Stop</button><button class="da-btn pri da-send" type="submit">Send</button></div></form>
+      </aside>`;
+    document.body.appendChild(root);
+    const q = s => root.querySelector(s);
+    const fab = q(".da-fab"), panel = q(".da-panel"), log = q(".da-log"), sub = q(".da-sub"), chips = q(".da-chips"), form = q(".da-comp"), ta = q("textarea"),
+      fileIn = q("input[type=file]"), attBox = q(".da-att"), note = q(".da-comp .da-note"), sendBtn = q(".da-send"), stopBtn = q(".da-stop");
+    const S = {recId:null, turns:[], files:[], busy:false, ctl:null, sample:null, limits:null, loadedFor:null, mcp:null};
+
+    const CHIPS = [
+      ["Best track & exit", "What's the best track and exit strategy for this deal, and what would you offer? Work the numbers."],
+      ["Check the data", "Compare everything we know about this property (public records, what the seller/agent/investor said, the listing) and flag every mismatch and what it means."],
+      ["What to ask next", "What questions should I ask, and what documents should I get, before making an offer?"],
+      ["Draft a reply", "Draft my reply to the latest message from the seller or the person who sent this deal. Keep it short, in my voice, with the reference code."],
+    ];
+    chips.innerHTML = CHIPS.map(([l], i) => `<button type="button" class="da-chip" data-i="${i}">${esc(l)}</button>`).join("");
+
+    async function getSample(){
+      if(S.sample) return S.sample;
+      try{ S.sample = await window.claude.use("sample"); }catch(_){ S.sample = null; }
+      if(S.sample && !S.limits){ try{ S.limits = await S.sample.limits(); }catch(_){ S.limits = null; } }
+      return S.sample;
+    }
+    async function getMcp(){ if(S.mcp) return S.mcp; try{ S.mcp = cfg.getMcp ? await cfg.getMcp() : await window.claude.use("mcp"); }catch(_){ S.mcp = null; } return S.mcp; }
+    const rowsOf = r => { let p = r && r.payload; if(typeof p === "string"){ try{ p = JSON.parse(p); }catch(_){ return []; } }
+      const a = Array.isArray(p) ? p : (p && (p.result || p.results)) || []; if(Array.isArray(a) && a[0] && Array.isArray(a[0].results)) return a[0].results;
+      return Array.isArray(a) ? a.filter(x => x && typeof x === "object" && !("success" in x && "meta" in x)) : []; };
+    async function d1(sql, params){ const m = await getMcp(); if(!m) throw new Error("The back office connection isn't available in this view.");
+      return rowsOf(await m.callTool(CF, "d1_database_query", {database_id:DB_ID, sql, params:(params || []).map(v => v == null ? "" : String(v))})); }
+    const db = () => cfg.getDb && cfg.getDb();
+
+    /* ----- conversation storage ----- */
+    async function loadThread(id){
+      S.turns = []; const d = db(); if(!d) return;
+      try{ const s = await d.doc("advisor/" + id).get(); if(s.exists){ const v = s.data(); S.turns = Array.isArray(v.turns) ? v.turns : []; } }catch(_){}
+    }
+    let saving = Promise.resolve();
+    function saveThread(){
+      const d = db(), id = S.recId; if(!d || !id) return;
+      const turns = S.turns.slice(-MAX_TURNS * 2).map(t => ({...t, content: String(t.content || "").slice(0, MAX_STORED)}));
+      saving = saving.then(() => d.doc("advisor/" + id).set({turns, updatedAt:new Date().toISOString(), app:cfg.app})).catch(() => {});
+    }
+
+    /* ----- rendering ----- */
+    function actionCard(t, idx){
+      const a = t.actions; if(!a || typeof a !== "object") return "";
+      const rec = cfg.current(), items = [];
+      const fields = Object.fromEntries(cfg.fields.map(f => [f.key, f]));
+      const curVal = k => { const v = cfg.getField ? cfg.getField(k) : rec && rec.data && rec.data[k]; return v == null || v === "" ? "—" : String(v); };
+      if(a.updates && typeof a.updates === "object") for(const [k0, v] of Object.entries(a.updates)){
+        const k = fields[k0] ? k0 : fields["inputs." + k0] ? "inputs." + k0 : null; // accept analyzer inputs named without the prefix
+        if(k && v != null && String(v) !== "") items.push({kind:"u", k, v, label:`${fields[k].label}: ${curVal(k)} → ${v}`}); }
+      if(a.stage && (cfg.stages || []).includes(a.stage)) items.push({kind:"stage", v:a.stage, label:`Stage → ${a.stage}`});
+      if(a.nextTouch && /^\d{4}-\d{2}-\d{2}$/.test(a.nextTouch) && cfg.nextKey) items.push({kind:"next", v:a.nextTouch, label:`Next follow-up → ${a.nextTouch}`});
+      if(a.note && cfg.notesKey) items.push({kind:"note", v:String(a.note).slice(0, 1500), label:`Add to notes: “${String(a.note).slice(0, 300)}${String(a.note).length > 300 ? "…" : ""}”`});
+      if(a.addTrack && TRACKS[a.addTrack] && a.addTrack !== cfg.track) items.push({kind:"track", v:a.addTrack, label:`Add this property to the ${TRACKS[a.addTrack].label.split(" (")[0]} track (back office and that dashboard)`});
+      if(!items.length) return "";
+      t._items = items;
+      if(t.applied) return `<div class="da-act"><h5>Proposed changes</h5><p class="da-done">✓ ${esc(t.applied)}</p></div>`;
+      return `<div class="da-act" data-idx="${idx}"><h5>Proposed changes</h5>${a.why ? `<p class="da-why">${esc(a.why)}</p>` : ""}
+        ${items.map((it, j) => `<label><input type="checkbox" data-j="${j}" checked> <span>${esc(it.label)}</span></label>`).join("")}
+        <div class="da-row"><button type="button" class="da-btn pri da-apply">Apply selected</button><button type="button" class="da-btn da-skip">Dismiss</button><span class="da-err"></span></div></div>`;
+    }
+    function render(streamText){
+      const rec = cfg.current();
+      sub.textContent = rec ? rec.title : "Pick a deal on this dashboard to start";
+      const parts = [];
+      if(!S.turns.length && !streamText) parts.push(`<div class="da-msg sys">${rec ? "Ask anything about this deal. I can see its details and numbers; attach photos, screenshots, PDFs or paste emails for me to weigh in. I'll propose changes for you to approve." : "Open a deal, then ask me about it."}</div>`);
+      S.turns.forEach((t, i) => {
+        if(t.hidden) return;
+        if(t.role === "user") parts.push(`<div class="da-msg me">${esc(t.display || t.content)}${t.files && t.files.length ? `<div class="da-files">📎 ${esc(t.files.join(", "))}</div>` : ""}</div>`);
+        else if(t.role === "assistant") parts.push(`<div class="da-msg ai">${md(splitReply(t.content).prose)}</div>${actionCard(t, i)}`);
+        else if(t.role === "note") parts.push(`<div class="da-msg sys">${esc(t.content)}</div>`);
+      });
+      if(streamText != null) parts.push(`<div class="da-msg ai">${streamText ? md(splitReply(streamText).prose) : `<span class="da-think">Thinking…</span>`}</div>`);
+      log.innerHTML = parts.join("");
+      log.scrollTop = log.scrollHeight;
+      const can = !!rec && !S.busy;
+      sendBtn.disabled = !can; ta.disabled = !rec; q(".da-file").disabled = !can; q(".da-new").disabled = !rec || S.busy || !S.turns.length;
+      chips.hidden = !rec || S.busy;
+      sendBtn.hidden = S.busy; stopBtn.hidden = !S.busy;
+    }
+    function renderFiles(){
+      attBox.innerHTML = S.files.map((f, i) => `<span>${/^image\//.test(f.type) ? "🖼" : /pdf$/i.test(f.name) ? "📄" : "📝"} ${esc(f.name)} <button type="button" data-rm="${i}" aria-label="Remove">×</button></span>`).join("");
+      const im = S.limits && S.limits.images;
+      note.textContent = S.files.length ? `${S.files.length} file${S.files.length > 1 ? "s" : ""} attached` : im ? "Photos, screenshots, PDFs, text and CSV files" : "PDFs, text and CSV files";
+    }
+    function addFiles(list){
+      const im = S.limits && S.limits.images;
+      for(const f of Array.from(list || [])){
+        const isImg = /^image\//.test(f.type), isPdf = /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name), isText = /^text\//.test(f.type) || /json|xml|message\/rfc822/.test(f.type) || TEXT_RE.test(f.name);
+        if(isImg && !im){ toast("Photos can't be sent from this view. Open the dashboard in claude.ai."); continue; }
+        if(isImg && im && im.mediaTypes && !im.mediaTypes.includes(f.type)){ toast(`${f.name}: use JPG, PNG, WebP or GIF.`); continue; }
+        if(!isImg && !isPdf && !isText){ toast(`${f.name}: I can read photos, PDFs, and text, CSV or email files. Save spreadsheets as CSV.`); continue; }
+        if(f.size > 25 * 1024 * 1024){ toast(`${f.name} is too large (25 MB max).`); continue; }
+        if(S.files.length >= 12){ toast("Up to 12 files at a time."); break; }
+        S.files.push(f); f._reading = readNow(f);
+      }
+      renderFiles();
+    }
+    // Read the file's bytes as soon as it's attached (10-second limit). A file the computer can't hand over (for example
+    // one stored in iCloud or Google Drive that isn't downloaded) is dropped with a message, instead of freezing Send later.
+    const limit = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+    async function readNow(f){
+      try{ f._buf = await limit(f.arrayBuffer(), 10000); }
+      catch(_){ const i = S.files.indexOf(f); if(i >= 0) S.files.splice(i, 1); renderFiles();
+        note.textContent = `Couldn't open ${f.name}. If it's in iCloud or Google Drive, download it to your computer first, or paste its text instead.`; }
+    }
+    const toast = msg => { if(cfg.toast) cfg.toast(msg); else note.textContent = msg; };
+
+    /* ----- open / select ----- */
+    async function open(id){
+      panel.hidden = false; fab.hidden = true;
+      if(id && cfg.select && (!cfg.current() || cfg.current().id !== id)) cfg.select(id);
+      await sync();
+      getSample().then(renderFiles);
+      setTimeout(() => ta.focus({preventScroll:true}), 50);
+    }
+    async function sync(){
+      const rec = cfg.current(), id = rec ? rec.id : null;
+      if(id !== S.recId){
+        if(S.busy && S.ctl) S.ctl.abort();
+        S.recId = id; S.turns = []; S.files = []; renderFiles(); render();
+        if(id){ await loadThread(id); if(S.recId === id) render(); }
+      } else render();
+    }
+    function close(){ panel.hidden = true; fab.hidden = false; }
+    fab.onclick = () => open();
+    q(".da-x").onclick = close;
+    q(".da-new").onclick = () => { if(S.busy) return; S.turns = []; saveThread(); render(); };
+    q(".da-file").onclick = () => fileIn.click();
+    fileIn.onchange = () => { addFiles(fileIn.files); fileIn.value = ""; };
+    attBox.onclick = e => { const b = e.target.closest("[data-rm]"); if(b){ S.files.splice(+b.dataset.rm, 1); renderFiles(); } };
+    ta.addEventListener("paste", e => { const fs = Array.from(e.clipboardData && e.clipboardData.files || []); if(fs.length){ e.preventDefault(); addFiles(fs); } });
+    ta.addEventListener("keydown", e => { if(e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); form.requestSubmit(); } });
+    panel.addEventListener("dragover", e => { if(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")){ e.preventDefault(); panel.classList.add("da-drop"); } });
+    panel.addEventListener("dragleave", e => { if(e.target === panel) panel.classList.remove("da-drop"); });
+    panel.addEventListener("drop", e => { e.preventDefault(); panel.classList.remove("da-drop"); addFiles(e.dataTransfer.files); });
+    chips.onclick = e => { const b = e.target.closest("[data-i]"); if(!b) return; ta.value = CHIPS[+b.dataset.i][1]; form.requestSubmit(); };
+    stopBtn.onclick = () => { if(S.ctl) S.ctl.abort(); };
+
+    /* ----- reference code: the dashboard's own (Deal Desk), else one already on the property in the back office, else a stable
+       code made from the property id (same algorithm as the Deal Desk's makeRef), saved to the hub deal so every draft reuses it ----- */
+    const RA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    const makeRef = id => { let h = 2166136261; for(const ch of String(id)){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } h >>>= 0; let r = ""; for(let i = 0; i < 5; i++){ r += RA[h % RA.length]; h = Math.floor(h / RA.length); } return "HL-" + r; };
+    const REF_OK = /^HL-[A-HJ-NP-Z2-9]{5}$/i, refCache = {};
+    async function refFor(rec, ids){
+      if(refCache[rec.id]) return refCache[rec.id];
+      let ref = cfg.ownRef ? cfg.ownRef(rec.id) : null;
+      try{
+        if(ids && ids.hubPid){
+          if(!ref){ const rows = await d1(`SELECT ref FROM deals WHERE property_id = ? AND ref LIKE 'HL-%' ORDER BY CASE track WHEN 'wholesale' THEN 0 ELSE 1 END, created_at LIMIT 1`, [ids.hubPid]);
+            ref = rows[0] && REF_OK.test(rows[0].ref) ? rows[0].ref.toUpperCase() : makeRef(ids.hubPid); }
+          if(ids.hubId) await d1(`UPDATE deals SET ref = ? WHERE id = ? AND (ref IS NULL OR ref = '')`, [ref, ids.hubId]);
+        }
+      }catch(_){}
+      ref = ref || makeRef(rec.id);
+      return (refCache[rec.id] = ref);
+    }
+
+    /* ----- context for Claude ----- */
+    async function contextText(rec){
+      let ctx = "";
+      try{ ctx = JSON.stringify(cfg.context(rec.id), (k, v) => typeof v === "string" && v.length > 4000 ? v.slice(0, 4000) + "…" : v, 1); }catch(_){ ctx = "{}"; }
+      if(ctx.length > 30000) ctx = ctx.slice(0, 30000) + "…";
+      let hub = "", ids = null;
+      try{ ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null; }catch(_){}
+      const ref = await refFor(rec, ids);
+      try{
+        if(ids && ids.hubPid){
+          const rows = await d1(`SELECT d.track, d.stage, d.next_touch, d.asking, d.updated_at, c.name AS contact, c.consent, c.opt_out
+            FROM deals d LEFT JOIN contacts c ON c.id = d.contact_id WHERE d.property_id = ?`, [ids.hubPid]);
+          const acts = await d1(`SELECT at, kind, summary FROM activities WHERE property_id = ? ORDER BY at DESC LIMIT 12`, [ids.hubPid]);
+          hub = `\n\nBACK OFFICE (master list) for this property:\nTracks: ${rows.map(r => `${r.track} (${r.stage}${r.next_touch ? ", next touch " + r.next_touch : ""}${r.contact ? ", contact " + r.contact + (r.opt_out == 1 ? " OPTED OUT" : r.consent == 1 ? " (text consent on file)" : " (no text consent)") : ""})`).join("; ") || "none"}\nRecent activity:\n${acts.map(a => `- ${String(a.at).slice(0,10)} ${a.kind}: ${a.summary}`).join("\n") || "- none"}`;
+        } else hub = "\n\nBACK OFFICE: this record isn't linked to the master list yet (it links on the next back office sync).";
+      }catch(_){ hub = ""; }
+      return `REFERENCE CODE for this property: ${ref}\n\nCURRENT DEAL on the ${cfg.appLabel} (record id ${rec.id}):\n${ctx}${hub}`;
+    }
+
+    /* ----- send ----- */
+    form.onsubmit = async e => {
+      e.preventDefault();
+      // Send never fails silently: every early exit says why.
+      const rec = cfg.current();
+      if(!rec){ toast("Pick a deal on this dashboard first, then ask about it."); return; }
+      if(S.busy){ note.textContent = "Still working on the last answer. Press Stop to cancel it."; return; }
+      const text = ta.value.trim(); if(!text && !S.files.length){ ta.focus(); note.textContent = "Type a question or attach a file."; return; }
+      note.textContent = "Connecting to Claude…"; sendBtn.disabled = true;
+      let sample = null;
+      try{ sample = await getSample(); }finally{ sendBtn.disabled = false; note.textContent = ""; }
+      if(!sample){ S.sample = null; toast("Claude isn't available to this dashboard right now. Reload the page, and allow Claude if claude.ai asks."); return; }
+      S.busy = true;
+      const ctl = S.ctl = new AbortController();
+      let shown = "", timedOut = false;
+      // If Claude never starts answering, stop waiting after 2 minutes instead of leaving Send stuck.
+      const watchdog = setTimeout(() => { if(!shown){ timedOut = true; ctl.abort(); } }, 120000);
+      // Stop and the 2-minute timeout always end the wait, even if the request ignores the abort.
+      const ended = new Promise((_, rej) => ctl.signal.addEventListener("abort", () => rej(Object.assign(new Error("cancelled"), {code:"cancelled", text: shown || ""})), {once:true}));
+      ended.catch(() => {});
+      const within = (p, ms) => Promise.race([p, ended, limit(new Promise(() => {}), ms)]);
+      try{
+      const files = S.files.slice(); S.files = []; renderFiles();
+      // Show the question and "Thinking…" right away; attachments are read after.
+      const userTurn = {role:"user", content:"", display:text || "(attached files)", files:files.map(f => f.name), at:new Date().toISOString()};
+      S.turns.push(userTurn); ta.value = ""; render("");
+      const imLim = S.limits && S.limits.images, maxImg = imLim ? imLim.maxCount || 0 : 0;
+      const images = [], fileNotes = [], names = [];
+      try{
+        for(const f of files){
+          names.push(f.name);
+          if(/^image\//.test(f.type)){ if(images.length < maxImg){ images.push(f); fileNotes.push(`[Image attached: ${f.name}]`); } else fileNotes.push(`[Image ${f.name} not sent: too many images in one message]`); continue; }
+          try{ await within(f._reading || Promise.resolve(), 15000); }catch(err){ if(ctl.signal.aborted) throw err; }
+          if(!f._buf){ fileNotes.push(`[${f.name} could not be opened]`); continue; }
+          if(/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)){
+            note.textContent = `Reading ${f.name}…`;
+            try{ const r = await within(readPdf(f, Math.max(0, Math.min(3, maxImg - images.length))), 45000);
+              images.push(...r.images);
+              fileNotes.push(`--- PDF: ${f.name} (${r.pages} page${r.pages > 1 ? "s" : ""}${r.images.length ? `, first ${r.images.length} attached as images` : ""}) ---\n${r.text.slice(0, MAX_FILE_TEXT) || "(no text layer: likely a scan; see the page images)"}`); }
+            catch(err){ if(ctl.signal.aborted) throw err; fileNotes.push(`[PDF ${f.name} could not be read here; ask Harvey to paste its text if it matters]`); }
+            continue;
+          }
+          fileNotes.push(`--- File: ${f.name} ---\n${new TextDecoder().decode(f._buf).slice(0, MAX_FILE_TEXT)}`);
+        }
+      }catch(err){ if(ctl.signal.aborted) throw err; }
+      note.textContent = "";
+      userTurn.content = [text || "(See the attached files.)", ...fileNotes].join("\n\n");
+      const myRec = rec.id;
+      let ctx = ""; try{ ctx = await within(contextText(rec), 30000); }catch(err){ if(ctl.signal.aborted) throw err; }
+      const hist = S.turns.filter(t => t.role === "user" || t.role === "assistant").slice(-MAX_TURNS).map(t => ({role:t.role, content:String(t.content || "").slice(0, 20000) || "(empty)"}));
+      while(hist.length && hist[0].role !== "user") hist.shift();
+      const input = [{role:"user", content: RULES(cfg) + "\n\n" + ctx}, ...hist];
+      try{
+        const opts = {signal:ctl.signal, cache:false, modelTier:"complex", model:MODEL, onText: ({text:t}) => { shown = t; if(S.recId === myRec) render(t); }};
+        if(images.length) opts.images = images;
+        const r = await Promise.race([sample(input, opts), ended]);
+        if(S.recId !== myRec) return;
+        const sp = splitReply(r.text);
+        S.turns.push({role:"assistant", content:r.text, actions:sp.actions || null, at:new Date().toISOString(), truncated:!!r.truncated});
+        if(r.truncated) S.turns.push({role:"note", content:"That answer was cut short. Ask me to continue."});
+      }catch(err){
+        const c = err && err.code;
+        if(S.recId === myRec){
+          if(err && err.text) S.turns.push({role:"assistant", content:err.text + "\n\n*(interrupted)*", at:new Date().toISOString()});
+          const msg = timedOut ? "No answer from Claude after 2 minutes. Try again; if it keeps happening, reload the page." : c === "cancelled" ? "Stopped." : c === "not_granted" || c === "sampling_disabled" ? "Claude isn't allowed for this dashboard. Allow it when claude.ai asks, then try again."
+            : c === "rate_limited" ? "You've hit a Claude usage limit for now. Try again in a little while." : c === "prompt_too_large" ? "That's too much text at once. Start a New chat or attach less."
+            : c === "image_rejected" ? "One of the images couldn't be used. Try a JPG or PNG under 20 MB." : c === "refused" ? "Claude declined that request. Rephrase it and try again."
+            : c === "images_unavailable" ? "Images can't be sent from this view; text works." : `Something went wrong reaching Claude${c ? " (" + c + ")" : ""}. Try again.`;
+          S.turns.push({role:"note", content:msg});
+        }
+      }
+      clearTimeout(watchdog);
+      if(S.recId === myRec){ saveThread(); }
+      }catch(err){ S.turns.push({role:"note", content: timedOut ? "Reading the attachments took too long. Try again, or paste the text instead of attaching." : ctl.signal.aborted ? "Stopped." : `Something went wrong preparing that message${err && err.message ? ": " + err.message : ""}. Try again.`}); note.textContent = ""; }
+      finally{ clearTimeout(watchdog); S.turns.forEach(t => { if(t.role === "user" && !t.content) t.content = t.display; }); S.busy = false; S.ctl = null; render(); }
+    };
+
+    /* ----- applying proposed changes ----- */
+    log.addEventListener("click", async e => {
+      const card = e.target.closest(".da-act[data-idx]"); if(!card) return;
+      const t = S.turns[+card.dataset.idx]; if(!t) return;
+      if(e.target.closest(".da-skip")){ t.applied = "Dismissed"; saveThread(); render(); return; }
+      if(!e.target.closest(".da-apply")) return;
+      const rec = cfg.current(); const errEl = card.querySelector(".da-err");
+      if(!rec || rec.id !== S.recId){ errEl.textContent = "Open this deal again first."; return; }
+      const picked = (t._items || []).filter((_, j) => { const cb = card.querySelector(`input[data-j="${j}"]`); return cb && cb.checked; });
+      if(!picked.length){ errEl.textContent = "Tick at least one change."; return; }
+      const patch = {}, done = [];
+      for(const it of picked){
+        if(it.kind === "u"){ const f = cfg.fields.find(x => x.key === it.k); let v = it.v;
+          if(f.type === "number"){ v = parseFloat(String(v).replace(/[$,%\s]/g, "")); if(!isFinite(v)) continue; }
+          else if(f.options && !f.options.includes(String(v))) continue; else v = String(v);
+          patch[it.k] = v; done.push(`${f.label} ${v}`); }
+        if(it.kind === "stage"){ patch[cfg.stageKey] = it.v; done.push(`stage ${it.v}`); }
+        if(it.kind === "next"){ patch[cfg.nextKey] = it.v; done.push(`next touch ${it.v}`); }
+        if(it.kind === "note"){ patch.__note = `[${today()} Deal Advisor] ${it.v}`; done.push("note added"); }
+      }
+      const track = picked.find(it => it.kind === "track");
+      card.querySelectorAll("button").forEach(b => b.disabled = true); errEl.textContent = "Saving…";
+      try{
+        const apv = patch.appraised; // adapters may consume it
+        if(Object.keys(patch).length) await cfg.apply(rec.id, patch);
+        if(apv != null){ try{ const ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null; if(ids && ids.hubPid) await saveAppraised(await getMcp(), ids.hubPid, apv, "From the Deal Advisor"); }catch(_){} }
+        if(track){ await addTrack(rec, track.v); done.push(`added to ${TRACKS[track.v].label.split(" (")[0]}`); }
+        t.applied = "Applied: " + done.join(", ");
+        S.turns.push({role:"user", content:`(I applied these changes: ${done.join("; ")}.)`, hidden:true, at:new Date().toISOString()});
+        saveThread(); render(); toast("Deal updated");
+      }catch(err){ errEl.textContent = (err && err.message) || "Couldn't apply. Try again."; card.querySelectorAll("button").forEach(b => b.disabled = false); }
+    });
+    async function addTrack(rec, track){
+      const ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null;
+      if(!ids || !ids.hubPid) throw new Error("This deal isn't linked to the back office yet. Tap “Sync back office”, then apply again.");
+      const now = new Date().toISOString(), stage = TRACKS[track].stages[0];
+      const rid = "d_" + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+      const exists = await d1("SELECT id FROM deals WHERE property_id = ? AND track = ?", [ids.hubPid, track]);
+      if(exists.length) return;
+      await d1(`INSERT OR IGNORE INTO deals (id, property_id, contact_id, track, stage, ref, next_touch, source, source_app, asking, notes, created_at, updated_at)
+        SELECT ?, ?, contact_id, ?, ?, ?, ?, 'Deal Advisor', 'office', asking, ?, ?, ? FROM deals WHERE id = ?`,
+        [rid, ids.hubPid, track, stage, await refFor(rec, ids), today(), `Added by the Deal Advisor from the ${cfg.appLabel}.`, now, now, ids.hubId]);
+      await d1(`INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'created', ?, 'Deal Advisor', ?)`,
+        ["a_" + rid.slice(2), now, ids.hubPid, rid, `Added to ${TRACKS[track].label.split(" (")[0]} by the Deal Advisor`, cfg.app]);
+    }
+
+    /* ----- deep link from the back office: #advise-d-xxxx ----- */
+    async function fromHash(){
+      const m = /^#advise-d-([a-z0-9]+)$/i.exec(location.hash || ""); if(!m) return;
+      const hid = "d_" + m[1].toLowerCase();
+      for(let i = 0; i < 60 && !(cfg.ready && cfg.ready()); i++) await new Promise(r => setTimeout(r, 500));
+      let id = null; try{ id = cfg.findByHub ? await cfg.findByHub(hid) : null; }catch(_){}
+      if(id){ await open(id); }
+      else { panel.hidden = false; fab.hidden = true; await sync(); S.turns.length || log.insertAdjacentHTML("afterbegin", `<div class="da-msg sys">That deal isn't on this dashboard yet. Tap “Sync back office”, wait a moment, then open the link again.</div>`); }
+      try{ window.history.replaceState(null, "", location.pathname + location.search); }catch(_){}
+    }
+    window.addEventListener("hashchange", fromHash);
+    setTimeout(fromHash, 300);
+
+    return { open, close, refresh: () => { if(!panel.hidden) sync(); }, get isOpen(){ return !panel.hidden; } };
+  }
+  return { mount, md, splitReply, fmv, FMV_RATIO, saveAppraised };
+})();
+
+</script>
+<script>
+// ---- Back office master list (D1 "hub") sync: one track of houselotandland.org/office <-> this dashboard ----
+// Pull: every deal on the track appears here; back office stage / next touch / price changes flow in.
+// Push: records made here are added to the master list; stage, next touch, price, state and property details flow out
+// (each stage change is logged in the property's back office history). Deleting a record here deletes it there, and the reverse.
+// Link bookkeeping lives in the "hubmap" collection (one doc per record id), so records themselves stay untouched.
+const HUB_STATES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"District of Columbia",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming",PR:"Puerto Rico"};
+const hubNormState = v => { const t = String(v||"").trim(); if(!t) return ""; const u = t.toUpperCase(); if(HUB_STATES[u]) return u; const h = Object.entries(HUB_STATES).find(([,n]) => n.toLowerCase() === t.toLowerCase()); return h ? h[0] : ""; };
+const HUB_ZIP3 = [[5,5,"NY"],[6,9,"PR"],[10,27,"MA"],[28,29,"RI"],[30,38,"NH"],[39,49,"ME"],[55,55,"MA"],[50,59,"VT"],[60,69,"CT"],[70,89,"NJ"],[100,149,"NY"],[150,196,"PA"],[197,199,"DE"],[200,200,"DC"],[201,201,"VA"],[202,205,"DC"],[206,219,"MD"],[220,246,"VA"],[247,268,"WV"],[270,289,"NC"],[290,299,"SC"],[300,319,"GA"],[398,399,"GA"],[320,349,"FL"],[350,369,"AL"],[370,385,"TN"],[386,397,"MS"],[400,427,"KY"],[430,459,"OH"],[460,479,"IN"],[480,499,"MI"],[500,528,"IA"],[530,549,"WI"],[550,567,"MN"],[570,577,"SD"],[580,588,"ND"],[590,599,"MT"],[600,629,"IL"],[630,658,"MO"],[660,679,"KS"],[680,693,"NE"],[700,714,"LA"],[716,729,"AR"],[733,733,"TX"],[730,749,"OK"],[750,799,"TX"],[885,885,"TX"],[800,816,"CO"],[820,831,"WY"],[832,838,"ID"],[840,847,"UT"],[850,865,"AZ"],[870,884,"NM"],[889,898,"NV"],[900,961,"CA"],[967,968,"HI"],[970,979,"OR"],[980,994,"WA"],[995,999,"AK"]];
+const hubZip5 = z => (String(z||"").match(/\b(\d{5})(?:-\d{4})?\b/)||[])[1] || "";
+const hubZipState = z => { const m = hubZip5(z); if(!m) return ""; const n = +m.slice(0,3); const h = HUB_ZIP3.find(([a,b]) => n>=a && n<=b); return h ? h[2] : ""; };
+const hubStateOf = r => hubNormState(r && r.state) || hubZipState(r && r.zip) || "TX";
+const HUB_SUF = {street:"st",st:"st",drive:"dr",dr:"dr",road:"rd",rd:"rd",avenue:"ave",ave:"ave",av:"ave",lane:"ln",ln:"ln",boulevard:"blvd",blvd:"blvd",court:"ct",ct:"ct",place:"pl",pl:"pl",
+  highway:"hwy",hwy:"hwy",parkway:"pkwy",pkwy:"pkwy",trail:"trl",trl:"trl",circle:"cir",cir:"cir",terrace:"ter",ter:"ter",way:"way",freeway:"fwy",fwy:"fwy",expressway:"expy",expy:"expy",
+  "farm-to-market":"fm","farm to market":"fm",fm:"fm",business:"bus",bus:"bus",bnd:"bnd",bend:"bnd",north:"n",south:"s",east:"e",west:"w",n:"n",s:"s",e:"e",w:"w",northeast:"ne",northwest:"nw",southeast:"se",southwest:"sw"};
+function hubNormStreet(s){ let t = String(s||"").toLowerCase().replace(/farm[\s-]+to[\s-]+market(\s+road)?/g,"fm").replace(/[.,#]/g," "); t = t.replace(/\b(apt|unit|suite|ste|lot|space|spc)\b.*$/,""); return t.split(/\s+/).filter(Boolean).map(w => HUB_SUF[w]||w).join(" ").trim(); }
+// Must match propertyKey() in the site's js/hub-keys.js.
+function hubPropertyKey({address, city, zip, name, state} = {}){
+  const st = hubNormStreet(address), c = String(city||"").toLowerCase().replace(/[^a-z ]/g,"").trim();
+  const s2 = hubNormState(state) || hubZipState(zip), sfx = s2 && s2 !== "TX" ? "|" + s2.toLowerCase() : "";
+  if(/^\d/.test(st)) return hubZip5(zip) ? `${st}|${hubZip5(zip)}` : `${st}|${c}${sfx}`;
+  const n = String(name || address || "").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+  return n ? `name:${n}|${c}${sfx}` : "";
+}
+// Remove one deal from the master list (same rules as the back office's Delete): tombstone it so every dashboard drops its copy,
+// delete the deal, and if the property has no other track left, delete the property, its links and history, and contacts tied to
+// nothing else (never opted-out or TCPA-litigator contacts, which stay on the do-not-contact list).
+async function hubRemoveDeal(q, rowsOf, hid, by){
+  const id = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+  const d = rowsOf(await q("SELECT d.id, d.property_id, d.track, d.source_app, d.source_id, COALESCE(p.address, p.name, '') AS label FROM deals d LEFT JOIN properties p ON p.id = d.property_id WHERE d.id = ?", [hid]))[0];
+  if(!d) return false;
+  const now = new Date().toISOString();
+  await q("INSERT OR REPLACE INTO deleted_deals (deal_id, property_id, track, source_app, source_id, label, at, by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [d.id, d.property_id||"", d.track, d.source_app||"", d.source_id||"", d.label, now, by]);
+  await q("DELETE FROM deals WHERE id = ?", [d.id]);
+  const left = rowsOf(await q("SELECT COUNT(*) AS n FROM deals WHERE property_id = ?", [d.property_id]))[0];
+  if(left && Number(left.n) > 0){
+    await q("INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'update', ?, ?, 'dashboard')", ["a_"+id(), now, d.property_id, d.id, "Deleted in the " + by, by]);
+    return true;
+  }
+  const cs = rowsOf(await q("SELECT contact_id FROM property_contacts WHERE property_id = ?", [d.property_id])).map(r => r.contact_id);
+  await q("DELETE FROM property_contacts WHERE property_id = ?", [d.property_id]);
+  await q("DELETE FROM activities WHERE property_id = ?", [d.property_id]);
+  await q("DELETE FROM properties WHERE id = ?", [d.property_id]);
+  for(const c of cs) await q("DELETE FROM contacts WHERE id = ? AND COALESCE(opt_out, 0) = 0 AND COALESCE(litigator, 0) = 0 AND NOT EXISTS (SELECT 1 FROM property_contacts WHERE contact_id = ?) AND NOT EXISTS (SELECT 1 FROM deals WHERE contact_id = ?)", [c, c, c]);
+  return true;
+}
+function hubSyncStart(cfg){
+  const CF = "Cloudflare Developer Platform", DB_ID = "41cd2c24-fb52-41ae-95b9-748ee75b2d31";
+  const S = {busy:false, map:{}, mapReady:false, mcp:null, timer:null};
+  const status = t => { try{ cfg.onStatus && cfg.onStatus(t); }catch(_){} };
+  const nid = p => p + "_" + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+  const s = v => v==null || (typeof v==="number" && !isFinite(v)) ? "" : String(v);
+  const n = v => { const x = parseFloat(String(v ?? "").replace(/[$,\s]/g,"")); return isFinite(x) ? x : null; };
+  const rowsOf = r => { let p = r && r.payload; if(typeof p==="string"){ try{ p = JSON.parse(p); }catch(_){ return []; } }
+    const a = Array.isArray(p) ? p : (p && (p.result || p.results)) || []; if(Array.isArray(a) && a[0] && Array.isArray(a[0].results)) return a[0].results;
+    return Array.isArray(a) ? a.filter(x => x && typeof x==="object" && !("success" in x && "meta" in x)) : []; };
+  const d1Raw = (sql, params) => S.mcp.callTool(CF, "d1_database_query", {database_id:DB_ID, sql, params:(params||[]).map(s)});
+  const d1 = async (sql, params) => rowsOf(await d1Raw(sql, params));
+  const sigOf = h => JSON.stringify([h.stage, h.next_touch||"", n(h.asking), hubStateOf(h), h.county||"", h.prop_type||"", n(h.units), n(h.beds), n(h.baths), n(h.sqft), h.cname||"", h.phone||"", String(h.email||"").toLowerCase()]);
+  const setMap = (id, m) => { S.map[id] = m; return cfg.db.collection("hubmap").doc(id).set(m).catch(()=>{}); };
+  const errText = e => { const c = e && e.code;
+    return c==="server_not_connected" || c==="selection_required" ? "connect Cloudflare Developer Platform in Settings → Connectors."
+      : c==="not_in_manifest" || c==="approval_required" || c==="not_granted" ? "allow the Cloudflare connection when the page asks, then tap Sync."
+      : c==="needs_reauth" ? "sign in to Cloudflare again in Settings → Connectors." : "tap Sync to try again."; };
+  async function contactFor(h, pid, now){
+    const pk = String(h.phone||"").replace(/\D/g,"").slice(-10), em = String(h.email||"").trim().toLowerCase(), okEm = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em);
+    let cid = null;
+    if(pk.length===10) cid = ((await d1("SELECT id FROM contacts WHERE phone_key = ? LIMIT 1", [pk]))[0]||{}).id || null;
+    if(!cid && okEm) cid = ((await d1("SELECT id FROM contacts WHERE email = ? LIMIT 1", [em]))[0]||{}).id || null;
+    if(!cid && (pk.length===10 || okEm || h.cname)){
+      cid = nid("c");
+      await d1(`INSERT INTO contacts (id, name, phone_key, phone, email, mailing, created_at, updated_at) VALUES (?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [cid, h.cname||"", pk.length===10?pk:"", h.phone||"", okEm?em:"", h.mailing||"", now, now]);
+    }
+    if(cid) await d1("INSERT OR IGNORE INTO property_contacts (property_id, contact_id, role, created_at) VALUES (?, ?, 'owner', ?)", [pid, cid, now]);
+    return cid;
+  }
+  async function pushCreate(rec){
+    const h = cfg.toHub(rec), key = hubPropertyKey(h); if(!key) return false;
+    const now = new Date().toISOString();
+    let p = (await d1("SELECT id FROM properties WHERE addr_key = ?", [key]))[0];
+    if(!p){
+      await d1(`INSERT OR IGNORE INTO properties (id, addr_key, name, address, city, state, zip, county, prop_type, units, beds, baths, sqft, created_at, updated_at)
+        VALUES (?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [nid("p"), key, h.name||"", h.address||"", h.city||"", hubStateOf(h), hubZip5(h.zip), h.county||"", h.prop_type||"", s(n(h.units)), s(n(h.beds)), s(n(h.baths)), s(n(h.sqft)), now, now]);
+      p = (await d1("SELECT id FROM properties WHERE addr_key = ?", [key]))[0];
+    }
+    if(!p) return false;
+    const cid = await contactFor(h, p.id, now);
+    let deal = (await d1("SELECT id FROM deals WHERE property_id = ? AND track = ?", [p.id, cfg.track]))[0];
+    if(!deal){
+      deal = {id: nid("d")};
+      await d1(`INSERT INTO deals (id, property_id, contact_id, track, stage, next_touch, source, source_app, source_id, asking, notes, data, created_at, updated_at)
+        VALUES (?, ?, NULLIF(?, ''), ?, ?, NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [deal.id, p.id, cid||"", cfg.track, h.stage, h.next_touch||"", h.source || cfg.label, cfg.app, rec.id, s(n(h.asking)), String(h.notes||"").slice(0,4000), h.data ? JSON.stringify(h.data) : "", h.created_at || now, now]);
+      await d1(`INSERT INTO activities (id, at, property_id, deal_id, contact_id, kind, summary, by, source) VALUES (?, ?, ?, ?, NULLIF(?, ''), 'created', ?, ?, ?)`,
+        [nid("a"), now, p.id, deal.id, cid||"", "Added from the " + cfg.label, cfg.label, cfg.app]);
+    }
+    await setMap(rec.id, {hubId:deal.id, hubPid:p.id, cid:cid||"", hubAt:now, sig:null});
+    await pushUpdate(rec);
+    return true;
+  }
+  async function pushUpdate(rec){
+    const m = S.map[rec.id]; if(!m) return;
+    const h = cfg.toHub(rec), sig = sigOf(h); if(sig === m.sig) return;
+    const prev = m.sig ? JSON.parse(m.sig)[0] : null, now = new Date().toISOString();
+    await d1(`UPDATE deals SET stage = ?, next_touch = NULLIF(?, ''), asking = NULLIF(?, ''), updated_at = ? WHERE id = ?`, [h.stage, h.next_touch||"", s(n(h.asking)), now, m.hubId]);
+    await d1(`UPDATE properties SET state = ?, county = COALESCE(NULLIF(?, ''), county), prop_type = COALESCE(NULLIF(?, ''), prop_type), units = COALESCE(NULLIF(?, ''), units),
+      beds = COALESCE(NULLIF(?, ''), beds), baths = COALESCE(NULLIF(?, ''), baths), sqft = COALESCE(NULLIF(?, ''), sqft), updated_at = ? WHERE id = ?`,
+      [hubStateOf(h), h.county||"", h.prop_type||"", s(n(h.units)), s(n(h.beds)), s(n(h.baths)), s(n(h.sqft)), now, m.hubPid]);
+    let cid = m.cid || "";
+    if(!cid && (h.cname || h.phone || h.email)){
+      cid = (await contactFor(h, m.hubPid, now)) || "";
+      if(cid) await d1("UPDATE deals SET contact_id = COALESCE(contact_id, ?) WHERE id = ?", [cid, m.hubId]);
+    }
+    if(prev && prev !== h.stage) await d1(`INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'update', ?, ?, ?)`,
+      [nid("a"), now, m.hubPid, m.hubId, `${cfg.trackLabel} stage: ${prev} → ${h.stage}`, cfg.label, cfg.app]);
+    await setMap(rec.id, {...m, cid, sig, hubAt:now});
+  }
+  async function sync(){
+    if(S.busy || !S.mcp || !S.mapReady || !cfg.ready()) return;
+    S.busy = true; status("Syncing with the back office…");
+    try{
+      const rows = await d1(`SELECT d.id AS hid, d.stage, d.next_touch, d.asking, d.value, d.notes, d.source, d.source_app, d.source_id, d.data, d.created_at, d.updated_at,
+        p.id AS pid, p.name, p.address, p.city, p.state, p.zip, p.county, p.prop_type, p.units, p.beds, p.baths, p.sqft, p.acres, json_extract(p.data, '$.appraisedValue') AS appraised,
+        c.id AS cid, c.name AS cname, c.phone, c.email, c.mailing, c.opt_out
+        FROM deals d JOIN properties p ON p.id = d.property_id
+        LEFT JOIN contacts c ON c.id = COALESCE(d.contact_id, (SELECT pc.contact_id FROM property_contacts pc WHERE pc.property_id = p.id LIMIT 1))
+        WHERE d.track = ? ORDER BY d.created_at`, [cfg.track]);
+      const recs = cfg.getRecords(), byId = new Map(recs.map(r => [r.id, r]));
+      // Deals deleted in the back office (or another dashboard): drop our copy.
+      const tomb = await d1("SELECT deal_id, source_app, source_id FROM deleted_deals WHERE track = ?", [cfg.track]);
+      const tombIds = new Set(tomb.map(t => t.deal_id)), tombSrc = new Set(tomb.filter(t => t.source_app === cfg.app).map(t => t.source_id));
+      let removed = 0;
+      for(const [id, m] of Object.entries(S.map)){
+        if(!tombIds.has(m.hubId)) continue;
+        if(byId.has(id)){ await cfg.db.collection(cfg.collection).doc(id).delete().catch(()=>{}); byId.delete(id); removed++; }
+        delete S.map[id]; await cfg.db.collection("hubmap").doc(id).delete().catch(()=>{});
+      }
+      for(const r of recs){ if(!S.map[r.id] && tombSrc.has(r.id) && byId.has(r.id)){ await cfg.db.collection(cfg.collection).doc(r.id).delete().catch(()=>{}); byId.delete(r.id); removed++; } }
+      const byHub = new Map(Object.entries(S.map).map(([id, m]) => [m.hubId, id]));
+      const byKey = new Map(); recs.forEach(r => { if(!S.map[r.id] && !r.example){ const k = hubPropertyKey(cfg.toHub(r)); if(k && !byKey.has(k)) byKey.set(k, r); } });
+      const seen = new Set(); let made = 0, linked = 0, updated = 0, sent = 0, dead = 0;
+      for(const row of rows){
+        seen.add(row.hid);
+        let id = byHub.get(row.hid);
+        if(id && !byId.has(id)) continue; // deleted here: handled below
+        if(!id && row.source_app === cfg.app && byId.has(row.source_id) && !S.map[row.source_id]) id = row.source_id;
+        if(!id){ const r = byKey.get(hubPropertyKey({address:row.address, city:row.city, zip:row.zip, state:row.state, name:row.name})); if(r && !S.map[r.id]) id = r.id; }
+        if(id){
+          let m = S.map[id];
+          if(!m){ m = {hubId:row.hid, hubPid:row.pid, cid:row.cid||"", hubAt:"", sig:null}; byHub.set(row.hid, id); linked++; }
+          if(String(row.updated_at||"") > String(m.hubAt||"")){
+            const rec = byId.get(id), patch = cfg.patchFromHub(rec, row) || {};
+            if(Object.keys(patch).length){ await cfg.db.collection(cfg.collection).doc(id).update(patch); updated++; }
+            m = {...m, hubAt: row.updated_at, sig: sigOf(cfg.toHub({...rec, ...patch}))};
+          }
+          if(JSON.stringify(m) !== JSON.stringify(S.map[id] || null)) await setMap(id, m);
+          continue;
+        }
+        if(row.source_app === cfg.app && row.stage === cfg.deadStage) continue; // deleted here earlier
+        const nid2 = row.source_app === cfg.app && row.source_id ? row.source_id : "hub_" + row.hid;
+        if(byId.has(nid2)) continue;
+        const rec = cfg.fromHub(row);
+        Object.keys(rec).forEach(k => { if(rec[k] === undefined) rec[k] = null; });
+        status(`Bringing in from the back office: ${made + 1}…`);
+        await cfg.db.collection(cfg.collection).doc(nid2).set(rec);
+        await setMap(nid2, {hubId:row.hid, hubPid:row.pid, cid:row.cid||"", hubAt:row.updated_at, sig:sigOf(cfg.toHub({...rec, id:nid2}))});
+        byId.set(nid2, {...rec, id:nid2}); made++;
+      }
+      // Records deleted here since the last sync: delete them from the back office too (skipped if most links look missing, e.g. a partial load).
+      const gone = Object.entries(S.map).filter(([id]) => !byId.has(id));
+      if(gone.length && gone.length <= Math.max(5, Object.keys(S.map).length / 4)){
+        for(const [id, m] of gone){
+          await hubRemoveDeal(d1Raw, rowsOf, m.hubId, cfg.label);
+          delete S.map[id]; await cfg.db.collection("hubmap").doc(id).delete().catch(()=>{}); dead++;
+        }
+      }
+      // Push: new records here, then changed ones.
+      for(const r of recs){
+        if(r.example || !byId.has(r.id)) continue;
+        if(!S.map[r.id]){ if(sent < 25 && await pushCreate(r)) sent++; continue; }
+        if(sigOf(cfg.toHub(r)) !== S.map[r.id].sig){ await pushUpdate(r); sent++; }
+      }
+      const t = new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+      status(`Back office synced ${t} · ${rows.length} on this track${made?` · ${made} brought in`:""}${linked?` · ${linked} linked`:""}${updated?` · ${updated} updated`:""}${sent?` · ${sent} sent`:""}${dead?` · ${dead} deleted from the back office`:""}${removed?` · ${removed} removed (deleted in the back office)`:""}`);
+    }catch(e){ console.warn("hub sync", e); status("Back office sync didn't finish: " + errText(e)); }
+    S.busy = false;
+  }
+  (async () => {
+    try{ S.mcp = await window.claude.use("mcp"); }catch(_){ S.mcp = null; }
+    if(!S.mcp){ status("Back office sync isn't available in this view."); return; }
+    cfg.db.collection("hubmap").onSnapshot(snap => {
+      const m = {}; snap.docs.forEach(d => { m[d.id] = d.data(); }); S.map = m;
+      if(!S.mapReady){ S.mapReady = true; setTimeout(sync, 1500); setInterval(sync, 5*60*1000); }
+    }, () => status("Back office sync lost its connection. Reload the page."));
+  })();
+  let soon = null;
+  return { sync, soon: () => { clearTimeout(soon); soon = setTimeout(sync, 4000); } };
+}
+
+</script>
+<script>
+// Rows-per-page control (25 / 50 / 100 / All), remembered per browser. pager.slice(list) returns the rows to draw and redraws the control.
+function makePager(boxId, storeKey, onChange, btnClass){
+  const P = {size:25, page:0};
+  try{ const v = localStorage.getItem(storeKey); if(v !== null && [0,10,25,50,100].includes(+v)) P.size = +v; }catch(_){}
+  const box = document.getElementById(boxId);
+  box.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;font-size:13px";
+  box.addEventListener("change", e => { if(e.target.matches("select[data-pg]")){ P.size = +e.target.value; P.page = 0; try{ localStorage.setItem(storeKey, String(P.size)); }catch(_){} onChange(); } });
+  box.addEventListener("click", e => { const b = e.target.closest("[data-pgmove]"); if(!b) return; P.page += +b.dataset.pgmove; onChange(); });
+  P.reset = () => { P.page = 0; };
+  P.slice = list => {
+    const n = list.length, size = P.size || n || 1, pages = Math.max(1, Math.ceil(n / size));
+    P.page = Math.min(Math.max(0, P.page), pages - 1);
+    const start = P.size ? P.page * size : 0, shown = P.size ? list.slice(start, start + size) : list;
+    box.hidden = !n;
+    box.innerHTML = `<label style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select data-pg aria-label="Rows per page" style="width:auto">${[10,25,50,100,0].map(v => `<option value="${v}" ${P.size===v?"selected":""}>${v||"All"}</option>`).join("")}</select></label>
+      <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span>Showing ${n ? start + 1 : 0}–${start + shown.length} of ${n}</span>${pages > 1 ? `<button type="button" class="${btnClass}" data-pgmove="-1" ${P.page ? "" : "disabled"}>‹ Prev</button><span>Page ${P.page + 1} of ${pages}</span><button type="button" class="${btnClass}" data-pgmove="1" ${P.page < pages - 1 ? "" : "disabled"}>Next ›</button>` : ""}</span>`;
+    return shown;
+  };
+  return P;
+}
+
+</script>
+<script>
+(() => {
+const STAGES = ["New","Contacted","Appointment","Offer sent","Under contract","Closed","Dead"];
+const ACTIVE = new Set(["New","Contacted","Appointment","Offer sent","Under contract"]);
+const COUNTIES = ["Dallas","Tarrant","Collin","Denton","Rockwall","Kaufman","Ellis","Johnson","Parker","Hunt","Other"];
+const EXITS = ["Rent and hold","JV rent-hold","Assignment","Undecided"];
+const FOLLOW_GAP = [1,2,4,7,7,9,30,30,30]; // days to next touch after touch #n (from the 90-day sequence)
+const PROP_TYPES = ["Single-family","Duplex to fourplex","Apartment complex","RV park","Mobile home park","Other"];
+const PERIODS = [["month","per month"],["week","per week"],["night","per night"]];
+const FACTOR = {month:1, week:52/12, night:365/12}; // converts a unit's price to monthly revenue
+// Starting rows per property type. Counts and prices are blank; occupancy is a placeholder to replace with the rent roll.
+const TEMPLATES = {
+  "Duplex to fourplex":[["2BR / 1BA","month",.95],["3BR / 2BA","month",.95]],
+  "Apartment complex":[["Studio","month",.93],["1BR / 1BA","month",.94],["2BR / 2BA","month",.94],["3BR / 2BA","month",.93]],
+  "RV park":[["Full hookup, monthly","month",.9],["Full hookup, nightly","night",.5],["Pull-through premium, nightly","night",.55],["Dry camp / tent, nightly","night",.3],["Cabin rental, nightly","night",.45]],
+  "Mobile home park":[["Lot rent, single-wide","month",.92],["Lot rent, double-wide","month",.94],["Park-owned home rental","month",.9]],
+};
+
+// Analyzer inputs: key, label, group, kind (usd|pct|int), default
+const INPUTS = [
+  ["arv","Market value / ARV ($)","loan","usd",0],
+  ["balance","Loan balance ($)","loan","usd",0],
+  ["rate","Interest rate (%)","loan","pct",0],
+  ["pi","Monthly P&I ($)","loan","usd",0],
+  ["escrow","Taxes + insurance escrow ($/mo)","loan","usd",0],
+  ["hoa","HOA ($/mo)","loan","usd",0],
+  ["arrears","Arrears / reinstatement ($)","cash","usd",0],
+  ["closing","Closing costs ($)","cash","usd",2500],
+  ["repairs","Make-ready / repairs ($)","cash","usd",0],
+  ["toSeller","Cash to seller ($)","cash","usd",0],
+  ["reserveMonths","Due-on-sale reserve (months of PITI)","cash","int",3],
+  ["rent","Market rent ($/mo)","rent","usd",0],
+  ["vacancy","Vacancy (% of rent)","rent","pct",0.06],
+  ["maint","Maintenance (% of rent)","rent","pct",0.06],
+  ["capex","CapEx (% of rent)","rent","pct",0.05],
+  ["mgmt","Management (% of rent)","rent","pct",0],
+  ["servicer","Servicer fee ($/mo)","rent","usd",25],
+  ["insDiff","Landlord insurance difference ($/mo)","rent","usd",30],
+  ["otherIncome","Other income ($/mo): laundry, storage, fees","rent","usd",0],
+  ["fixedOpex","Other operating costs ($/mo): utilities, payroll, marketing","rent","usd",0],
+  ["minSpreadUnit","Buy box: min rent − PITI per unit ($/mo)","fund","usd",250],
+  ["gapRate","Gap funder rate (% / yr)","fund","pct",0.12],
+  ["funded","Gap funded? (1 yes, 0 no)","fund","int",1],
+  ["fee","Assignment fee offered ($)","fund","usd",0],
+  ["compareMonths","Months of cash flow an assignment must beat","fund","int",24],
+];
+const LEAD_FIELDS = ["address","city","state","zip","county","propType","units","sourceUrl","beds","baths","sqft","listPrice","dom","offMarket","owner","phone","email","signal","mailing","status","nextTouch","exit","notes"];
+const NUM_LEAD = new Set(["units","beds","baths","sqft","listPrice","dom"]);
+const SEARCH_TASK = "trig_01Ggu3hiJgPtf8bXfU5BLca5"; // "Sub-To Lead Search" scheduled task
+const CRIT_TYPES = ["Single-family","Duplex to fourplex","Apartment complex","RV park","Mobile home park"];
+const CRIT_COUNTIES = ["Dallas","Tarrant","Collin","Denton","Rockwall","Kaufman","Ellis","Johnson","Parker","Hunt"];
+const SIGNALS = ["Expired / off-market listing","Long days on market","Pre-foreclosure","Probate / inherited"];
+const DEFAULT_CRIT = {signals:[...SIGNALS], propTypes:[...CRIT_TYPES], counties:CRIT_COUNTIES.slice(0,8), maxPrice:0, minUnits:0, minDom:60};
+const SIGNAL_CLASS = {"Pre-foreclosure":"overdue","Probate / inherited":"review","Expired / off-market listing":"go","Long days on market":""};
+
+const $ = id => document.getElementById(id);
+const usd = n => (n == null || !isFinite(n)) ? "—" : (n < 0 ? "($" + Math.round(-n).toLocaleString() + ")" : "$" + Math.round(n).toLocaleString());
+const usdK = n => (n == null || !isFinite(n)) ? "—" : (Math.abs(n) >= 1e6 ? "$" + (n/1e6).toFixed(2) + "M" : Math.abs(n) >= 1e4 ? "$" + Math.round(n/1000) + "k" : usd(n));
+const pctF = n => (n == null || !isFinite(n)) ? "—" : (n*100).toFixed(2).replace(/\.?0+$/,"") + "%";
+const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); };
+const fmtDate = iso => iso ? new Date(iso + "T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}) : "—";
+function el(tag, attrs, ...kids){ const e = document.createElement(tag); if (attrs) for (const k in attrs){ if (k === "class") e.className = attrs[k]; else if (k === "text") e.textContent = attrs[k]; else if (k.startsWith("on")) e.addEventListener(k.slice(2), attrs[k]); else if (attrs[k] != null) e.setAttribute(k, attrs[k]); } for (const c of kids) if (c != null) e.append(c.nodeType ? c : document.createTextNode(String(c))); return e; }
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2600); }
+
+// ---- Analyzer math (mirrors Sub-To-Deal-Analyzer.xlsx) ----
+function mixTotals(mix){
+  let units = 0, gpr = 0, egi = 0;
+  for (const m of mix || []){
+    const u = Number(m.units) || 0, p = Number(m.rate) || 0, f = FACTOR[m.period] || 1, o = m.occ == null ? 1 : Number(m.occ) || 0;
+    units += u; gpr += u * p * f; egi += u * p * f * o;
+  }
+  return {units, gpr, egi};
+}
+function analyze(i, lead){
+  const mx = mixTotals(i.unitMix), useMix = mx.units > 0;
+  const units = useMix ? mx.units : 1;
+  const rent = (useMix ? mx.egi : i.rent) + (i.otherIncome || 0);
+  const vacancy = useMix ? 0 : i.vacancy; // unit occupancy already covers vacancy
+  const piti = i.pi + i.escrow + i.hoa;
+  const equity = i.arv - i.balance;
+  const ltv = i.arv > 0 ? i.balance / i.arv : 0;
+  const reserve = i.reserveMonths * piti;
+  const cash = i.arrears + i.closing + i.repairs + i.toSeller + reserve;
+  const opex = rent * (vacancy + i.maint + i.capex + i.mgmt) + i.servicer + i.insDiff + (i.fixedOpex || 0);
+  const spread = rent - piti;
+  const ncfPre = rent - piti - opex;
+  const gapInt = cash * i.gapRate / 12 * (i.funded ? 1 : 0);
+  const ncf = ncfPre - gapInt;
+  const coc = cash > 0 ? ncfPre * 12 / cash : 0;
+  const recover = ncfPre > 0 ? cash / ncfPre : null;
+  const holdValue = ncf * i.compareMonths;
+  const exitRec = i.fee > holdValue ? "Assign" : "Rent and hold";
+  const beds = Number(lead.beds) || 0, baths = Number(lead.baths) || 0;
+  const minSpread = (i.minSpreadUnit ?? 250) * units;
+  const sfr = !useMix && (!lead.propType || lead.propType === "Single-family");
+  const checks = [
+    sfr ? ["3+ beds and 2+ baths", beds >= 3 && baths >= 2] : ["Unit mix priced", useMix && mx.gpr > 0],
+    ["LTV at or under 90%", ltv <= 0.9],
+    ["Rate at or under 6%", i.rate <= 0.06],
+    [`Rent − PITI at least ${usd(minSpread)}` + (units > 1 ? ` (${usd(i.minSpreadUnit ?? 250)} × ${units} units)` : ""), spread >= minSpread],
+    ["Positive cash flow after gap interest", ncf > 0],
+  ];
+  const verdict = checks.every(c => c[1]) ? "GO" : "REVIEW";
+  return {useMix, units, gpr: useMix ? mx.gpr : i.rent, egi: rent, piti, equity, ltv, reserve, cash, opex, spread, ncfPre, gapInt, ncf, coc, recover, holdValue, exitRec, checks, verdict,
+          pricePerUnit: i.arv / units, loanPerUnit: i.balance / units, ncfPerUnit: ncf / units};
+}
+const hasNumbers = i => i && (Number(i.balance) > 0 || Number(i.rent) > 0 || mixTotals(i.unitMix).gpr > 0);
+
+// ---- Build form ----
+function opts(sel, list, blank){ sel.innerHTML = ""; if (blank) sel.append(el("option",{value:"",text:blank})); for (const v of list) sel.append(el("option",{value:v,text:v})); }
+opts($("f-county"), COUNTIES, "Select");
+opts($("f-status"), STAGES);
+opts($("f-exit"), EXITS);
+opts($("f-propType"), PROP_TYPES);
+opts($("f-signal"), SIGNALS, "None");
+$("f-state").innerHTML = `<option value="">From ZIP (else TX)</option>` + Object.entries(HUB_STATES).map(([k,v]) => `<option value="${k}">${k} · ${v}</option>`).join("");
+
+// ---- Unit mix editor ----
+let mix = [];
+function renderMix(){
+  const box = $("mixRows"); box.innerHTML = "";
+  mix.forEach((m, idx) => {
+    const name = el("input",{id:`m${idx}-name`,value:m.name || "",placeholder:"e.g. 2BR / 2BA or Full hookup"});
+    const units = el("input",{id:`m${idx}-units`,type:"number",min:"0",step:"1",inputmode:"numeric",value:m.units ?? ""});
+    const rate = el("input",{id:`m${idx}-rate`,type:"number",min:"0",step:"1",inputmode:"decimal",value:m.rate ?? ""});
+    const per = el("select",{id:`m${idx}-period`}); for (const [v,t] of PERIODS) per.append(el("option",{value:v,text:t})); per.value = m.period || "month";
+    const occ = el("input",{id:`m${idx}-occ`,type:"number",min:"0",max:"100",step:"1",inputmode:"decimal",value: m.occ == null ? 100 : +(m.occ*100).toFixed(2)});
+    const sum = el("div",{class:"rowsum"});
+    const upd = () => { m.name = name.value; m.units = parseFloat(units.value) || 0; m.rate = parseFloat(rate.value) || 0; m.period = per.value; m.occ = Math.min(100, Math.max(0, parseFloat(occ.value) || 0)) / 100; rowSum(m, sum); };
+    for (const x of [name,units,rate,per,occ]) x.addEventListener("input", upd);
+    per.addEventListener("change", () => { upd(); renderResults(); markDirty(); });
+    const rm = el("button",{class:"btn small danger rm",type:"button","aria-label":"Remove " + (m.name || "unit type"),text:"Remove",onclick:() => { mix.splice(idx,1); renderMix(); renderResults(); markDirty(); }});
+    box.append(el("div",{class:"mixrow"},
+      el("label",{class:"mname"},"Unit type",name), el("label",null,"Units",units), el("label",null,"Price ($)",rate),
+      el("label",null,"Billed",per), el("label",null,"Occupancy (%)",occ), rm, sum));
+    rowSum(m, sum);
+  });
+  updateTplBtn();
+}
+function rowSum(m, node){
+  const mo = (Number(m.units)||0) * (Number(m.rate)||0) * (FACTOR[m.period]||1);
+  node.textContent = `${usd(mo)}/mo gross · ${usd(mo * (m.occ ?? 1))}/mo at occupancy` + (m.period !== "month" && m.rate ? ` · ${usd((Number(m.rate)||0) * (FACTOR[m.period]||1))}/unit/mo` : "");
+}
+function updateTplBtn(){ const t = TEMPLATES[$("f-propType").value]; $("tplMix").hidden = !t || mix.length > 0; $("tplMix").textContent = t ? "Load " + $("f-propType").value.toLowerCase() + " template" : "Load template"; }
+function markDirty(){ dirty = true; $("saveState").textContent = currentId ? "Unsaved changes" : "New lead, not saved yet"; }
+$("addMix").addEventListener("click", () => { mix.push({name:"",units:0,rate:0,period:"month",occ:1}); renderMix(); renderResults(); markDirty(); $(`m${mix.length-1}-name`).focus(); });
+$("tplMix").addEventListener("click", () => { const t = TEMPLATES[$("f-propType").value]; if (!t) return; mix = t.map(([name,period,occ]) => ({name,units:0,rate:0,period,occ})); renderMix(); renderResults(); markDirty(); });
+$("f-propType").addEventListener("change", updateTplBtn);
+for (const [k,label,g,kind] of INPUTS){
+  const inp = el("input",{id:"i-"+k,type:"number",step: kind==="pct" ? "0.01" : kind==="int" ? "1" : "1", min:"0", inputmode:"decimal"});
+  $("g-"+g).append(el("label",null,label,inp));
+}
+// Harvey's FMV = county appraisal-district value ÷ 0.8, shown under ARV; ARV and the analysis keep using Est. value.
+$("i-arv").parentElement.after(Object.assign(document.createElement("div"), {id:"fmvLine", className:"hint", hidden:true}));
+function renderFmv(L){
+  const el2 = $("fmvLine"), ap = L && Number(L.appraised);
+  el2.hidden = !(ap > 0);
+  if (ap > 0) el2.textContent = `County appraised ${usd(ap)} · FMV ${usd(L.fmv || DealAdvisor.fmv(ap))} (appraised ÷ 0.8)`;
+}
+const defaults = () => Object.fromEntries(INPUTS.map(r => [r[0], r[4]]));
+function readInputs(){ const o = {}; for (const [k,,,kind] of INPUTS){ let v = parseFloat($("i-"+k).value); if (!isFinite(v)) v = 0; o[k] = kind === "pct" ? v/100 : v; }
+  o.unitMix = mix.map(m => ({name:m.name || "", units:Number(m.units)||0, rate:Number(m.rate)||0, period:m.period || "month", occ:m.occ ?? 1}));
+  const mx = mixTotals(o.unitMix); if (mx.units > 0) o.rent = Math.round(mx.egi);
+  return o; }
+function writeInputs(o){ for (const [k,,,kind,d] of INPUTS){ const v = o && o[k] != null ? o[k] : d; $("i-"+k).value = kind === "pct" ? +(v*100).toFixed(4) : v; }
+  mix = (o && Array.isArray(o.unitMix) ? o.unitMix : []).map(m => ({...m})); renderMix(); }
+function readLead(){ const o = {}; for (const k of LEAD_FIELDS){ const v = $("f-"+k).value.trim(); o[k] = NUM_LEAD.has(k) ? (v === "" ? null : Number(v)) : v; } return o; }
+function writeLead(o){ for (const k of LEAD_FIELDS){ const v = o ? o[k] : null; $("f-"+k).value = v == null ? "" : v; } if (!o){ $("f-status").value = "New"; $("f-exit").value = "Rent and hold"; $("f-nextTouch").value = todayISO(); }
+  for (const [id,d] of [["f-propType","Single-family"],["f-status","New"],["f-exit","Rent and hold"]]) if (!$(id).value) $(id).value = d; }
+
+function renderResults(){
+  const i = readInputs(), lead = readLead(), r = analyze(i, lead);
+  $("i-rent").disabled = r.useMix; $("i-vacancy").disabled = r.useMix;
+  if (r.useMix) $("i-rent").value = Math.round(mixTotals(i.unitMix).egi);
+  $("mixSum").textContent = r.useMix
+    ? `${r.units} units · ${usd(mixTotals(i.unitMix).gpr)}/mo gross potential · ${usd(mixTotals(i.unitMix).egi)}/mo at occupancy. Market rent and vacancy now come from this mix.`
+    : "";
+  const v = $("verdict"); v.className = "verdict " + (r.verdict === "GO" ? "go" : "review");
+  $("v-big").textContent = hasNumbers(i) ? r.verdict : "—";
+  $("v-sub").textContent = hasNumbers(i) ? "Suggested exit: " + r.exitRec : "Enter the loan and rent figures to analyze.";
+  const perUnit = r.units > 1 ? [
+    ["Units", String(r.units)], ["Gross potential rent / mo", usd(r.gpr)], ["Effective income / mo", usd(r.egi)],
+    ["Value per unit", usd(r.pricePerUnit)], ["Loan per unit", usd(r.loanPerUnit)], ["Net cash flow per unit / mo", usd(r.ncfPerUnit), r.ncfPerUnit < 0],
+  ] : [];
+  const rows = [
+    ...perUnit,
+    ["Equity", usd(r.equity)], ["Loan-to-value", pctF(r.ltv)], ["PITI + HOA / mo", usd(r.piti)],
+    ["Total cash needed", usd(r.cash)], ["Rent − PITI / mo", usd(r.spread)], ["Operating expenses / mo", usd(r.opex)],
+    ["Net cash flow before gap / mo", usd(r.ncfPre)], ["Gap interest / mo", usd(r.gapInt)],
+    ["Net cash flow after gap / mo", usd(r.ncf), r.ncf < 0], ["Cash-on-cash (self-funded)", pctF(r.coc)],
+    ["Months to recover cash", r.recover == null ? "Never" : r.recover.toFixed(1)],
+    [`Cash flow over ${i.compareMonths} mo`, usd(r.holdValue)],
+  ];
+  const rl = $("rlist"); rl.innerHTML = "";
+  for (const [a,b,neg] of rows) rl.append(el("div",null, el("span",{text:a}), el("span",{text:b, class: neg ? "neg" : null})));
+  const ch = $("checks"); ch.innerHTML = "";
+  for (const [a,pass] of r.checks) ch.append(el("div",null, el("span",{class:"dot " + (pass ? "p" : "f")}), el("span",{text:(pass ? "Pass · " : "Fail · ") + a})));
+  return {i, lead, r};
+}
+$("anForm").addEventListener("input", () => { renderResults(); markDirty(); });
+$("leadSearch").addEventListener("input", () => { if (leadPager) leadPager.reset(); renderTable(); });
+
+// ---- State ----
+let db = null, canWrite = true, leads = [], currentId = null, dirty = false, filter = "All", confirmDel = false;
+const NEW = "__new__";
+
+function pickLead(id){
+  currentId = id === NEW ? null : id;
+  const L = currentId ? leads.find(x => x.id === currentId) : null;
+  writeLead(L); writeInputs(L && L.inputs); renderFmv(L);
+  if (L && !(L.inputs && L.inputs.arv) && L.listPrice) $("i-arv").value = L.listPrice;
+  if (L && Number(L.units) > 1 && !mix.length){
+    const nightly = L.propType === "RV park";
+    mix = [{name: nightly ? "Sites (split by type and enter rates)" : "Units (split by floor plan and enter rents)", units:Number(L.units), rate:0, period:"month", occ:1}];
+    renderMix();
+  }
+  const sl = $("srcLine");
+  if (L && (L.source || L.listingStatus)){
+    sl.hidden = false; sl.textContent = "";
+    sl.append([L.source && "Found on " + L.source, L.listingStatus].filter(Boolean).join(" · ") + " ");
+    if (/^https?:\/\//.test(L.sourceUrl || "")) sl.append(el("a",{class:"srclink",href:L.sourceUrl,target:"_blank",rel:"noopener",text:"Open listing ↗"}));
+  } else sl.hidden = true;
+  $("leadPick").value = currentId || NEW;
+  $("delBtn").hidden = !currentId; $("touchBtn").hidden = !currentId; $("enrichBtn").hidden = !currentId;
+  $("enrichState").textContent = L && L.enrichedAt ? `Enriched with BatchData ${new Date(L.enrichedAt).toLocaleDateString()}.` + (L.litigator ? " Owner is a TCPA litigator: mail only." : "") : "";
+  confirmDel = false; $("delBtn").textContent = "Delete";
+  dirty = false; $("saveState").textContent = currentId ? (L.updatedAt ? "Saved " + new Date(L.updatedAt).toLocaleString() : "") : "New lead, not saved yet";
+  $("saveBtn").textContent = currentId ? "Save to lead" : "Create lead";
+  renderResults(); renderTable();
+  $("advBtn").hidden = !currentId; if (typeof advisor !== "undefined" && advisor) advisor.refresh();
+}
+$("leadPick").addEventListener("change", e => pickLead(e.target.value));
+$("newLeadBtn").addEventListener("click", () => { pickLead(NEW); $("analyzer").scrollIntoView({behavior:"smooth"}); $("f-address").focus({preventScroll:true}); });
+$("resetBtn").addEventListener("click", () => { const keep = readInputs(); const d = defaults(); for (const k of ["arv","balance","rate","pi","escrow","hoa","arrears","repairs","rent","fee","otherIncome","fixedOpex","unitMix"]) d[k] = keep[k]; writeInputs(d); renderResults(); dirty = true; $("saveState").textContent = "Assumptions reset, not saved"; });
+
+function renderPicker(){
+  const s = $("leadPick"); s.innerHTML = "";
+  s.append(el("option",{value:NEW,text:"+ New lead (not saved yet)"}));
+  for (const L of leads) s.append(el("option",{value:L.id,text:`${L.address || "Untitled"}${L.city ? ", " + L.city : ""} · ${L.status || "New"}`}));
+  s.value = currentId || NEW;
+}
+
+function renderAll(){
+  const t = todayISO();
+  $("todayLbl").textContent = "Today, " + fmtDate(t);
+  const active = leads.filter(L => ACTIVE.has(L.status || "New"));
+  const due = active.filter(L => L.nextTouch && L.nextTouch <= t).sort((a,b) => a.nextTouch.localeCompare(b.nextTouch));
+  const closed = leads.filter(L => L.status === "Closed");
+  const go = leads.filter(L => L.results && L.results.verdict === "GO" && (L.status || "New") !== "Dead");
+  $("k-active").textContent = active.length;
+  $("k-due").textContent = due.length;
+  $("k-contract").textContent = leads.filter(L => L.status === "Under contract").length;
+  $("k-go").textContent = go.length;
+  $("k-cf").textContent = closed.length ? usd(closed.reduce((s,L) => s + (L.results ? L.results.ncf : 0), 0)) : "—";
+
+  // funnel
+  const counts = Object.fromEntries(STAGES.map(s => [s,0]));
+  for (const L of leads) counts[L.status || "New"] = (counts[L.status || "New"] || 0) + 1;
+  const max = Math.max(1, ...Object.values(counts));
+  const f = $("funnel"); f.innerHTML = "";
+  for (const s of STAGES) f.append(el("div",{class:"frow" + (s === "Dead" ? " dead" : "")},
+    el("span",{text:s}), el("div",{class:"track"}, el("div",{class:"bar",style:`width:${counts[s]/max*100}%`})), el("span",{class:"c num",text:counts[s]})));
+
+  // due list
+  const dl = $("dueList"); dl.innerHTML = "";
+  if (!due.length) dl.append(el("div",{class:"empty",text: leads.length ? "Nothing due today. Next touches are scheduled." : "Follow-ups appear here once you add leads."}));
+  for (const L of due.slice(0,8)){
+    const overdue = L.nextTouch < t;
+    dl.append(el("div",{class:"item"},
+      el("div",{style:"min-width:0"}, el("div",{class:"t",text:L.address || "Untitled"}), el("div",{class:"s",text:`${L.status || "New"} · touch #${(L.touches||0)+1}${L.phone ? " · " + L.phone : ""}`})),
+      el("div",{class:"actions",style:"flex:none"}, el("span",{class:"pill" + (overdue ? " overdue" : ""),text: overdue ? "Due " + fmtDate(L.nextTouch) : "Today"}),
+        el("button",{class:"btn small",type:"button",onclick:() => { pickLead(L.id); $("analyzer").scrollIntoView({behavior:"smooth"}); }, text:"Open"}))));
+  }
+
+  // portfolio
+  $("p-n").textContent = closed.length;
+  $("p-eq").textContent = closed.length ? usdK(closed.reduce((s,L) => s + (L.results ? L.results.equity : 0), 0)) : "—";
+  $("p-debt").textContent = closed.length ? usdK(closed.reduce((s,L) => s + (L.inputs ? L.inputs.balance : 0), 0)) : "—";
+  $("p-gap").textContent = closed.length ? usdK(closed.reduce((s,L) => s + (L.inputs && L.inputs.funded && L.results ? L.results.cash : 0), 0)) : "—";
+
+  // filters
+  const fl = $("filters"); fl.innerHTML = "";
+  for (const s of ["All","Active", ...STAGES, ...SIGNALS]) fl.append(el("button",{class:"chip",type:"button","aria-pressed": String(filter === s), text:s, onclick:() => { filter = s; if (leadPager) leadPager.reset(); renderAll(); }}));
+  renderTable(); renderPicker();
+}
+
+// Search box: every word must appear somewhere in the record (address, city, state, ZIP, county, owner, phone, email, ref, notes); digits also match phone numbers.
+function searchMatch(rec, q, fields){
+  const words = String(q||"").toLowerCase().trim().split(/\s+/).filter(Boolean); if(!words.length) return true;
+  const hay = fields.map(k => rec[k] == null ? "" : String(rec[k])).join(" ").toLowerCase(), digits = hay.replace(/\D/g, "");
+  return words.every(w => hay.includes(w) || (/^\d{3,}$/.test(w.replace(/\D/g,"")) && w.replace(/[^\d]/g,"").length === w.replace(/[-().\s]/g,"").length && digits.includes(w.replace(/\D/g,""))));
+}
+let leadPager = null;
+const LEAD_SEARCH = ["address","city","state","zip","county","propType","owner","phone","email","mailing","notes","source","status","signal","listingStatus"];
+function renderTable(){
+  const t = todayISO();
+  const q = $("leadSearch").value;
+  const rows = leads.filter(L => searchMatch(L, q, LEAD_SEARCH)).filter(L => q || filter === "All" || (filter === "Active" ? ACTIVE.has(L.status || "New") : SIGNALS.includes(filter) ? L.signal === filter : (L.status || "New") === filter));
+  const tb = $("dealRows"); tb.innerHTML = "";
+  $("dealsEmpty").hidden = leads.length > 0;
+  if (!leadPager) leadPager = makePager("leadPager", "hll_subto_rows", renderTable, "btn small");
+  for (const L of leadPager.slice(rows)){
+    const i = L.inputs || {}, r = L.results;
+    const vcell = el("td",null, r ? el("span",{class:"pill " + (r.verdict === "GO" ? "go" : "review"),text:r.verdict}) : el("span",{class:"hint",text:"Not analyzed"}));
+    if (L.example) vcell.append(" ", el("span",{class:"pill ex",text:"Example"}));
+    const tr = el("tr",{class:"row" + (L.id === currentId ? " sel" : ""),tabindex:"0"},
+      el("td",null, el("div",{style:"font-weight:600",text:L.address || "Untitled"}), el("div",{class:"hint",text:[L.propType && L.propType !== "Single-family" ? L.propType : null, [L.city, hubStateOf(L)].filter(Boolean).join(", "), L.county && L.county + " Co."].filter(Boolean).join(" · ")}),
+        (L.source || L.listingStatus) ? el("div",{class:"hint",text:[L.source, L.listingStatus].filter(Boolean).join(" · ")}) : null),
+      el("td",null, el("div",{style:"display:grid;gap:4px;justify-items:start"}, el("span",{class:"pill",text:L.status || "New"}),
+        L.signal ? el("span",{class:"pill " + (SIGNAL_CLASS[L.signal] || ""),text:L.signal}) : null,
+        L.litigator ? el("span",{class:"pill overdue",text:"Mail only: litigator"}) : null)),
+      el("td",{class:"r num",text: (r && r.units > 1) ? `${r.units} units` : (mixTotals(i.unitMix).units > 1 ? `${mixTotals(i.unitMix).units} units` : Number(L.units) > 1 ? `${L.units} units` : `${L.beds ?? "—"}/${L.baths ?? "—"}`)}),
+      el("td",{class:"r num",text: i.balance ? usdK(i.balance) : "—"}),
+      el("td",{class:"r num",text: i.rate ? pctF(i.rate) : "—"}),
+      el("td",{class:"r num",text: r ? usd(r.piti) : "—"}),
+      el("td",{class:"r num",text: r ? usd(r.spread) : "—"}),
+      el("td",{class:"r num",text: r ? usd(r.ncf) : "—"}),
+      vcell,
+      el("td",null, L.nextTouch ? el("span",{class:"pill" + (ACTIVE.has(L.status || "New") && L.nextTouch < t ? " overdue" : ""),text:fmtDate(L.nextTouch)}) : "—"));
+    const open = () => { pickLead(L.id); $("analyzer").scrollIntoView({behavior:"smooth"}); };
+    tr.addEventListener("click", open);
+    tr.addEventListener("keydown", e => { if (e.key === "Enter") open(); });
+    tb.append(tr);
+  }
+}
+
+// ---- Save / touch / delete ----
+async function save(extra){
+  if (!db) { toast("Saving is unavailable in this view."); return; }
+  const {i, lead, r} = renderResults();
+  if (!lead.address){ toast("Add an address before saving."); $("f-address").focus(); return; }
+  const results = hasNumbers(i) ? {piti:r.piti, equity:r.equity, ltv:r.ltv, cash:r.cash, spread:r.spread, ncfPre:r.ncfPre, ncf:r.ncf, coc:r.coc, verdict:r.verdict, exitRec:r.exitRec, units:r.units, gpr:r.gpr, egi:r.egi, pricePerUnit:r.pricePerUnit, loanPerUnit:r.loanPerUnit, ncfPerUnit:r.ncfPerUnit} : null;
+  const body = {...lead, inputs:i, results, updatedAt:new Date().toISOString(), ...(extra || {})};
+  $("saveBtn").disabled = true;
+  try {
+    if (currentId){
+      const prev = leads.find(x => x.id === currentId) || {};
+      body.example = prev.example && !dirty ? prev.example : false;
+      await db.collection("leads").doc(currentId).update(body);
+      toast("Saved to " + lead.address);
+    } else {
+      body.createdAt = body.updatedAt; body.touches = 0; body.example = false;
+      const ref = db.collection("leads").doc();
+      await ref.set(body);
+      currentId = ref.id;
+      toast("Lead created");
+    }
+    dirty = false; $("saveState").textContent = "Saved just now"; $("saveBtn").textContent = "Save to lead";
+    $("delBtn").hidden = false; $("touchBtn").hidden = false;
+  } catch (e) {
+    if (e && e.code === "invalid_argument"){ canWrite = false; lockWrites(); toast("You have view-only access to this pipeline."); }
+    else if (e && e.code === "quota_exceeded") toast("The pipeline is full. Delete dead leads to make room.");
+    else toast("Couldn't save. Check your connection and try again.");
+  } finally { $("saveBtn").disabled = !canWrite; }
+}
+$("anForm").addEventListener("submit", e => { e.preventDefault(); save(); });
+$("touchBtn").addEventListener("click", () => {
+  if (!currentId) return;
+  const L = leads.find(x => x.id === currentId) || {};
+  const n = (L.touches || 0) + 1, t = todayISO();
+  const next = addDays(t, FOLLOW_GAP[Math.min(n-1, FOLLOW_GAP.length-1)]);
+  $("f-nextTouch").value = next;
+  if ((L.status || "New") === "New") $("f-status").value = "Contacted";
+  save({touches:n, lastTouch:t, nextTouch:next, status:$("f-status").value});
+});
+$("delBtn").addEventListener("click", async () => {
+  if (!currentId || !db) return;
+  if (!confirmDel){ confirmDel = true; $("delBtn").textContent = "Tap again to delete"; setTimeout(() => { confirmDel = false; $("delBtn").textContent = "Delete"; }, 4000); return; }
+  try { await db.collection("leads").doc(currentId).delete(); toast("Lead deleted"); pickLead(NEW); }
+  catch { toast("Couldn't delete. Try again."); }
+});
+
+function lockWrites(){ for (const id of ["saveBtn","touchBtn","delBtn","newLeadBtn","searchBtn","importBtn"]) $(id).disabled = true; const n = $("notice"); n.hidden = false; n.textContent = "You can view this pipeline but not change it. Ask the owner for Contributor access to save deals."; }
+
+// ---- Find leads: criteria ----
+let crit = {...DEFAULT_CRIT}, run = null, mcp = null, isOwner = true;
+function chipSet(boxId, all, selected, onToggle){
+  const box = $(boxId); box.innerHTML = "";
+  for (const v of all) box.append(el("button",{class:"chip",type:"button","aria-pressed":String(selected.includes(v)),text:v,onclick:() => onToggle(v)}));
+}
+function renderCrit(){
+  chipSet("crit-signals", SIGNALS, crit.signals, v => { crit.signals = crit.signals.includes(v) ? crit.signals.filter(x => x !== v) : [...crit.signals, v]; renderCrit(); });
+  chipSet("crit-types", CRIT_TYPES, crit.propTypes, v => { crit.propTypes = crit.propTypes.includes(v) ? crit.propTypes.filter(x => x !== v) : [...crit.propTypes, v]; renderCrit(); refreshPreview(); });
+  chipSet("crit-counties", CRIT_COUNTIES, crit.counties, v => { crit.counties = crit.counties.includes(v) ? crit.counties.filter(x => x !== v) : [...crit.counties, v]; renderCrit(); refreshPreview(); });
+  $("crit-maxPrice").value = crit.maxPrice || 0; $("crit-minUnits").value = crit.minUnits || 0; $("crit-minDom").value = crit.minDom || 0;
+}
+for (const k of ["maxPrice","minUnits","minDom"]) $("crit-"+k).addEventListener("input", e => { crit[k] = Math.max(0, parseFloat(e.target.value) || 0); refreshPreview(); });
+$("findBtn").addEventListener("click", () => { const f = $("finder"); f.hidden = !f.hidden; $("findBtn").setAttribute("aria-expanded", String(!f.hidden)); if (!f.hidden) f.scrollIntoView({behavior:"smooth", block:"start"}); });
+
+function renderRun(){
+  const box = $("runState"); box.innerHTML = "";
+  if (!run){ box.append(el("span",{class:"hint",text:"No searches yet."})); return; }
+  const when = iso => iso ? new Date(iso).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}) : "";
+  if (run.status === "queued" || run.status === "running"){
+    const stale = Date.now() - new Date(run.startedAt || run.requestedAt || 0).getTime() > 45*60*1000;
+    if (!stale){
+      box.append(el("span",{class:"spin","aria-hidden":"true"}), el("span",{text: run.status === "running" ? `Searching since ${when(run.startedAt)}. New leads appear in the table as they're added.` : `Search requested ${when(run.requestedAt)}. Starting up.`}));
+      $("searchBtn").disabled = true; return;
+    }
+    box.append(el("span",{class:"pill review",text:"No response"}), el("span",{text:`The search requested ${when(run.requestedAt || run.startedAt)} hasn't reported back. You can start another.`}));
+  } else if (run.status === "done"){
+    box.append(el("span",{class:"pill go",text:`${run.added ?? 0} added`}), el("span",{text:`${when(run.finishedAt)}. ${run.message || ""}`}));
+  } else if (run.status === "failed"){
+    box.append(el("span",{class:"pill overdue",text:"Failed"}), el("span",{text:`${when(run.finishedAt)}. ${run.message || "The search stopped."}`}));
+  }
+  $("searchBtn").disabled = !canWrite || !isOwner;
+}
+
+$("searchBtn").addEventListener("click", async () => {
+  if (!db){ toast("Searching needs the deal database, which isn't available in this view."); return; }
+  if (!crit.signals.length || !crit.propTypes.length || !crit.counties.length){ toast("Pick at least one lead signal, property type and county."); return; }
+  $("searchBtn").disabled = true;
+  const now = new Date().toISOString();
+  try {
+    await db.doc("config/search").set({...crit, updatedAt:now});
+    await db.doc("runs/latest").set({status:"queued", requestedAt:now, criteria:crit, added:null, message:""});
+  } catch { toast("Couldn't save your search criteria. Try again."); $("searchBtn").disabled = false; return; }
+  if (!mcp){ setRunFail("This view can't start searches. Open the dashboard in the Claude app or claude.ai and try again, or ask Claude in chat to run the lead search."); return; }
+  try {
+    await mcp.callTool("Claude Code Remote", "fire_trigger", {trigger_id: SEARCH_TASK, text: "Run requested from the Sub-To Pipeline dashboard. Criteria for this run: " + JSON.stringify(crit)});
+    toast("Search started");
+  } catch (e) {
+    const c = e && e.code;
+    const msg = c === "server_not_connected" || c === "selection_required" ? "Starting a search needs the Claude Code Remote connection. Allow it when the page asks, then try again."
+      : c === "not_in_manifest" || c === "approval_required" ? "The search needs your permission to start. Tap Search now again and choose Allow."
+      : c === "tool_error" ? "The search task couldn't start. It may be paused; check Scheduled tasks."
+      : c === "server_unavailable" || c === "upstream_error" ? "No response from the search service. It may still start; watch this line before trying again."
+      : "The search couldn't start. Try again in a moment.";
+    setRunFail(msg, c === "server_unavailable" || c === "upstream_error");
+  }
+});
+async function setRunFail(message, maybeStarted){
+  if (maybeStarted){ toast(message); return; }
+  try { await db.doc("runs/latest").update({status:"failed", finishedAt:new Date().toISOString(), message}); } catch {}
+  toast(message); $("searchBtn").disabled = false;
+}
+
+// ---- Find leads: CSV import ----
+function parseCSV(text){
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c === '"'){ if (text[i+1] === '"'){ f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ","){ row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r"){ if (c === "\r" && text[i+1] === "\n") i++; row.push(f); f = ""; if (row.some(x => x.trim() !== "")) rows.push(row); row = []; }
+    else f += c;
+  }
+  row.push(f); if (row.some(x => x.trim() !== "")) rows.push(row);
+  return rows;
+}
+const COLS = {
+  address:["address","property address","street address","address line 1","site address","property street address"],
+  city:["city","property city","site city"], state:["state","state or province","property state"],
+  zip:["zip","zip code","zip or postal code","postal code","property zip"], county:["county","property county"],
+  type:["property type","type","asset type","property subtype","subtype","use","land use"],
+  price:["price","asking price","list price","last list price","sale price","listing price","original list price"],
+  units:["units","number of units","# units","unit count","no. of units","sites","# of sites","pads","number of sites","spaces"],
+  beds:["beds","bedrooms","bd"], baths:["baths","bathrooms","ba"],
+  sqft:["square feet","sqft","sq ft","building size","building sf","building size (sf)","living area","rba"],
+  dom:["days on market","dom","days on crexi","days listed","cdom"],
+  status:["status","listing status","mls status","sale status"],
+  url:["url","link","listing url","property url","crexi url","loopnet url"],
+  owner:["owner","owner name","owner 1 full name","owner full name"], mailing:["mailing address","owner mailing address","mail address"],
+  phone:["phone","owner phone","phone 1"], cap:["cap rate","cap"], noi:["noi","net operating income"],
+  email:["email","owner email","email 1"], signal:["lead type","list","list name","distress type","motivation","marketing list","tags"],
+};
+function colIndex(header){
+  const h = header.map(x => x.trim().toLowerCase().replace(/\s+/g," "));
+  const idx = {};
+  for (const [k, names] of Object.entries(COLS)){
+    let j = h.findIndex(x => names.includes(x));
+    if (j < 0 && k === "url") j = h.findIndex(x => x.startsWith("url"));
+    if (j >= 0) idx[k] = j;
+  }
+  return idx;
+}
+function mapType(raw, units, beds){
+  const t = String(raw || "").toLowerCase();
+  if (/rv|campground|recreational/.test(t)) return "RV park";
+  if (/mobile|manufactured|mhp/.test(t)) return "Mobile home park";
+  if (/duplex|triplex|fourplex|quadplex|2-4|2 to 4/.test(t)) return "Duplex to fourplex";
+  if (/multi|apartment/.test(t)) return units && units <= 4 ? "Duplex to fourplex" : "Apartment complex";
+  if (/single|sfr|house|residential|townhouse/.test(t) || (!t && beds)) return "Single-family";
+  return t ? "Other" : (units > 4 ? "Apartment complex" : "Single-family");
+}
+function mapSignal(text, dom){
+  const t = String(text || "").toLowerCase();
+  if (/pre-?foreclos|lis pendens|notice of (trustee|default|sale)|auction|nod\b/.test(t)) return "Pre-foreclosure";
+  if (/probate|inherit|estate|deceased|heir/.test(t)) return "Probate / inherited";
+  if (/expired|withdrawn|cancel|off[ -]?market|failed listing|removed/.test(t)) return "Expired / off-market listing";
+  if (dom != null && dom >= 90) return "Long days on market";
+  return "";
+}
+const SUF = {drive:"dr",lane:"ln",street:"st",road:"rd",avenue:"ave",boulevard:"blvd",court:"ct",circle:"cir",parkway:"pkwy",trail:"trl",highway:"hwy",place:"pl"};
+const addrKey = (a, c) => (String(a||"").toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(Boolean).map(w => SUF[w] || w).join(" ") + " " + String(c||"").toLowerCase().replace(/[^a-z0-9]/g,"")).trim();
+const slug = k => k.replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,80);
+const num = v => { const n = parseFloat(String(v ?? "").replace(/[$,%\s]/g,"")); return isFinite(n) ? n : null; };
+function matches(L){
+  if (!crit.propTypes.includes(L.propType)) return false;
+  if (L.county && crit.counties.length && !crit.counties.some(c => L.county.toLowerCase().startsWith(c.toLowerCase()))) return false;
+  if (crit.maxPrice && L.listPrice && L.listPrice > crit.maxPrice) return false;
+  if (crit.minDom && L.dom != null && L.dom < crit.minDom && !/off|withdrawn|expired|cancel|removed/i.test(L.listingStatus || "")) return false;
+  if (L.propType === "Single-family" && ((L.beds ?? 0) < 3 || (L.baths ?? 0) < 2)) return false;
+  if (L.propType !== "Single-family" && crit.minUnits && L.units != null && L.units < crit.minUnits) return false;
+  return true;
+}
+let parsed = [], toAdd = [];
+function refreshPreview(){
+  if (!parsed.length){ $("importBtn").hidden = true; return; }
+  const existing = new Set(leads.map(L => addrKey(L.address, L.city)));
+  const seen = new Set(); let dupes = 0, out = 0, bad = 0; toAdd = [];
+  for (const L of parsed){
+    if (!L.address){ bad++; continue; }
+    const k = addrKey(L.address, L.city);
+    if (existing.has(k) || seen.has(k)){ dupes++; continue; }
+    if ($("csvFilter").checked && !matches(L)){ out++; continue; }
+    seen.add(k); toAdd.push({key:k, L});
+  }
+  $("importPreview").textContent = `${parsed.length} rows read · ${toAdd.length} new · ${dupes} already in your pipeline · ${out} outside your criteria` + (bad ? ` · ${bad} without an address` : "");
+  $("importBtn").hidden = !toAdd.length; $("importBtn").textContent = `Add ${toAdd.length} lead${toAdd.length === 1 ? "" : "s"}`;
+}
+$("csvFilter").addEventListener("change", refreshPreview);
+$("csvFile").addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  parsed = []; $("importBtn").hidden = true;
+  if (file.size > 8 * 1024 * 1024){ $("importPreview").textContent = "That file is over 8 MB. Export fewer rows and try again."; return; }
+  const rows = parseCSV(await file.text());
+  if (rows.length < 2){ $("importPreview").textContent = "That file has no data rows."; return; }
+  const ix = colIndex(rows[0]);
+  if (ix.address == null){ $("importPreview").textContent = "Couldn't find an address column. The first row needs a header such as Address or Property Address."; return; }
+  const src = /crexi/i.test(file.name) ? "Crexi" : /loopnet/i.test(file.name) ? "LoopNet" : /redfin/i.test(file.name) ? "Redfin" : /zillow/i.test(file.name) ? "Zillow" : /propstream/i.test(file.name) ? "PropStream" : "CSV import";
+  const g = (r, k) => ix[k] == null ? "" : (r[ix[k]] ?? "").trim();
+  parsed = rows.slice(1, 2001).map(r => {
+    const units = num(g(r,"units")), beds = num(g(r,"beds"));
+    const status = g(r,"status"), cap = g(r,"cap"), noi = g(r,"noi");
+    return {address:g(r,"address"), city:g(r,"city"), county:g(r,"county").replace(/\s+county$/i,""), propType:mapType(g(r,"type"), units, beds),
+      units, beds, baths:num(g(r,"baths")), sqft:num(g(r,"sqft")), listPrice:num(g(r,"price")), dom:num(g(r,"dom")),
+      owner:g(r,"owner"), mailing:g(r,"mailing"), phone:g(r,"phone"), email:g(r,"email"), sourceUrl:g(r,"url"), source:src,
+      signal: mapSignal([g(r,"signal"), status].join(" "), num(g(r,"dom"))),
+      listingStatus: status || (num(g(r,"dom")) != null ? `${num(g(r,"dom"))} days on market` : ""),
+      notes:[`Imported from ${file.name}.`, g(r,"type") && `Listed as ${g(r,"type")}.`, cap && `Cap rate ${cap}.`, noi && `NOI ${noi}.`].filter(Boolean).join(" ")};
+  });
+  if (rows.length > 2001) toast("Only the first 2,000 rows were read.");
+  refreshPreview();
+});
+$("importBtn").addEventListener("click", async () => {
+  if (!db || !toAdd.length) return;
+  $("importBtn").disabled = true;
+  const now = new Date().toISOString(), t = todayISO(); let added = 0, failed = 0;
+  for (let i = 0; i < toAdd.length; i += 10){
+    const chunk = toAdd.slice(i, i + 10);
+    const res = await Promise.allSettled(chunk.map(({key, L}) => db.collection("leads").doc("imp-" + slug(key)).set({
+      ...L, status:"New", nextTouch:t, exit:"Rent and hold", touches:0, example:false, offMarket:"", createdAt:now, updatedAt:now,
+      inputs: L.listPrice ? {arv:L.listPrice} : {}})));
+    for (const r of res) r.status === "fulfilled" ? added++ : failed++;
+    $("importPreview").textContent = `Adding… ${added} of ${toAdd.length}`;
+    if (res.some(r => r.status === "rejected" && r.reason && r.reason.code === "quota_exceeded")){ toast("The pipeline is full. Delete dead leads to make room."); break; }
+  }
+  parsed = []; toAdd = []; $("csvFile").value = ""; $("importBtn").hidden = true; $("importBtn").disabled = false;
+  $("importPreview").textContent = `Added ${added} lead${added === 1 ? "" : "s"}` + (failed ? `; ${failed} couldn't be saved.` : ".");
+  toast(`Added ${added} leads`);
+});
+
+// ---- BatchData enrichment ----
+const BD = "BatchData";
+const fmtPhone = n => /^\d{10}$/.test(n) ? `(${n.slice(0,3)}) ${n.slice(3,6)}-${n.slice(6)}` : n;
+const parseBD = res => { const p = res && res.payload; if (p && typeof p === "object") return p; try { return JSON.parse(p); } catch { return null; } };
+function bdError(e){
+  const c = e && e.code;
+  if (c === "server_not_connected" || c === "selection_required") return "BatchData isn't connected for this view. Add or reconnect it in Settings → Connectors.";
+  if (c === "needs_reauth") return "BatchData needs you to sign in again in Settings → Connectors.";
+  if (c === "not_in_manifest" || c === "approval_required") return "BatchData needs your permission. Tap Enrich again and choose Allow.";
+  if (c === "tool_error") return "BatchData couldn't process this address. Check the street, city and ZIP.";
+  if (c === "server_unavailable") return "BatchData didn't respond. Try again in a minute.";
+  return "BatchData lookup failed. Try again.";
+}
+$("enrichBtn").addEventListener("click", async () => {
+  if (!currentId){ toast("Save the lead first, then enrich it."); return; }
+  if (!mcp){ toast("Enrichment isn't available in this view. Open the dashboard in the Claude app or claude.ai."); return; }
+  if (dirty){ toast("Save your changes first so nothing is overwritten."); return; }
+  const L = leads.find(x => x.id === currentId); if (!L || !L.address || !L.city){ toast("The lead needs a street address and city."); return; }
+  const btn = $("enrichBtn"); btn.disabled = true; $("enrichState").textContent = "Looking up owner and property…";
+  const base = {property_street:L.address, property_city:L.city, property_state:hubStateOf(L)};
+  const patch = {}, notes = [], fill = (k, v) => { if (v != null && v !== "" && (L[k] == null || L[k] === "")) patch[k] = v; };
+  let person = null, prop = null, zip = L.zip || "";
+  try {
+    // Skip trace first: it accepts street + city + state and returns the ZIP the lookup needs.
+    const st = parseBD(await mcp.callTool(BD, "skip_trace_property", zip ? {...base, property_zip:zip} : base));
+    const sp = st && st.property;
+    if (sp && sp.address){ zip = zip || sp.address.zip || ""; fill("zip", sp.address.zip); fill("county", sp.address.county); }
+    const persons = (st && st.persons) || [];
+    person = persons.find(p => p.propertyOwner) || persons[0] || null;
+    if (zip){
+      $("enrichState").textContent = "Pulling property record…";
+      const lk = parseBD(await mcp.callTool(BD, "lookup_property", {...base, property_zip:zip}));
+      prop = lk && lk.property;
+    }
+  } catch (e) { $("enrichState").textContent = bdError(e); btn.disabled = false; return; }
+  if (!prop && !person){ $("enrichState").textContent = "BatchData found no record for this address. Check the street spelling and ZIP."; btn.disabled = false; return; }
+
+  if (prop){
+    const o = prop.owner || {}, m = o.mailingAddress || {}, b = prop.building || {}, g = prop.general || {}, a = prop.assessment || {}, t = prop.tax || {}, s = (prop.sale && prop.sale.lastSale) || {};
+    fill("owner", o.fullName);
+    if (m.street) fill("mailing", `${m.street}, ${m.city || ""}, ${m.state || ""} ${m.zip || ""}`.replace(/\s+,/g,",").trim());
+    fill("beds", b.bedroomCount); fill("baths", b.bathroomCount); fill("sqft", b.livingAreaSquareFeet || b.totalBuildingAreaSquareFeet);
+    if ((b.unitCount || b.residentialUnitCount) > 1) fill("units", b.unitCount || b.residentialUnitCount);
+    if (o.ownerOccupied === false) notes.push("Absentee owner.");
+    if (o.ownershipStartDate) notes.push(`Owned since ${o.ownershipStartDate.slice(0,7)}` + (s.price ? `, bought for about ${usd(s.price)}${s.salePriceIsEstimated ? " (estimated)" : ""}.` : "."));
+    if (a.totalMarketValue) notes.push(`${a.assessmentYear || ""} appraisal-district value ${usd(a.totalMarketValue)}.`.trim());
+    const apv = a.totalMarketValue || a.totalAssessedValue;
+    if (apv > 0){ patch.appraised = apv; patch.fmv = DealAdvisor.fmv(apv); notes.push(`FMV ${usd(patch.fmv)} (appraised ÷ 0.8).`); }
+    if (t.taxAmount) notes.push(`Property tax ${usd(t.taxAmount)}/yr (${t.taxYear || "latest"}).`);
+    const inp = {...(L.inputs || {})}; let inpChanged = false;
+    const setIn = (k, v) => { if (v != null && isFinite(v) && v > 0 && !inp[k]){ inp[k] = v; inpChanged = true; } };
+    const v = prop.valuation || {}, ol = prop.openLien || {}, lst = prop.listing || {}, q = prop.quickLists || {};
+    // Existing loan (open liens): the heart of a subject-to deal
+    const mtg = (ol.mortgages || []).slice().sort((x,y) => String(x.recordingDate||"").localeCompare(String(y.recordingDate||"")))[0];
+    if (mtg){
+      setIn("balance", Math.round(mtg.currentEstimatedBalance || 0));
+      if (mtg.currentEstimatedInterestRate) setIn("rate", +(mtg.currentEstimatedInterestRate / 100).toFixed(5));
+      setIn("pi", Math.round(mtg.estimatedPaymentAmount || 0));
+      notes.push(`1st lien: ${mtg.lenderName || "lender unknown"}, ${mtg.loanType || "loan"}${mtg.financingType ? " (" + mtg.financingType + ")" : ""}, ${usd(mtg.loanAmount)} recorded ${String(mtg.recordingDate || "").slice(0,10)}${mtg.dueDate ? ", due " + String(mtg.dueDate).slice(0,7) : ""}. Est. balance ${usd(mtg.currentEstimatedBalance)} at ~${mtg.currentEstimatedInterestRate}%, P&I ~${usd(mtg.estimatedPaymentAmount)}/mo (BatchData estimates; confirm with the mortgage statement).`);
+      if ((ol.totalOpenLienCount || 0) > 1) notes.push(`${ol.totalOpenLienCount} open liens totaling ${usd(ol.totalOpenLienBalance)}.`);
+    } else if (q.freeAndClear) notes.push("Free and clear: no loan to take over, so this isn't a subject-to deal (consider seller financing).");
+    else notes.push("No open mortgage found in BatchData.");
+    setIn("arv", v.estimatedValue || a.totalMarketValue);
+    if (v.estimatedValue) notes.push(`Est. value ${usd(v.estimatedValue)} (range ${usd(v.priceRangeMin)}–${usd(v.priceRangeMax)}, confidence ${v.confidenceScore ?? "?"}), equity ${v.equityPercent ?? "?"}%.`);
+    if (!inp.escrow && t.taxAmount){ setIn("escrow", Math.round(t.taxAmount / 12)); notes.push("Escrow pre-filled with taxes only; add insurance."); }
+    if (inpChanged) patch.inputs = inp;
+    // Listing history
+    if (lst.status){
+      fill("listPrice", lst.price); fill("listingStatus", `${lst.status}${lst.statusCategory === "Failed" ? " (failed listing)" : ""}`);
+      if (lst.failedListingDate) fill("offMarket", String(lst.failedListingDate).slice(0,10));
+      if (/^https?:\/\//.test(lst.listingUrl || "")) fill("sourceUrl", lst.listingUrl);
+      if (lst.originalListingDate) notes.push(`Listed ${String(lst.originalListingDate).slice(0,10)} at up to ${usd(lst.maxListPrice)}, cut to ${usd(lst.minListPrice)}; status ${lst.status}.`);
+    }
+    // Distress signals
+    if (!L.signal){
+      if (q.preforeclosure || q.noticeOfSale || q.noticeOfDefault || q.noticeOfLisPendens || q.activeAuction) patch.signal = "Pre-foreclosure";
+      else if (q.inherited) patch.signal = "Probate / inherited";
+      else if (q.expiredListing || q.canceledListing || q.failedListing) patch.signal = "Expired / off-market listing";
+    }
+    const flags = [q.corporateOwned && "corporate-owned", q.tiredLandlord && "tired landlord", q.vacant && "vacant", q.taxDefault && "tax default", q.involuntaryLien && "involuntary lien", q.seniorOwner && "senior owner", q.trustOwned && "trust-owned"].filter(Boolean);
+    if (flags.length) notes.push("Flags: " + flags.join(", ") + ".");
+  }
+  if (person){
+    const phones = (person.phones || []).slice().sort((x,y) => (x.rank||9) - (y.rank||9));
+    const ok = phones.filter(p => !p.dnc && !p.tcpa && p.reachable !== false);
+    const blocked = phones.filter(p => p.dnc || p.tcpa);
+    if (person.litigator){
+      notes.push("WARNING: owner is flagged as a TCPA litigator. Don't call or text; use mail only.");
+      patch.litigator = true;
+    } else if (ok.length){
+      fill("phone", fmtPhone(ok[0].number));
+      if (ok.length > 1) notes.push("Other phones: " + ok.slice(1,4).map(p => `${fmtPhone(p.number)} (${p.type || "phone"})`).join(", ") + ".");
+    }
+    if (blocked.length) notes.push("Do not call: " + blocked.map(p => fmtPhone(p.number) + (p.dnc ? " DNC" : "") + (p.tcpa ? " TCPA" : "")).join(", ") + ".");
+    const em = (person.emails || []).slice().sort((x,y) => (x.rank||9) - (y.rank||9))[0];
+    if (em && em.email) fill("email", em.email);
+    if (person.deceased){ notes.push("BatchData lists the owner as deceased; check probate."); if (!L.signal) patch.signal = "Probate / inherited"; }
+  }
+  const stamp = new Date().toISOString();
+  patch.notes = [L.notes, `BatchData ${stamp.slice(0,10)}: ` + (notes.join(" ") || "No new details.")].filter(Boolean).join("\n");
+  patch.enrichedAt = stamp; patch.updatedAt = stamp;
+  try {
+    await db.collection("leads").doc(currentId).update(patch);
+    if (patch.appraised) db.doc("hubmap/" + currentId).get().then(h => h.exists && DealAdvisor.saveAppraised(mcp, h.data().hubPid, patch.appraised, "BatchData (appraisal district)")).catch(() => {});
+    const filled = Object.keys(patch).filter(k => !["notes","enrichedAt","updatedAt","litigator","fmv"].includes(k));
+    $("enrichState").textContent = filled.length ? `Filled in: ${filled.join(", ")}. Details added to notes.` : "No blanks to fill. Details added to notes.";
+    toast("Lead enriched");
+  } catch { $("enrichState").textContent = "Couldn't save the BatchData results. Try again."; }
+  btn.disabled = false;
+});
+
+// ---- Deal Advisor (shared module; source: houselotandland repo src/dashboards/advisor.js) ----
+var advisor = window.DealAdvisor ? DealAdvisor.mount({
+  app:"subto", appLabel:"Sub-To Pipeline", track:"subto", stages:STAGES, stageKey:"status", nextKey:"nextTouch", notesKey:"notes",
+  fields:[
+    {key:"address",label:"Street address",type:"text"},{key:"city",label:"City",type:"text"},{key:"state",label:"State",type:"text"},{key:"zip",label:"ZIP",type:"text"},
+    {key:"county",label:"County",type:"text"},{key:"propType",label:"Property type",options:PROP_TYPES},{key:"units",label:"Units",type:"number"},
+    {key:"beds",label:"Beds",type:"number"},{key:"baths",label:"Baths",type:"number"},{key:"sqft",label:"Sq ft",type:"number"},{key:"listPrice",label:"List / asking price ($)",type:"number"},
+    {key:"owner",label:"Owner",type:"text"},{key:"phone",label:"Phone",type:"text"},{key:"email",label:"Email",type:"text"},{key:"mailing",label:"Mailing address",type:"text"},
+    {key:"signal",label:"Signal",type:"text"},{key:"exit",label:"Exit",options:EXITS},
+    {key:"inputs.arv",label:"Market value / ARV ($)",type:"number"},{key:"inputs.balance",label:"Loan balance ($)",type:"number"},
+    {key:"inputs.rate",label:"Interest rate (decimal: 0.0375 = 3.75%)",type:"number"},{key:"inputs.pi",label:"Monthly P&I ($)",type:"number"},
+    {key:"inputs.escrow",label:"Taxes + insurance escrow ($/mo)",type:"number"},{key:"inputs.hoa",label:"HOA ($/mo)",type:"number"},
+    {key:"inputs.arrears",label:"Arrears / reinstatement ($)",type:"number"},{key:"inputs.repairs",label:"Repairs ($)",type:"number"},
+    {key:"inputs.toSeller",label:"Cash to seller ($)",type:"number"},{key:"inputs.rent",label:"Market rent ($/mo)",type:"number"},{key:"inputs.fee",label:"Assignment fee offered ($)",type:"number"},{key:"appraised",label:"County appraised value ($)",type:"number"}],
+  getDb:()=>db, getMcp:async()=>mcp || await claude.use("mcp").catch(()=>null), toast,
+  ready:()=>!!db && leads.length>0,
+  current:()=>{ const L = currentId && leads.find(x => x.id === currentId); return L ? {id:L.id, title:[L.address, L.city, L.state || "TX"].filter(Boolean).join(", ")} : null; },
+  getField:k=>{ const L = currentId && leads.find(x => x.id === currentId); if(!L) return null; return k.startsWith("inputs.") ? (L.inputs || {})[k.slice(7)] : L[k]; },
+  select:id=>pickLead(id),
+  context:id=>{
+    const L = leads.find(x => x.id === id); if(!L) return {};
+    let analysis = null; try{ analysis = currentId === id ? (({r}) => Object.fromEntries(Object.entries(r).filter(([,v]) => v == null || typeof v !== "object")))(renderResults()) : L.results; }catch(_){ analysis = L.results || null; }
+    return {lead:{...L, inputs:undefined, results:undefined}, analyzerInputs:L.inputs || {}, analyzerResults:analysis,
+      unsavedEditsOnScreen: currentId === id && dirty ? "Harvey has unsaved edits on screen; the saved values are shown here." : undefined};
+  },
+  apply:async(id, patch)=>{
+    if(id !== currentId) throw new Error("Open this lead again first.");
+    if(dirty) throw new Error("Save or undo your edits on screen first, then apply.");
+    const L = leads.find(x => x.id === id); if(!L) throw new Error("That lead is gone.");
+    const note = patch.__note; delete patch.__note;
+    const inp = {...(L.inputs || {})}, top = {};
+    for(const [k, v] of Object.entries(patch)){ if(k.startsWith("inputs.")) inp[k.slice(7)] = v; else top[k] = v; }
+    if(top.appraised > 0) top.fmv = DealAdvisor.fmv(top.appraised);
+    if(note) top.notes = (L.notes ? String(L.notes).trimEnd() + "\n\n" : "") + note;
+    Object.assign(L, top, {inputs:inp});
+    pickLead(id); await save(top.appraised > 0 ? {appraised:top.appraised, fmv:top.fmv} : undefined);
+  },
+  hubIds:async id=>{ try{ const s = await db.doc("hubmap/" + id).get(); return s.exists ? s.data() : null; }catch(_){ return null; } },
+  findByHub:async hid=>{ try{ const s = await db.collection("hubmap").get(); const d = s.docs.find(x => (x.data() || {}).hubId === hid); return d && leads.some(L => L.id === d.id) ? d.id : null; }catch(_){ return null; } },
+}) : null;
+$("advBtn").addEventListener("click", () => { if(advisor && currentId) advisor.open(currentId); });
+
+// ---- Boot ----
+pickLead(NEW); renderAll(); renderCrit(); renderRun();
+(async () => {
+  try { db = await claude.use("db"); } catch { db = null; }
+  if (!db){ const n = $("notice"); n.hidden = false; n.textContent = "The deal database isn't available in this view. The analyzer still works, but nothing can be saved."; for (const id of ["saveBtn","touchBtn","delBtn"]) $(id).disabled = true; return; }
+  try { const user = await claude.use("user"); const w = user ? await user.can("data.write") : null; if (w === false){ canWrite = false; lockWrites(); }
+        if (user) isOwner = await user.isOwner(); } catch {}
+  if (!isOwner){ $("searchBtn").hidden = true; }
+  claude.use("mcp").then(m => { mcp = m; }).catch(() => {});
+  let leadsReady = false;
+  const hub = canWrite ? hubSyncStart({
+    db, track:"subto", app:"subto", collection:"leads", label:"Sub-To Pipeline", trackLabel:"Sub-To", deadStage:"Dead",
+    ready: () => leadsReady, getRecords: () => leads,
+    onStatus: t => { $("hubStatus").textContent = t; },
+    toHub: L => ({address:L.address, city:L.city, state:L.state, zip:L.zip, county:L.county, prop_type:L.propType || "Single-family", units:L.units, beds:L.beds, baths:L.baths, sqft:L.sqft,
+      stage:L.status || "New", next_touch:L.nextTouch, asking:L.listPrice, cname:L.owner, phone:L.phone, email:L.email, mailing:L.mailing, notes:L.notes,
+      source:L.source || "Sub-To Pipeline", created_at:L.createdAt, data:{exit:L.exit || "", signal:L.signal || ""}}),
+    patchFromHub: (L, r) => {
+      const p = {}, fill = (k, v) => { if(v != null && v !== "" && (L[k] == null || L[k] === "")) p[k] = v; };
+      if(STAGES.includes(r.stage) && r.stage !== (L.status || "New")) p.status = r.stage;
+      if(r.next_touch && r.next_touch !== L.nextTouch) p.nextTouch = r.next_touch;
+      fill("listPrice", r.asking); fill("city", r.city); fill("zip", r.zip); fill("county", r.county); fill("units", r.units); fill("beds", r.beds); fill("baths", r.baths); fill("sqft", r.sqft);
+      fill("owner", r.cname); fill("phone", r.phone); fill("email", r.email); fill("mailing", r.mailing); fill("state", hubNormState(r.state));
+      if(Number(r.appraised) > 0 && Number(r.appraised) !== Number(L.appraised)){ p.appraised = Number(r.appraised); p.fmv = DealAdvisor.fmv(r.appraised); }
+      if(Object.keys(p).length) p.updatedAt = new Date().toISOString();
+      return p;
+    },
+    fromHub: r => { let d = {}; try{ d = JSON.parse(r.data || "{}") || {}; }catch(_){}
+      const now = new Date().toISOString();
+      return {address:r.address || r.name || "Back office property", city:r.city || "", state:hubNormState(r.state) || hubZipState(r.zip) || "TX", zip:r.zip || "", county:r.county || "",
+        propType: PROP_TYPES.includes(r.prop_type) ? r.prop_type : (r.prop_type ? "Other" : "Single-family"), units:r.units ?? null, beds:r.beds ?? null, baths:r.baths ?? null, sqft:r.sqft ?? null,
+        listPrice:r.asking ?? null, dom:null, offMarket:"", owner:r.cname || "", phone:r.phone || "", email:r.email || "", mailing:r.mailing || "", sourceUrl:"",
+        status: STAGES.includes(r.stage) ? r.stage : "New", nextTouch:r.next_touch || todayISO(), exit:d.exit || "Rent and hold", signal:d.signal || "",
+        notes:r.notes || "", source:"Back office", touches:0, example:false, createdAt:r.created_at || now, updatedAt:now, inputs: r.asking ? {arv:r.asking} : {},
+        appraised: Number(r.appraised) > 0 ? Number(r.appraised) : null, fmv: Number(r.appraised) > 0 ? DealAdvisor.fmv(r.appraised) : null};
+    },
+  }) : null;
+  $("hubBtn").addEventListener("click", () => hub ? hub.sync() : toast("Back office sync needs edit access."));
+  db.doc("config/search").onSnapshot(s => { if (s.exists){ const d = s.data(); crit = {...DEFAULT_CRIT, ...d, signals:[...(d.signals || DEFAULT_CRIT.signals)], propTypes:[...(d.propTypes || DEFAULT_CRIT.propTypes)], counties:[...(d.counties || DEFAULT_CRIT.counties)]}; renderCrit(); } }, () => {});
+  db.doc("runs/latest").onSnapshot(s => { run = s.exists ? s.data() : null; renderRun(); }, () => {});
+  db.collection("leads").onSnapshot(snap => {
+    leads = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (STAGES.indexOf(a.status||"New") - STAGES.indexOf(b.status||"New")) || String(b.updatedAt||"").localeCompare(String(a.updatedAt||"")));
+    leadsReady = true; if (hub) hub.soon();
+    renderAll();
+    if (currentId && !dirty){ const still = leads.find(x => x.id === currentId); if (still) pickLead(currentId); else pickLead(NEW); }
+  }, () => { const n = $("notice"); n.hidden = false; n.textContent = "Live updates stopped. Reload the page to reconnect."; });
+})();
+})();
+</script>
+
+</body></html>

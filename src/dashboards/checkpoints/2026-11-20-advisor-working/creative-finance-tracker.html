@@ -1,0 +1,1225 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Creative Finance Deal Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: pipeline strip on top, filter chips, then one card per listing; edit in a bottom sheet. */
+:root{
+  --bg:#f3f5f2;--surface:#ffffff;--ink:#1c2420;--muted:#5d6b63;--line:#d9e0db;
+  --accent:#2f6b4f;--accent-ink:#ffffff;--accent-soft:#e2efe7;
+  --ok:#2f7d4a;--warn:#a86a0c;--bad:#b23a32;--info:#2d5f8a;
+  --f-display:"Archivo",system-ui,sans-serif;--f-body:"Source Sans 3",system-ui,sans-serif;--f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141a17;--surface:#1c2420;--ink:#e6ece8;--muted:#9aa9a0;--line:#2e3933;
+  --accent:#6fbf93;--accent-ink:#0f1a14;--accent-soft:#223a2d;
+  --ok:#6fcf8f;--warn:#e0a948;--bad:#ef7d74;--info:#7fb2df;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a17;--surface:#1c2420;--ink:#e6ece8;--muted:#9aa9a0;--line:#2e3933;
+  --accent:#6fbf93;--accent-ink:#0f1a14;--accent-soft:#223a2d;
+  --ok:#6fcf8f;--warn:#e0a948;--bad:#ef7d74;--info:#7fb2df;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:980px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
+h1{font-family:var(--f-display);font-weight:800;font-size:1.55rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:2px 0 0;font-size:.9rem}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 12px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:left;display:grid;gap:2px}
+.stage[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.stage b{font-family:var(--f-mono);font-size:1.3rem;font-variant-numeric:tabular-nums}
+.stage span{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border-radius:999px;padding:5px 12px;font-size:.85rem}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.list{display:grid;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:8px;min-width:0}
+.row1{display:flex;gap:10px;justify-content:space-between;align-items:start;flex-wrap:wrap}
+.name{font-family:var(--f-display);font-weight:700;font-size:1.05rem;margin:0}
+.loc{color:var(--muted);font-size:.85rem}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;border:1px solid currentColor}
+.f-confirmed{color:var(--ok)}.f-listed{color:var(--warn)}.f-none{color:var(--bad)}.f-unknown{color:var(--muted)}
+.st{color:var(--info)}
+.stats{display:flex;flex-wrap:wrap;gap:4px 18px;font-family:var(--f-mono);font-size:.82rem;font-variant-numeric:tabular-nums}
+.stats dt{color:var(--muted);font-family:var(--f-body);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
+.stats div{display:grid}
+.stats dl{margin:0}
+.terms,.next{font-size:.9rem;margin:0}
+.next{color:var(--muted)}.next strong{color:var(--ink)}
+.next.due strong{color:var(--bad)}
+.acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.acts a{color:var(--accent);font-size:.88rem}
+.empty{border:1px dashed var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--muted)}
+.enr{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);display:grid;gap:8px}
+.enr summary{cursor:pointer;font-weight:600;font-size:.9rem}
+.enr .eg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 14px;margin-top:8px}
+.enr .eg div{display:grid;min-width:0}.enr .eg span:first-child{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.enr .eg span:last-child{font-family:var(--f-mono);font-size:.82rem;overflow-wrap:anywhere}
+.enr .tags{display:flex;flex-wrap:wrap;gap:4px}.enr .tags span{font-size:.72rem;border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+.enr .warnl{color:var(--bad);font-weight:600;font-size:.85rem}
+.enr .cl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem}.enr .cl code{font-family:var(--f-mono)}
+.enr button{padding:3px 8px;font-size:.8rem}
+.note{font-size:.82rem;color:var(--muted)}
+.sheet{position:fixed;inset:0;background:rgb(0 0 0 / .45);display:grid;align-items:end;justify-items:center;z-index:20}
+.sheet form{background:var(--surface);width:min(640px,100%);max-height:90vh;overflow:auto;border-radius:16px 16px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:12px}
+.sheet h2{font-family:var(--f-display);margin:0;font-size:1.15rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:480px){.grid2{grid-template-columns:1fr}}
+label{display:grid;gap:4px;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+input,select,textarea{font:inherit;font-size:.95rem;text-transform:none;letter-spacing:0;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px}
+textarea{min-height:70px;resize:vertical}
+.formacts{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.danger{color:var(--bad)}
+.finder{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.fgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+@media (max-width:720px){.fgrid{grid-template-columns:1fr}}
+.flabel{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:10px 0 6px}
+.fbox{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:10px;align-content:start;background:var(--bg)}
+.fbox .primary{justify-self:start}
+.pill.ok{color:var(--ok)}.pill.bad{color:var(--bad)}.pill.warn{color:var(--warn)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.88rem;z-index:30}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}.card:hover{border-color:var(--accent)}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Creative Finance Deal Tracker</h1>
+      <p class="sub">Income property and businesses that come with real estate, on seller or creative terms · Texas and across the U.S.</p>
+    </div>
+    <div class="acts"><button id="findBtn" type="button" aria-expanded="false" aria-controls="finder">Find leads</button><button id="hubBtn" type="button" title="Two-way sync with the Creative finance track in the back office (houselotandland.org/office)">Sync back office</button><button class="primary" id="addBtn" type="button">+ Add listing</button></div>
+  </header>
+  <p class="note" id="hubStatus" aria-live="polite"></p>
+  <section class="finder" id="finder" hidden aria-labelledby="h-find">
+    <div class="row1"><h2 id="h-find" style="font-family:var(--f-display);margin:0;font-size:1.15rem">Find leads</h2><span class="note">Runs every Wednesday at 5:13 AM, or tap Search now. Takes about 10 to 20 minutes.</span></div>
+    <div class="fgrid">
+      <div>
+        <div class="flabel">Property types</div><div class="chips" id="c-types"></div>
+        <div class="flabel">Where to look</div><div class="chips" id="c-sources"></div>
+        <div class="grid2" style="margin-top:10px">
+          <label>States (2-letter, comma-separated)<input id="c-states" placeholder="TX, OK, LA"></label>
+          <label>Max price ($, 0 = any)<input id="c-maxPrice" type="number" min="0" step="50000" inputmode="numeric"></label>
+          <label>Min sites / units<input id="c-minUnits" type="number" min="0" step="1" inputmode="numeric"></label>
+          <label class="inline" style="display:flex;flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:.9rem;color:var(--ink)"><input id="c-dfwOnly" type="checkbox" style="width:auto"> Texas: Dallas-Fort Worth and 1 hour around it only</label>
+        </div>
+      </div>
+      <div class="fbox">
+        <p class="note" style="margin:0"><b>Listings with seller financing:</b> RV park, mobile home park, storage, apartment and commercial business listings with real estate, like laundromats and car washes (RVParkStore, MobileHomeParkStore, BizBuySell, LoopNet, Crexi, brokers) that offer owner financing or show a motivated seller. <b>Owners with no mortgage:</b> off-market apartment owners who own free and clear (the best seller-finance candidates), from BatchData; up to 30 records and 10 skip traces a run. Owner leads are for letters: nobody is called or texted.</p>
+        <button class="primary" id="searchBtn" type="button">Search now</button>
+        <div class="note" id="runState" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pipe" id="pipe" aria-label="Pipeline stages"></section>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><div class="chips" id="chips" aria-label="Filter by region"></div><input id="listSearch" type="search" placeholder="Search name, city, contact, notes…" aria-label="Search" autocomplete="off" style="max-width:320px;flex:1 1 220px"></div>
+  <p class="note" id="status">Loading listings…</p>
+  <section class="list" id="list"></section>
+  <div id="listPager" hidden></div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <form id="form">
+    <h2 id="formTitle">Edit listing</h2>
+    <label>Property / business name<input id="f-name" required></label>
+    <label>Street address (needed for Enrich)<input id="f-address" autocomplete="off" placeholder="1234 Main St"></label>
+    <div class="grid2">
+      <label>City<input id="f-city"></label>
+      <label>ZIP<input id="f-zip" inputmode="numeric" maxlength="10"></label>
+      <label>County<input id="f-county"></label>
+      <label>State<select id="f-state"></select></label>
+      <label>Region<select id="f-region"><option>DFW core</option><option>Near DFW (≤1 hr)</option><option>Outside North Texas</option></select></label>
+      <label>Asset type<select id="f-type"></select></label>
+      <label>Sites / units / bays<input id="f-units"></label>
+      <label>Asking price<input id="f-price" placeholder="$1,575,000"></label>
+      <label>Cap rate / NOI<input id="f-cap" placeholder="9.1% · $143K NOI"></label>
+      <label>Seller financing<select id="f-fin"><option value="confirmed">Confirmed terms</option><option value="listed">Listed as option</option><option value="unknown">Unknown</option><option value="none">Not offered</option></select></label>
+      <label>Listed by<select id="f-by"><option>Owner</option><option>Broker</option><option>Unknown</option></select></label>
+      <label>Stage<select id="f-stage"></select></label>
+      <label>Next step date<input id="f-date" type="date"></label>
+    </div>
+    <label>Known terms (down / rate / term / balloon)<input id="f-terms"></label>
+    <label>Next step<input id="f-next"></label>
+    <label>Contact (name, phone, email)<input id="f-contact"></label>
+    <label>Listing URL<input id="f-url" type="url"></label>
+    <label>Notes<textarea id="f-notes"></textarea></label>
+    <div class="formacts">
+      <button type="button" class="danger" id="delBtn">Delete</button>
+      <div class="acts"><button type="button" id="cancelBtn">Cancel</button><button class="primary" type="submit">Save</button></div>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* Deal Advisor: a chat with Claude about one deal, shared by the Deal Desk, Sub-To Pipeline and Creative Finance Tracker.
+   Inlined into each dashboard (claude.ai artifacts). Runs on the viewer's Claude plan through the `sample` capability
+   (images declared). Claude sees the deal, the dashboard's own numbers, the property's other tracks in the back office,
+   the saved conversation and anything attached (photos, screenshots, PDFs, text/CSV/email files). It never changes
+   anything by itself: proposed changes come back in a ```hll-actions block and wait for Harvey's click.
+   The conversation is saved per record in the dashboard's db at advisor/<record id>.
+   Deep link from the back office: <artifact url>#advise-<hub deal id with "_" as "-">  (e.g. #advise-d-2cmis2zb5nyi).
+   Source of truth: houselotandland repo, src/dashboards/advisor.js. Keep the three dashboards' copies identical. */
+window.DealAdvisor = (function(){
+  "use strict";
+  const DB_ID = "41cd2c24-fb52-41ae-95b9-748ee75b2d31", CF = "Cloudflare Developer Platform";
+  const MODEL = "claude-opus-5-5";
+  const TRACKS = {
+    wholesale: {label:"Wholesale (Deal Desk)", stages:["Lead","Analyzing","Offer sent","Under contract","Marketing","Assigned","Closed","Dead"]},
+    subto: {label:"Sub-To (take over the existing loan)", stages:["New","Contacted","Appointment","Offer sent","Under contract","Closed","Dead"]},
+    creative: {label:"Creative finance (seller financing, JV, terms)", stages:["New lead","Contacted","Terms requested","Underwriting","Offer out","Under contract","Closed","Dead"]},
+  };
+  const MAX_TURNS = 24, MAX_STORED = 9000, MAX_FILE_TEXT = 16000;
+  // Harvey's market value: FMV = county appraisal-district value ÷ 0.8. Shown beside BatchData's Est. value, never instead of it (same as fmvFromAppraised in js/hub-keys.js).
+  const FMV_RATIO = 0.8;
+  const fmv = v => { const n = Number(String(v ?? "").replace(/[$,\s]/g, "")); return n > 0 ? Math.round(n / FMV_RATIO) : null; };
+  // Save a county appraised value (and its FMV) on the master-list property, so the back office and the other dashboards see it.
+  async function saveAppraised(mcp, hubPid, value, source){
+    const v = Number(String(value ?? "").replace(/[$,\s]/g, ""));
+    if(!mcp || !hubPid || !(v > 0)) return false;
+    await mcp.callTool(CF, "d1_database_query", {database_id:DB_ID, params:[String(v), String(fmv(v)), String(source || "BatchData"), new Date().toISOString(), hubPid],
+      sql:"UPDATE properties SET data = json_set(COALESCE(data, '{}'), '$.appraisedValue', CAST(? AS REAL), '$.fmv', CAST(? AS REAL), '$.appraisedSource', ?), updated_at = ? WHERE id = ?"});
+    return true;
+  }
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+
+  const RULES = (cfg) => `You are the Deal Advisor inside House Lot & Land Sales Co. LLC's ${cfg.appLabel}. You work for Harvey Searcy, the owner (Dallas-Fort Worth, Texas; buys nationwide). He is the principal and decides; you advise him like a sharp, frugal real estate investor and acquisitions manager who knows his business.
+
+THE BUSINESS
+- Tracks (exit strategies) in his system:
+  • wholesale: put the property under contract below value and assign it to a cash buyer for a fee (Deal Desk; default fee about $15,000, minimum about $7,500; cash offers start near 70% of ARV minus repairs and fee). Offer options he uses: assignable cash offer, option to purchase, seller-finance terms. He prefers the option with the least cash out of his pocket. On land or 3+ acre deals he likes keeping some acreage free.
+  • subto: buy "subject to" the existing mortgage: take over the seller's payments, keep the loan in place, then rent and hold, JV rent-hold, or assign. Needs a below-market or workable loan, PITI the rent can cover, equity or a motivated seller (pre-foreclosure, probate/inherited, tired landlord, expired listing). Due-on-sale risk is managed with reserves.
+  • creative: seller financing / terms / JV / partnerships, mostly income property (RV parks, mobile home parks, storage, apartments) but any property where terms beat cash.
+  • pass: not worth pursuing.
+- Partnering: when another investor or wholesaler brings a deal, find out whether they own it or control it (assignable contract, price, closing date), and consider a JV or double close instead of paying retail.
+- Rules he never breaks: closed for all new business from sunset Friday to sunset Saturday (Shabbat); never call or text anyone without recorded consent (texts only through his bridge); offers and agreements go out only by his click; never collect SSNs, tax IDs or bank/account numbers; no legal or tax advice (say when an attorney, title company or CPA should confirm); in Texas the wholesaler disclosure (Occupations Code §1101.0045) applies to assigned contracts; buyer entity: "House Lot & Land Sales Co. LLC, a Texas-based limited liability company". He is frugal: flag anything that costs money (data credits, inspections, travel) and suggest the cheapest way to learn the same thing.
+
+HOW TO ANSWER
+- Lead with the answer: recommended track and exit, in one or two sentences, then why, with the numbers worked out (show the arithmetic briefly). Then risks and red flags, then the questions to ask or documents to get next. Be direct and specific; no filler. Use short headings and bullets; tables only for comparisons.
+- Values: "Est. value" is BatchData's automated estimate. Harvey also uses his own market value, FMV = county appraisal-district value ÷ 0.8 (shown as fmv / appraisedValue with the deal). Report FMV beside Est. value whenever the appraised value is known, never in place of it, and say which one each calculation uses (the dashboard's own math uses Est. value / ARV). If a screenshot or document shows the county appraised (market) value, propose it as the "appraised" update so FMV is computed.
+- Compare data sources: public records/BatchData vs. what a seller, agent or investor claims vs. photos/documents. Point out every mismatch (beds, baths, square feet, owner name, liens, listing status, price) and what it might mean (unpermitted addition, outdated records, wrong owner, middleman).
+- When images are attached, say briefly what you see that matters (condition, repairs, rooms, roof, foundation clues, the text in a screenshot), because later turns will not include the images again.
+- Reference code: every deal has one (shown as REFERENCE CODE with the deal, like HL-SMEGG). Every email, letter or text you draft about this property must carry it exactly as given: in an email subject as "(Ref HL-XXXXX)" after the property address and again on its own line above the signature as "Reference: HL-XXXXX"; in a text as "Ref HL-XXXXX". Spanish: "(Ref HL-XXXXX)" and "Referencia: HL-XXXXX". Never make up or change a code.
+- Never invent facts or comps. If you are estimating, say so. If information is missing, say what is missing and how to get it.
+- Today is ${today()}.
+
+PROPOSING CHANGES
+If the deal record should change (corrected property facts, numbers, notes, stage, next follow-up date, or adding the property to another track), end your reply with ONE fenced block exactly like this, and only include what should change:
+\`\`\`hll-actions
+{"updates": {"<field>": <value>}, "note": "<one or two lines to add to the deal notes>", "stage": "<stage>", "nextTouch": "YYYY-MM-DD", "addTrack": "<track>", "why": "<one short sentence>"}
+\`\`\`
+- "updates" keys must come from this list (use numbers for numeric fields): ${cfg.fields.map(f => f.key + (f.type === "number" ? " (number)" : f.type === "date" ? " (YYYY-MM-DD)" : f.options ? " (one of: " + f.options.join(" | ") + ")" : "")).join(", ")}.
+- "stage" must be one of: ${(cfg.stages || []).join(" | ")}.
+- "addTrack" may be "wholesale", "subto" or "creative" (not this dashboard's own track, "${cfg.track}"); it adds the property to that track in the back office so it appears on that dashboard too.
+- Harvey reviews each change and clicks Apply; nothing changes until he does. Do not mention the block in your prose beyond "I've proposed updates below." Leave the block out when nothing should change.`;
+
+  /* ---------- tiny Markdown renderer (escaped first) ---------- */
+  function inline(s){
+    return s.replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+  function md(src){
+    const lines = esc(src).split("\n"), out = []; let list = null, table = null, para = [];
+    const flushP = () => { if(para.length){ out.push("<p>" + inline(para.join("<br>")) + "</p>"); para = []; } };
+    const flushL = () => { if(list){ out.push(`<${list.t}>` + list.items.map(i => "<li>" + inline(i) + "</li>").join("") + `</${list.t}>`); list = null; } };
+    const flushT = () => { if(table){ const rows = table.filter(r => !/^\s*\|?\s*:?-{2,}/.test(r)).map(r => r.replace(/^\s*\||\|\s*$/g, "").split("|").map(c => inline(c.trim())));
+      if(rows.length) out.push('<div class="da-tw"><table><thead><tr>' + rows[0].map(c => "<th>" + c + "</th>").join("") + "</tr></thead><tbody>" + rows.slice(1).map(r => "<tr>" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>");
+      table = null; } };
+    for(const raw of lines){
+      const l = raw.replace(/\s+$/, "");
+      if(/^\s*\|.*\|\s*$/.test(l)){ flushP(); flushL(); (table = table || []).push(l); continue; } else flushT();
+      let m;
+      if(!l.trim()){ flushP(); flushL(); continue; }
+      if((m = l.match(/^(#{1,4})\s+(.*)$/))){ flushP(); flushL(); out.push(`<h4>${inline(m[2])}</h4>`); continue; }
+      if((m = l.match(/^\s*[-*•]\s+(.*)$/))){ flushP(); if(!list || list.t !== "ul"){ flushL(); list = {t:"ul", items:[]}; } list.items.push(m[1]); continue; }
+      if((m = l.match(/^\s*\d+[.)]\s+(.*)$/))){ flushP(); if(!list || list.t !== "ol"){ flushL(); list = {t:"ol", items:[]}; } list.items.push(m[1]); continue; }
+      if(/^\s*(-{3,}|\*{3,})\s*$/.test(l)){ flushP(); flushL(); out.push("<hr>"); continue; }
+      if(list && /^\s{2,}\S/.test(l)){ list.items[list.items.length-1] += " " + l.trim(); continue; }
+      flushL(); para.push(l);
+    }
+    flushP(); flushL(); flushT();
+    return out.join("");
+  }
+  // Split a reply into prose and the actions block (also hides a half-written block while streaming).
+  function splitReply(text){
+    const i = text.indexOf("```hll-actions");
+    if(i < 0) return {prose:text, actions:null};
+    const prose = text.slice(0, i).trimEnd(), rest = text.slice(i + 14), j = rest.indexOf("```");
+    if(j < 0) return {prose, actions:null, partial:true};
+    let actions = null; try{ actions = JSON.parse(rest.slice(0, j).trim()); }catch(_){ actions = null; }
+    const after = rest.slice(j + 3).trim();
+    return {prose: after ? prose + "\n\n" + after : prose, actions};
+  }
+
+  /* ---------- files ---------- */
+  let pdfjs = null;
+  function loadPdfJs(){
+    if(pdfjs) return pdfjs;
+    pdfjs = new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      s.onload = () => { const lib = window.pdfjsLib; if(!lib) return rej(new Error("pdf")); lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(lib); };
+      s.onerror = () => { pdfjs = null; rej(new Error("pdf")); };
+      document.head.appendChild(s);
+    });
+    return pdfjs;
+  }
+  async function readPdf(file, wantPages){
+    const lib = await loadPdfJs();
+    const doc = await lib.getDocument({data: new Uint8Array(file._buf ? file._buf.slice(0) : await file.arrayBuffer()), isEvalSupported:false}).promise;
+    let text = "";
+    for(let p = 1; p <= Math.min(doc.numPages, 40) && text.length < MAX_FILE_TEXT; p++){
+      const pg = await doc.getPage(p); const tc = await pg.getTextContent();
+      text += `\n[page ${p}]\n` + tc.items.map(i => i.str + (i.hasEOL ? "\n" : " ")).join("");
+    }
+    const images = [];
+    for(let p = 1; p <= Math.min(doc.numPages, wantPages); p++){
+      const pg = await doc.getPage(p); const vp = pg.getViewport({scale:1}); const scale = Math.min(2, 1400 / Math.max(vp.width, vp.height));
+      const v2 = pg.getViewport({scale}); const c = document.createElement("canvas"); c.width = v2.width; c.height = v2.height;
+      await pg.render({canvasContext:c.getContext("2d"), viewport:v2}).promise;
+      const b = await new Promise(r => c.toBlob(r, "image/jpeg", 0.85)); if(b) images.push(new File([b], `${file.name} p${p}.jpg`, {type:"image/jpeg"}));
+    }
+    return {text: text.trim(), pages: doc.numPages, images};
+  }
+  const TEXT_RE = /\.(txt|csv|tsv|md|json|eml|html?|xml|rtf|log)$/i;
+
+  /* ---------- styles ---------- */
+  const CSS = `
+.da-root{--da-bg:#fff;--da-ink:#151b26;--da-muted:#5a6577;--da-line:#d6dce5;--da-acc:#2b4c7e;--da-acc-ink:#fff;--da-soft:#e8eef7;--da-me:#2b4c7e;--da-me-ink:#fff;--da-ok:#1e7a46;--da-warn:#9a5b00;
+  font:14.5px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--da-ink)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .da-root{--da-bg:#171d27;--da-ink:#e5eaf2;--da-muted:#98a3b5;--da-line:#2a3342;--da-acc:#86a8dc;--da-acc-ink:#0e1420;--da-soft:#1e2a3d;--da-me:#2f4b75;--da-me-ink:#fff;--da-ok:#5cc58a;--da-warn:#e2a64a}}
+:root[data-theme="dark"] .da-root{--da-bg:#171d27;--da-ink:#e5eaf2;--da-muted:#98a3b5;--da-line:#2a3342;--da-acc:#86a8dc;--da-acc-ink:#0e1420;--da-soft:#1e2a3d;--da-me:#2f4b75;--da-me-ink:#fff;--da-ok:#5cc58a;--da-warn:#e2a64a}
+.da-fab{position:fixed;right:18px;bottom:18px;z-index:9000;border:0;border-radius:999px;padding:12px 18px;background:var(--da-acc);color:var(--da-acc-ink);font:600 14.5px/1 system-ui,sans-serif;box-shadow:0 8px 24px -8px rgba(0,0,0,.45);cursor:pointer}
+.da-fab[hidden]{display:none}
+.da-panel{position:fixed;top:0;right:0;bottom:0;width:min(480px,100vw);z-index:9001;background:var(--da-bg);border-left:1px solid var(--da-line);box-shadow:-12px 0 32px -16px rgba(0,0,0,.4);display:flex;flex-direction:column}
+.da-panel[hidden]{display:none}
+.da-root *,.da-root *::before,.da-root *::after{box-sizing:border-box}
+.da-root button,.da-root textarea{font:inherit;letter-spacing:normal;text-transform:none;margin:0;box-shadow:none;width:auto;min-height:0;height:auto}
+.da-head{flex:none;display:flex;align-items:flex-start;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--da-line)}
+.da-head .da-t{flex:1;min-width:0}.da-head b{display:block;font-size:16px}.da-head small{display:block;color:var(--da-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.da-root .da-btn{display:inline-block;line-height:1.3;border:1px solid var(--da-line);background:transparent;color:var(--da-ink);border-radius:9px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+.da-root .da-btn:hover{background:var(--da-soft)}.da-root .da-btn.pri{background:var(--da-acc);color:var(--da-acc-ink);border-color:var(--da-acc)}.da-btn:disabled{opacity:.55;cursor:default}
+.da-x{border:0;background:transparent;color:var(--da-muted);font-size:22px;line-height:1;cursor:pointer;padding:2px 4px}
+.da-log{flex:1 1 auto;min-height:0;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.da-msg{max-width:100%;overflow-wrap:anywhere}.da-msg.me{align-self:flex-end;max-width:88%;background:var(--da-me);color:var(--da-me-ink);border-radius:14px 14px 4px 14px;padding:8px 12px;white-space:pre-wrap}
+.da-msg.ai{border-left:3px solid var(--da-acc);padding:2px 0 2px 12px}.da-msg.ai p{margin:.35em 0}.da-msg.ai h4{margin:.8em 0 .3em;font-size:14.5px}.da-msg.ai ul,.da-msg.ai ol{margin:.3em 0;padding-left:1.3em}.da-msg.ai code{background:var(--da-soft);border-radius:4px;padding:0 4px}
+.da-msg.sys{align-self:center;color:var(--da-muted);font-size:12.5px;text-align:center}
+.da-files{font-size:12px;opacity:.85;margin-top:4px}
+.da-tw{overflow:auto;max-width:100%}.da-root .da-msg table{width:auto;min-width:0;max-width:none;table-layout:auto;border-collapse:collapse;font-size:13px;margin:.4em 0;background:none}.da-root .da-msg th,.da-root .da-msg td{border:1px solid var(--da-line);padding:4px 7px;text-align:left;vertical-align:top;white-space:normal;font:inherit;font-size:13px;letter-spacing:normal;text-transform:none;color:var(--da-ink);background:none;position:static}.da-root .da-msg th{font-weight:600}
+.da-think{color:var(--da-muted);font-style:italic}
+.da-act{border:1px solid var(--da-line);border-radius:12px;padding:10px 12px;background:var(--da-soft)}
+.da-act h5{margin:0 0 6px;font-size:13.5px}.da-act label{display:flex;font-weight:400;color:var(--da-ink);gap:8px;align-items:flex-start;font-size:13.5px;margin:4px 0}.da-act input{margin-top:3px;width:auto;flex:none}
+.da-act .da-why{color:var(--da-muted);font-size:12.5px;margin:0 0 6px}.da-act .da-row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}.da-act .da-done{color:var(--da-ok);font-size:13px}
+.da-chips{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 8px}.da-chip{border:1px solid var(--da-line);border-radius:999px;padding:4px 10px;background:transparent;color:var(--da-ink);font-size:12.5px;cursor:pointer}.da-chip:hover{background:var(--da-soft)}
+.da-comp{flex:none;margin:0;display:block;border-top:1px solid var(--da-line);padding:10px 16px 14px}
+.da-att{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.da-att span{display:inline-flex;gap:6px;align-items:center;font-size:12px;border:1px solid var(--da-line);border-radius:8px;padding:3px 6px}.da-att button{border:0;background:none;color:var(--da-muted);cursor:pointer;padding:0}
+.da-root .da-comp textarea{display:block;width:100%;min-height:64px;height:64px;max-height:200px;resize:vertical;border:1px solid var(--da-line);border-radius:10px;padding:8px 10px;background:transparent;color:var(--da-ink);font:inherit}
+.da-comp .da-bar{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}.da-comp .da-bar .da-sp{flex:1}.da-comp .da-note{font-size:12px;color:var(--da-muted)}
+.da-drop{outline:2px dashed var(--da-acc);outline-offset:-8px}
+.da-err{color:var(--da-warn);font-size:13px}
+@media (max-width:560px){.da-fab{right:12px;bottom:12px;padding:11px 15px}}`;
+
+  function mount(cfg){
+    if(!document.getElementById("da-style")){ const st = document.createElement("style"); st.id = "da-style"; st.textContent = CSS; document.head.appendChild(st); }
+    const root = document.createElement("div"); root.className = "da-root";
+    root.innerHTML = `<button class="da-fab" type="button">✦ Deal Advisor</button>
+      <aside class="da-panel" hidden aria-label="Deal Advisor">
+        <div class="da-head"><div class="da-t"><b>Deal Advisor</b><small class="da-sub">Pick a deal to start</small></div>
+          <button class="da-btn da-new" type="button" title="Start a new conversation on this deal">New chat</button><button class="da-x" type="button" aria-label="Close">×</button></div>
+        <div class="da-log" aria-live="polite"></div>
+        <div class="da-chips"></div>
+        <form class="da-comp"><div class="da-att"></div>
+          <textarea placeholder="Ask about this deal, paste an email or numbers, or drop photos, screenshots and PDFs…"></textarea>
+          <div class="da-bar"><button class="da-btn da-file" type="button">📎 Attach</button><input type="file" multiple hidden accept="image/*,.pdf,.txt,.csv,.tsv,.md,.json,.eml,.html,.htm,.xml">
+            <span class="da-sp da-note"></span><button class="da-btn da-stop" type="button" hidden>Stop</button><button class="da-btn pri da-send" type="submit">Send</button></div></form>
+      </aside>`;
+    document.body.appendChild(root);
+    const q = s => root.querySelector(s);
+    const fab = q(".da-fab"), panel = q(".da-panel"), log = q(".da-log"), sub = q(".da-sub"), chips = q(".da-chips"), form = q(".da-comp"), ta = q("textarea"),
+      fileIn = q("input[type=file]"), attBox = q(".da-att"), note = q(".da-comp .da-note"), sendBtn = q(".da-send"), stopBtn = q(".da-stop");
+    const S = {recId:null, turns:[], files:[], busy:false, ctl:null, sample:null, limits:null, loadedFor:null, mcp:null};
+
+    const CHIPS = [
+      ["Best track & exit", "What's the best track and exit strategy for this deal, and what would you offer? Work the numbers."],
+      ["Check the data", "Compare everything we know about this property (public records, what the seller/agent/investor said, the listing) and flag every mismatch and what it means."],
+      ["What to ask next", "What questions should I ask, and what documents should I get, before making an offer?"],
+      ["Draft a reply", "Draft my reply to the latest message from the seller or the person who sent this deal. Keep it short, in my voice, with the reference code."],
+    ];
+    chips.innerHTML = CHIPS.map(([l], i) => `<button type="button" class="da-chip" data-i="${i}">${esc(l)}</button>`).join("");
+
+    async function getSample(){
+      if(S.sample) return S.sample;
+      try{ S.sample = await window.claude.use("sample"); }catch(_){ S.sample = null; }
+      if(S.sample && !S.limits){ try{ S.limits = await S.sample.limits(); }catch(_){ S.limits = null; } }
+      return S.sample;
+    }
+    async function getMcp(){ if(S.mcp) return S.mcp; try{ S.mcp = cfg.getMcp ? await cfg.getMcp() : await window.claude.use("mcp"); }catch(_){ S.mcp = null; } return S.mcp; }
+    const rowsOf = r => { let p = r && r.payload; if(typeof p === "string"){ try{ p = JSON.parse(p); }catch(_){ return []; } }
+      const a = Array.isArray(p) ? p : (p && (p.result || p.results)) || []; if(Array.isArray(a) && a[0] && Array.isArray(a[0].results)) return a[0].results;
+      return Array.isArray(a) ? a.filter(x => x && typeof x === "object" && !("success" in x && "meta" in x)) : []; };
+    async function d1(sql, params){ const m = await getMcp(); if(!m) throw new Error("The back office connection isn't available in this view.");
+      return rowsOf(await m.callTool(CF, "d1_database_query", {database_id:DB_ID, sql, params:(params || []).map(v => v == null ? "" : String(v))})); }
+    const db = () => cfg.getDb && cfg.getDb();
+
+    /* ----- conversation storage ----- */
+    async function loadThread(id){
+      S.turns = []; const d = db(); if(!d) return;
+      try{ const s = await d.doc("advisor/" + id).get(); if(s.exists){ const v = s.data(); S.turns = Array.isArray(v.turns) ? v.turns : []; } }catch(_){}
+    }
+    let saving = Promise.resolve();
+    function saveThread(){
+      const d = db(), id = S.recId; if(!d || !id) return;
+      const turns = S.turns.slice(-MAX_TURNS * 2).map(t => ({...t, content: String(t.content || "").slice(0, MAX_STORED)}));
+      saving = saving.then(() => d.doc("advisor/" + id).set({turns, updatedAt:new Date().toISOString(), app:cfg.app})).catch(() => {});
+    }
+
+    /* ----- rendering ----- */
+    function actionCard(t, idx){
+      const a = t.actions; if(!a || typeof a !== "object") return "";
+      const rec = cfg.current(), items = [];
+      const fields = Object.fromEntries(cfg.fields.map(f => [f.key, f]));
+      const curVal = k => { const v = cfg.getField ? cfg.getField(k) : rec && rec.data && rec.data[k]; return v == null || v === "" ? "—" : String(v); };
+      if(a.updates && typeof a.updates === "object") for(const [k0, v] of Object.entries(a.updates)){
+        const k = fields[k0] ? k0 : fields["inputs." + k0] ? "inputs." + k0 : null; // accept analyzer inputs named without the prefix
+        if(k && v != null && String(v) !== "") items.push({kind:"u", k, v, label:`${fields[k].label}: ${curVal(k)} → ${v}`}); }
+      if(a.stage && (cfg.stages || []).includes(a.stage)) items.push({kind:"stage", v:a.stage, label:`Stage → ${a.stage}`});
+      if(a.nextTouch && /^\d{4}-\d{2}-\d{2}$/.test(a.nextTouch) && cfg.nextKey) items.push({kind:"next", v:a.nextTouch, label:`Next follow-up → ${a.nextTouch}`});
+      if(a.note && cfg.notesKey) items.push({kind:"note", v:String(a.note).slice(0, 1500), label:`Add to notes: “${String(a.note).slice(0, 300)}${String(a.note).length > 300 ? "…" : ""}”`});
+      if(a.addTrack && TRACKS[a.addTrack] && a.addTrack !== cfg.track) items.push({kind:"track", v:a.addTrack, label:`Add this property to the ${TRACKS[a.addTrack].label.split(" (")[0]} track (back office and that dashboard)`});
+      if(!items.length) return "";
+      t._items = items;
+      if(t.applied) return `<div class="da-act"><h5>Proposed changes</h5><p class="da-done">✓ ${esc(t.applied)}</p></div>`;
+      return `<div class="da-act" data-idx="${idx}"><h5>Proposed changes</h5>${a.why ? `<p class="da-why">${esc(a.why)}</p>` : ""}
+        ${items.map((it, j) => `<label><input type="checkbox" data-j="${j}" checked> <span>${esc(it.label)}</span></label>`).join("")}
+        <div class="da-row"><button type="button" class="da-btn pri da-apply">Apply selected</button><button type="button" class="da-btn da-skip">Dismiss</button><span class="da-err"></span></div></div>`;
+    }
+    function render(streamText){
+      const rec = cfg.current();
+      sub.textContent = rec ? rec.title : "Pick a deal on this dashboard to start";
+      const parts = [];
+      if(!S.turns.length && !streamText) parts.push(`<div class="da-msg sys">${rec ? "Ask anything about this deal. I can see its details and numbers; attach photos, screenshots, PDFs or paste emails for me to weigh in. I'll propose changes for you to approve." : "Open a deal, then ask me about it."}</div>`);
+      S.turns.forEach((t, i) => {
+        if(t.hidden) return;
+        if(t.role === "user") parts.push(`<div class="da-msg me">${esc(t.display || t.content)}${t.files && t.files.length ? `<div class="da-files">📎 ${esc(t.files.join(", "))}</div>` : ""}</div>`);
+        else if(t.role === "assistant") parts.push(`<div class="da-msg ai">${md(splitReply(t.content).prose)}</div>${actionCard(t, i)}`);
+        else if(t.role === "note") parts.push(`<div class="da-msg sys">${esc(t.content)}</div>`);
+      });
+      if(streamText != null) parts.push(`<div class="da-msg ai">${streamText ? md(splitReply(streamText).prose) : `<span class="da-think">Thinking…</span>`}</div>`);
+      log.innerHTML = parts.join("");
+      log.scrollTop = log.scrollHeight;
+      const can = !!rec && !S.busy;
+      sendBtn.disabled = !can; ta.disabled = !rec; q(".da-file").disabled = !can; q(".da-new").disabled = !rec || S.busy || !S.turns.length;
+      chips.hidden = !rec || S.busy;
+      sendBtn.hidden = S.busy; stopBtn.hidden = !S.busy;
+    }
+    function renderFiles(){
+      attBox.innerHTML = S.files.map((f, i) => `<span>${/^image\//.test(f.type) ? "🖼" : /pdf$/i.test(f.name) ? "📄" : "📝"} ${esc(f.name)} <button type="button" data-rm="${i}" aria-label="Remove">×</button></span>`).join("");
+      const im = S.limits && S.limits.images;
+      note.textContent = S.files.length ? `${S.files.length} file${S.files.length > 1 ? "s" : ""} attached` : im ? "Photos, screenshots, PDFs, text and CSV files" : "PDFs, text and CSV files";
+    }
+    function addFiles(list){
+      const im = S.limits && S.limits.images;
+      for(const f of Array.from(list || [])){
+        const isImg = /^image\//.test(f.type), isPdf = /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name), isText = /^text\//.test(f.type) || /json|xml|message\/rfc822/.test(f.type) || TEXT_RE.test(f.name);
+        if(isImg && !im){ toast("Photos can't be sent from this view. Open the dashboard in claude.ai."); continue; }
+        if(isImg && im && im.mediaTypes && !im.mediaTypes.includes(f.type)){ toast(`${f.name}: use JPG, PNG, WebP or GIF.`); continue; }
+        if(!isImg && !isPdf && !isText){ toast(`${f.name}: I can read photos, PDFs, and text, CSV or email files. Save spreadsheets as CSV.`); continue; }
+        if(f.size > 25 * 1024 * 1024){ toast(`${f.name} is too large (25 MB max).`); continue; }
+        if(S.files.length >= 12){ toast("Up to 12 files at a time."); break; }
+        S.files.push(f); f._reading = readNow(f);
+      }
+      renderFiles();
+    }
+    // Read the file's bytes as soon as it's attached (10-second limit). A file the computer can't hand over (for example
+    // one stored in iCloud or Google Drive that isn't downloaded) is dropped with a message, instead of freezing Send later.
+    const limit = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+    async function readNow(f){
+      try{ f._buf = await limit(f.arrayBuffer(), 10000); }
+      catch(_){ const i = S.files.indexOf(f); if(i >= 0) S.files.splice(i, 1); renderFiles();
+        note.textContent = `Couldn't open ${f.name}. If it's in iCloud or Google Drive, download it to your computer first, or paste its text instead.`; }
+    }
+    const toast = msg => { if(cfg.toast) cfg.toast(msg); else note.textContent = msg; };
+
+    /* ----- open / select ----- */
+    async function open(id){
+      panel.hidden = false; fab.hidden = true;
+      if(id && cfg.select && (!cfg.current() || cfg.current().id !== id)) cfg.select(id);
+      await sync();
+      getSample().then(renderFiles);
+      setTimeout(() => ta.focus({preventScroll:true}), 50);
+    }
+    async function sync(){
+      const rec = cfg.current(), id = rec ? rec.id : null;
+      if(id !== S.recId){
+        if(S.busy && S.ctl) S.ctl.abort();
+        S.recId = id; S.turns = []; S.files = []; renderFiles(); render();
+        if(id){ await loadThread(id); if(S.recId === id) render(); }
+      } else render();
+    }
+    function close(){ panel.hidden = true; fab.hidden = false; }
+    fab.onclick = () => open();
+    q(".da-x").onclick = close;
+    q(".da-new").onclick = () => { if(S.busy) return; S.turns = []; saveThread(); render(); };
+    q(".da-file").onclick = () => fileIn.click();
+    fileIn.onchange = () => { addFiles(fileIn.files); fileIn.value = ""; };
+    attBox.onclick = e => { const b = e.target.closest("[data-rm]"); if(b){ S.files.splice(+b.dataset.rm, 1); renderFiles(); } };
+    ta.addEventListener("paste", e => { const fs = Array.from(e.clipboardData && e.clipboardData.files || []); if(fs.length){ e.preventDefault(); addFiles(fs); } });
+    ta.addEventListener("keydown", e => { if(e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); form.requestSubmit(); } });
+    panel.addEventListener("dragover", e => { if(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")){ e.preventDefault(); panel.classList.add("da-drop"); } });
+    panel.addEventListener("dragleave", e => { if(e.target === panel) panel.classList.remove("da-drop"); });
+    panel.addEventListener("drop", e => { e.preventDefault(); panel.classList.remove("da-drop"); addFiles(e.dataTransfer.files); });
+    chips.onclick = e => { const b = e.target.closest("[data-i]"); if(!b) return; ta.value = CHIPS[+b.dataset.i][1]; form.requestSubmit(); };
+    stopBtn.onclick = () => { if(S.ctl) S.ctl.abort(); };
+
+    /* ----- reference code: the dashboard's own (Deal Desk), else one already on the property in the back office, else a stable
+       code made from the property id (same algorithm as the Deal Desk's makeRef), saved to the hub deal so every draft reuses it ----- */
+    const RA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    const makeRef = id => { let h = 2166136261; for(const ch of String(id)){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } h >>>= 0; let r = ""; for(let i = 0; i < 5; i++){ r += RA[h % RA.length]; h = Math.floor(h / RA.length); } return "HL-" + r; };
+    const REF_OK = /^HL-[A-HJ-NP-Z2-9]{5}$/i, refCache = {};
+    async function refFor(rec, ids){
+      if(refCache[rec.id]) return refCache[rec.id];
+      let ref = cfg.ownRef ? cfg.ownRef(rec.id) : null;
+      try{
+        if(ids && ids.hubPid){
+          if(!ref){ const rows = await d1(`SELECT ref FROM deals WHERE property_id = ? AND ref LIKE 'HL-%' ORDER BY CASE track WHEN 'wholesale' THEN 0 ELSE 1 END, created_at LIMIT 1`, [ids.hubPid]);
+            ref = rows[0] && REF_OK.test(rows[0].ref) ? rows[0].ref.toUpperCase() : makeRef(ids.hubPid); }
+          if(ids.hubId) await d1(`UPDATE deals SET ref = ? WHERE id = ? AND (ref IS NULL OR ref = '')`, [ref, ids.hubId]);
+        }
+      }catch(_){}
+      ref = ref || makeRef(rec.id);
+      return (refCache[rec.id] = ref);
+    }
+
+    /* ----- context for Claude ----- */
+    async function contextText(rec){
+      let ctx = "";
+      try{ ctx = JSON.stringify(cfg.context(rec.id), (k, v) => typeof v === "string" && v.length > 4000 ? v.slice(0, 4000) + "…" : v, 1); }catch(_){ ctx = "{}"; }
+      if(ctx.length > 30000) ctx = ctx.slice(0, 30000) + "…";
+      let hub = "", ids = null;
+      try{ ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null; }catch(_){}
+      const ref = await refFor(rec, ids);
+      try{
+        if(ids && ids.hubPid){
+          const rows = await d1(`SELECT d.track, d.stage, d.next_touch, d.asking, d.updated_at, c.name AS contact, c.consent, c.opt_out
+            FROM deals d LEFT JOIN contacts c ON c.id = d.contact_id WHERE d.property_id = ?`, [ids.hubPid]);
+          const acts = await d1(`SELECT at, kind, summary FROM activities WHERE property_id = ? ORDER BY at DESC LIMIT 12`, [ids.hubPid]);
+          hub = `\n\nBACK OFFICE (master list) for this property:\nTracks: ${rows.map(r => `${r.track} (${r.stage}${r.next_touch ? ", next touch " + r.next_touch : ""}${r.contact ? ", contact " + r.contact + (r.opt_out == 1 ? " OPTED OUT" : r.consent == 1 ? " (text consent on file)" : " (no text consent)") : ""})`).join("; ") || "none"}\nRecent activity:\n${acts.map(a => `- ${String(a.at).slice(0,10)} ${a.kind}: ${a.summary}`).join("\n") || "- none"}`;
+        } else hub = "\n\nBACK OFFICE: this record isn't linked to the master list yet (it links on the next back office sync).";
+      }catch(_){ hub = ""; }
+      return `REFERENCE CODE for this property: ${ref}\n\nCURRENT DEAL on the ${cfg.appLabel} (record id ${rec.id}):\n${ctx}${hub}`;
+    }
+
+    /* ----- send ----- */
+    form.onsubmit = async e => {
+      e.preventDefault();
+      // Send never fails silently: every early exit says why.
+      const rec = cfg.current();
+      if(!rec){ toast("Pick a deal on this dashboard first, then ask about it."); return; }
+      if(S.busy){ note.textContent = "Still working on the last answer. Press Stop to cancel it."; return; }
+      const text = ta.value.trim(); if(!text && !S.files.length){ ta.focus(); note.textContent = "Type a question or attach a file."; return; }
+      note.textContent = "Connecting to Claude…"; sendBtn.disabled = true;
+      let sample = null;
+      try{ sample = await getSample(); }finally{ sendBtn.disabled = false; note.textContent = ""; }
+      if(!sample){ S.sample = null; toast("Claude isn't available to this dashboard right now. Reload the page, and allow Claude if claude.ai asks."); return; }
+      S.busy = true;
+      const ctl = S.ctl = new AbortController();
+      let shown = "", timedOut = false;
+      // If Claude never starts answering, stop waiting after 2 minutes instead of leaving Send stuck.
+      const watchdog = setTimeout(() => { if(!shown){ timedOut = true; ctl.abort(); } }, 120000);
+      // Stop and the 2-minute timeout always end the wait, even if the request ignores the abort.
+      const ended = new Promise((_, rej) => ctl.signal.addEventListener("abort", () => rej(Object.assign(new Error("cancelled"), {code:"cancelled", text: shown || ""})), {once:true}));
+      ended.catch(() => {});
+      const within = (p, ms) => Promise.race([p, ended, limit(new Promise(() => {}), ms)]);
+      try{
+      const files = S.files.slice(); S.files = []; renderFiles();
+      // Show the question and "Thinking…" right away; attachments are read after.
+      const userTurn = {role:"user", content:"", display:text || "(attached files)", files:files.map(f => f.name), at:new Date().toISOString()};
+      S.turns.push(userTurn); ta.value = ""; render("");
+      const imLim = S.limits && S.limits.images, maxImg = imLim ? imLim.maxCount || 0 : 0;
+      const images = [], fileNotes = [], names = [];
+      try{
+        for(const f of files){
+          names.push(f.name);
+          if(/^image\//.test(f.type)){ if(images.length < maxImg){ images.push(f); fileNotes.push(`[Image attached: ${f.name}]`); } else fileNotes.push(`[Image ${f.name} not sent: too many images in one message]`); continue; }
+          try{ await within(f._reading || Promise.resolve(), 15000); }catch(err){ if(ctl.signal.aborted) throw err; }
+          if(!f._buf){ fileNotes.push(`[${f.name} could not be opened]`); continue; }
+          if(/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)){
+            note.textContent = `Reading ${f.name}…`;
+            try{ const r = await within(readPdf(f, Math.max(0, Math.min(3, maxImg - images.length))), 45000);
+              images.push(...r.images);
+              fileNotes.push(`--- PDF: ${f.name} (${r.pages} page${r.pages > 1 ? "s" : ""}${r.images.length ? `, first ${r.images.length} attached as images` : ""}) ---\n${r.text.slice(0, MAX_FILE_TEXT) || "(no text layer: likely a scan; see the page images)"}`); }
+            catch(err){ if(ctl.signal.aborted) throw err; fileNotes.push(`[PDF ${f.name} could not be read here; ask Harvey to paste its text if it matters]`); }
+            continue;
+          }
+          fileNotes.push(`--- File: ${f.name} ---\n${new TextDecoder().decode(f._buf).slice(0, MAX_FILE_TEXT)}`);
+        }
+      }catch(err){ if(ctl.signal.aborted) throw err; }
+      note.textContent = "";
+      userTurn.content = [text || "(See the attached files.)", ...fileNotes].join("\n\n");
+      const myRec = rec.id;
+      let ctx = ""; try{ ctx = await within(contextText(rec), 30000); }catch(err){ if(ctl.signal.aborted) throw err; }
+      const hist = S.turns.filter(t => t.role === "user" || t.role === "assistant").slice(-MAX_TURNS).map(t => ({role:t.role, content:String(t.content || "").slice(0, 20000) || "(empty)"}));
+      while(hist.length && hist[0].role !== "user") hist.shift();
+      const input = [{role:"user", content: RULES(cfg) + "\n\n" + ctx}, ...hist];
+      try{
+        const opts = {signal:ctl.signal, cache:false, modelTier:"complex", model:MODEL, onText: ({text:t}) => { shown = t; if(S.recId === myRec) render(t); }};
+        if(images.length) opts.images = images;
+        const r = await Promise.race([sample(input, opts), ended]);
+        if(S.recId !== myRec) return;
+        const sp = splitReply(r.text);
+        S.turns.push({role:"assistant", content:r.text, actions:sp.actions || null, at:new Date().toISOString(), truncated:!!r.truncated});
+        if(r.truncated) S.turns.push({role:"note", content:"That answer was cut short. Ask me to continue."});
+      }catch(err){
+        const c = err && err.code;
+        if(S.recId === myRec){
+          if(err && err.text) S.turns.push({role:"assistant", content:err.text + "\n\n*(interrupted)*", at:new Date().toISOString()});
+          const msg = timedOut ? "No answer from Claude after 2 minutes. Try again; if it keeps happening, reload the page." : c === "cancelled" ? "Stopped." : c === "not_granted" || c === "sampling_disabled" ? "Claude isn't allowed for this dashboard. Allow it when claude.ai asks, then try again."
+            : c === "rate_limited" ? "You've hit a Claude usage limit for now. Try again in a little while." : c === "prompt_too_large" ? "That's too much text at once. Start a New chat or attach less."
+            : c === "image_rejected" ? "One of the images couldn't be used. Try a JPG or PNG under 20 MB." : c === "refused" ? "Claude declined that request. Rephrase it and try again."
+            : c === "images_unavailable" ? "Images can't be sent from this view; text works." : `Something went wrong reaching Claude${c ? " (" + c + ")" : ""}. Try again.`;
+          S.turns.push({role:"note", content:msg});
+        }
+      }
+      clearTimeout(watchdog);
+      if(S.recId === myRec){ saveThread(); }
+      }catch(err){ S.turns.push({role:"note", content: timedOut ? "Reading the attachments took too long. Try again, or paste the text instead of attaching." : ctl.signal.aborted ? "Stopped." : `Something went wrong preparing that message${err && err.message ? ": " + err.message : ""}. Try again.`}); note.textContent = ""; }
+      finally{ clearTimeout(watchdog); S.turns.forEach(t => { if(t.role === "user" && !t.content) t.content = t.display; }); S.busy = false; S.ctl = null; render(); }
+    };
+
+    /* ----- applying proposed changes ----- */
+    log.addEventListener("click", async e => {
+      const card = e.target.closest(".da-act[data-idx]"); if(!card) return;
+      const t = S.turns[+card.dataset.idx]; if(!t) return;
+      if(e.target.closest(".da-skip")){ t.applied = "Dismissed"; saveThread(); render(); return; }
+      if(!e.target.closest(".da-apply")) return;
+      const rec = cfg.current(); const errEl = card.querySelector(".da-err");
+      if(!rec || rec.id !== S.recId){ errEl.textContent = "Open this deal again first."; return; }
+      const picked = (t._items || []).filter((_, j) => { const cb = card.querySelector(`input[data-j="${j}"]`); return cb && cb.checked; });
+      if(!picked.length){ errEl.textContent = "Tick at least one change."; return; }
+      const patch = {}, done = [];
+      for(const it of picked){
+        if(it.kind === "u"){ const f = cfg.fields.find(x => x.key === it.k); let v = it.v;
+          if(f.type === "number"){ v = parseFloat(String(v).replace(/[$,%\s]/g, "")); if(!isFinite(v)) continue; }
+          else if(f.options && !f.options.includes(String(v))) continue; else v = String(v);
+          patch[it.k] = v; done.push(`${f.label} ${v}`); }
+        if(it.kind === "stage"){ patch[cfg.stageKey] = it.v; done.push(`stage ${it.v}`); }
+        if(it.kind === "next"){ patch[cfg.nextKey] = it.v; done.push(`next touch ${it.v}`); }
+        if(it.kind === "note"){ patch.__note = `[${today()} Deal Advisor] ${it.v}`; done.push("note added"); }
+      }
+      const track = picked.find(it => it.kind === "track");
+      card.querySelectorAll("button").forEach(b => b.disabled = true); errEl.textContent = "Saving…";
+      try{
+        const apv = patch.appraised; // adapters may consume it
+        if(Object.keys(patch).length) await cfg.apply(rec.id, patch);
+        if(apv != null){ try{ const ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null; if(ids && ids.hubPid) await saveAppraised(await getMcp(), ids.hubPid, apv, "From the Deal Advisor"); }catch(_){} }
+        if(track){ await addTrack(rec, track.v); done.push(`added to ${TRACKS[track.v].label.split(" (")[0]}`); }
+        t.applied = "Applied: " + done.join(", ");
+        S.turns.push({role:"user", content:`(I applied these changes: ${done.join("; ")}.)`, hidden:true, at:new Date().toISOString()});
+        saveThread(); render(); toast("Deal updated");
+      }catch(err){ errEl.textContent = (err && err.message) || "Couldn't apply. Try again."; card.querySelectorAll("button").forEach(b => b.disabled = false); }
+    });
+    async function addTrack(rec, track){
+      const ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null;
+      if(!ids || !ids.hubPid) throw new Error("This deal isn't linked to the back office yet. Tap “Sync back office”, then apply again.");
+      const now = new Date().toISOString(), stage = TRACKS[track].stages[0];
+      const rid = "d_" + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+      const exists = await d1("SELECT id FROM deals WHERE property_id = ? AND track = ?", [ids.hubPid, track]);
+      if(exists.length) return;
+      await d1(`INSERT OR IGNORE INTO deals (id, property_id, contact_id, track, stage, ref, next_touch, source, source_app, asking, notes, created_at, updated_at)
+        SELECT ?, ?, contact_id, ?, ?, ?, ?, 'Deal Advisor', 'office', asking, ?, ?, ? FROM deals WHERE id = ?`,
+        [rid, ids.hubPid, track, stage, await refFor(rec, ids), today(), `Added by the Deal Advisor from the ${cfg.appLabel}.`, now, now, ids.hubId]);
+      await d1(`INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'created', ?, 'Deal Advisor', ?)`,
+        ["a_" + rid.slice(2), now, ids.hubPid, rid, `Added to ${TRACKS[track].label.split(" (")[0]} by the Deal Advisor`, cfg.app]);
+    }
+
+    /* ----- deep link from the back office: #advise-d-xxxx ----- */
+    async function fromHash(){
+      const m = /^#advise-d-([a-z0-9]+)$/i.exec(location.hash || ""); if(!m) return;
+      const hid = "d_" + m[1].toLowerCase();
+      for(let i = 0; i < 60 && !(cfg.ready && cfg.ready()); i++) await new Promise(r => setTimeout(r, 500));
+      let id = null; try{ id = cfg.findByHub ? await cfg.findByHub(hid) : null; }catch(_){}
+      if(id){ await open(id); }
+      else { panel.hidden = false; fab.hidden = true; await sync(); S.turns.length || log.insertAdjacentHTML("afterbegin", `<div class="da-msg sys">That deal isn't on this dashboard yet. Tap “Sync back office”, wait a moment, then open the link again.</div>`); }
+      try{ window.history.replaceState(null, "", location.pathname + location.search); }catch(_){}
+    }
+    window.addEventListener("hashchange", fromHash);
+    setTimeout(fromHash, 300);
+
+    return { open, close, refresh: () => { if(!panel.hidden) sync(); }, get isOpen(){ return !panel.hidden; } };
+  }
+  return { mount, md, splitReply, fmv, FMV_RATIO, saveAppraised };
+})();
+
+</script>
+<script>
+// ---- Back office master list (D1 "hub") sync: one track of houselotandland.org/office <-> this dashboard ----
+// Pull: every deal on the track appears here; back office stage / next touch / price changes flow in.
+// Push: records made here are added to the master list; stage, next touch, price, state and property details flow out
+// (each stage change is logged in the property's back office history). Deleting a record here deletes it there, and the reverse.
+// Link bookkeeping lives in the "hubmap" collection (one doc per record id), so records themselves stay untouched.
+const HUB_STATES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"District of Columbia",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming",PR:"Puerto Rico"};
+const hubNormState = v => { const t = String(v||"").trim(); if(!t) return ""; const u = t.toUpperCase(); if(HUB_STATES[u]) return u; const h = Object.entries(HUB_STATES).find(([,n]) => n.toLowerCase() === t.toLowerCase()); return h ? h[0] : ""; };
+const HUB_ZIP3 = [[5,5,"NY"],[6,9,"PR"],[10,27,"MA"],[28,29,"RI"],[30,38,"NH"],[39,49,"ME"],[55,55,"MA"],[50,59,"VT"],[60,69,"CT"],[70,89,"NJ"],[100,149,"NY"],[150,196,"PA"],[197,199,"DE"],[200,200,"DC"],[201,201,"VA"],[202,205,"DC"],[206,219,"MD"],[220,246,"VA"],[247,268,"WV"],[270,289,"NC"],[290,299,"SC"],[300,319,"GA"],[398,399,"GA"],[320,349,"FL"],[350,369,"AL"],[370,385,"TN"],[386,397,"MS"],[400,427,"KY"],[430,459,"OH"],[460,479,"IN"],[480,499,"MI"],[500,528,"IA"],[530,549,"WI"],[550,567,"MN"],[570,577,"SD"],[580,588,"ND"],[590,599,"MT"],[600,629,"IL"],[630,658,"MO"],[660,679,"KS"],[680,693,"NE"],[700,714,"LA"],[716,729,"AR"],[733,733,"TX"],[730,749,"OK"],[750,799,"TX"],[885,885,"TX"],[800,816,"CO"],[820,831,"WY"],[832,838,"ID"],[840,847,"UT"],[850,865,"AZ"],[870,884,"NM"],[889,898,"NV"],[900,961,"CA"],[967,968,"HI"],[970,979,"OR"],[980,994,"WA"],[995,999,"AK"]];
+const hubZip5 = z => (String(z||"").match(/\b(\d{5})(?:-\d{4})?\b/)||[])[1] || "";
+const hubZipState = z => { const m = hubZip5(z); if(!m) return ""; const n = +m.slice(0,3); const h = HUB_ZIP3.find(([a,b]) => n>=a && n<=b); return h ? h[2] : ""; };
+const hubStateOf = r => hubNormState(r && r.state) || hubZipState(r && r.zip) || "TX";
+const HUB_SUF = {street:"st",st:"st",drive:"dr",dr:"dr",road:"rd",rd:"rd",avenue:"ave",ave:"ave",av:"ave",lane:"ln",ln:"ln",boulevard:"blvd",blvd:"blvd",court:"ct",ct:"ct",place:"pl",pl:"pl",
+  highway:"hwy",hwy:"hwy",parkway:"pkwy",pkwy:"pkwy",trail:"trl",trl:"trl",circle:"cir",cir:"cir",terrace:"ter",ter:"ter",way:"way",freeway:"fwy",fwy:"fwy",expressway:"expy",expy:"expy",
+  "farm-to-market":"fm","farm to market":"fm",fm:"fm",business:"bus",bus:"bus",bnd:"bnd",bend:"bnd",north:"n",south:"s",east:"e",west:"w",n:"n",s:"s",e:"e",w:"w",northeast:"ne",northwest:"nw",southeast:"se",southwest:"sw"};
+function hubNormStreet(s){ let t = String(s||"").toLowerCase().replace(/farm[\s-]+to[\s-]+market(\s+road)?/g,"fm").replace(/[.,#]/g," "); t = t.replace(/\b(apt|unit|suite|ste|lot|space|spc)\b.*$/,""); return t.split(/\s+/).filter(Boolean).map(w => HUB_SUF[w]||w).join(" ").trim(); }
+// Must match propertyKey() in the site's js/hub-keys.js.
+function hubPropertyKey({address, city, zip, name, state} = {}){
+  const st = hubNormStreet(address), c = String(city||"").toLowerCase().replace(/[^a-z ]/g,"").trim();
+  const s2 = hubNormState(state) || hubZipState(zip), sfx = s2 && s2 !== "TX" ? "|" + s2.toLowerCase() : "";
+  if(/^\d/.test(st)) return hubZip5(zip) ? `${st}|${hubZip5(zip)}` : `${st}|${c}${sfx}`;
+  const n = String(name || address || "").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+  return n ? `name:${n}|${c}${sfx}` : "";
+}
+// Remove one deal from the master list (same rules as the back office's Delete): tombstone it so every dashboard drops its copy,
+// delete the deal, and if the property has no other track left, delete the property, its links and history, and contacts tied to
+// nothing else (never opted-out or TCPA-litigator contacts, which stay on the do-not-contact list).
+async function hubRemoveDeal(q, rowsOf, hid, by){
+  const id = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+  const d = rowsOf(await q("SELECT d.id, d.property_id, d.track, d.source_app, d.source_id, COALESCE(p.address, p.name, '') AS label FROM deals d LEFT JOIN properties p ON p.id = d.property_id WHERE d.id = ?", [hid]))[0];
+  if(!d) return false;
+  const now = new Date().toISOString();
+  await q("INSERT OR REPLACE INTO deleted_deals (deal_id, property_id, track, source_app, source_id, label, at, by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [d.id, d.property_id||"", d.track, d.source_app||"", d.source_id||"", d.label, now, by]);
+  await q("DELETE FROM deals WHERE id = ?", [d.id]);
+  const left = rowsOf(await q("SELECT COUNT(*) AS n FROM deals WHERE property_id = ?", [d.property_id]))[0];
+  if(left && Number(left.n) > 0){
+    await q("INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'update', ?, ?, 'dashboard')", ["a_"+id(), now, d.property_id, d.id, "Deleted in the " + by, by]);
+    return true;
+  }
+  const cs = rowsOf(await q("SELECT contact_id FROM property_contacts WHERE property_id = ?", [d.property_id])).map(r => r.contact_id);
+  await q("DELETE FROM property_contacts WHERE property_id = ?", [d.property_id]);
+  await q("DELETE FROM activities WHERE property_id = ?", [d.property_id]);
+  await q("DELETE FROM properties WHERE id = ?", [d.property_id]);
+  for(const c of cs) await q("DELETE FROM contacts WHERE id = ? AND COALESCE(opt_out, 0) = 0 AND COALESCE(litigator, 0) = 0 AND NOT EXISTS (SELECT 1 FROM property_contacts WHERE contact_id = ?) AND NOT EXISTS (SELECT 1 FROM deals WHERE contact_id = ?)", [c, c, c]);
+  return true;
+}
+function hubSyncStart(cfg){
+  const CF = "Cloudflare Developer Platform", DB_ID = "41cd2c24-fb52-41ae-95b9-748ee75b2d31";
+  const S = {busy:false, map:{}, mapReady:false, mcp:null, timer:null};
+  const status = t => { try{ cfg.onStatus && cfg.onStatus(t); }catch(_){} };
+  const nid = p => p + "_" + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+  const s = v => v==null || (typeof v==="number" && !isFinite(v)) ? "" : String(v);
+  const n = v => { const x = parseFloat(String(v ?? "").replace(/[$,\s]/g,"")); return isFinite(x) ? x : null; };
+  const rowsOf = r => { let p = r && r.payload; if(typeof p==="string"){ try{ p = JSON.parse(p); }catch(_){ return []; } }
+    const a = Array.isArray(p) ? p : (p && (p.result || p.results)) || []; if(Array.isArray(a) && a[0] && Array.isArray(a[0].results)) return a[0].results;
+    return Array.isArray(a) ? a.filter(x => x && typeof x==="object" && !("success" in x && "meta" in x)) : []; };
+  const d1Raw = (sql, params) => S.mcp.callTool(CF, "d1_database_query", {database_id:DB_ID, sql, params:(params||[]).map(s)});
+  const d1 = async (sql, params) => rowsOf(await d1Raw(sql, params));
+  const sigOf = h => JSON.stringify([h.stage, h.next_touch||"", n(h.asking), hubStateOf(h), h.county||"", h.address||"", hubZip5(h.zip), h.prop_type||"", n(h.units), n(h.beds), n(h.baths), n(h.sqft), h.cname||"", h.phone||"", String(h.email||"").toLowerCase()]);
+  const setMap = (id, m) => { S.map[id] = m; return cfg.db.collection("hubmap").doc(id).set(m).catch(()=>{}); };
+  const errText = e => { const c = e && e.code;
+    return c==="server_not_connected" || c==="selection_required" ? "connect Cloudflare Developer Platform in Settings → Connectors."
+      : c==="not_in_manifest" || c==="approval_required" || c==="not_granted" ? "allow the Cloudflare connection when the page asks, then tap Sync."
+      : c==="needs_reauth" ? "sign in to Cloudflare again in Settings → Connectors." : "tap Sync to try again."; };
+  async function contactFor(h, pid, now){
+    const pk = String(h.phone||"").replace(/\D/g,"").slice(-10), em = String(h.email||"").trim().toLowerCase(), okEm = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em);
+    let cid = null;
+    if(pk.length===10) cid = ((await d1("SELECT id FROM contacts WHERE phone_key = ? LIMIT 1", [pk]))[0]||{}).id || null;
+    if(!cid && okEm) cid = ((await d1("SELECT id FROM contacts WHERE email = ? LIMIT 1", [em]))[0]||{}).id || null;
+    if(!cid && (pk.length===10 || okEm || h.cname)){
+      cid = nid("c");
+      await d1(`INSERT INTO contacts (id, name, phone_key, phone, email, mailing, created_at, updated_at) VALUES (?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [cid, h.cname||"", pk.length===10?pk:"", h.phone||"", okEm?em:"", h.mailing||"", now, now]);
+    }
+    if(cid) await d1("INSERT OR IGNORE INTO property_contacts (property_id, contact_id, role, created_at) VALUES (?, ?, 'owner', ?)", [pid, cid, now]);
+    return cid;
+  }
+  async function pushCreate(rec){
+    const h = cfg.toHub(rec), key = hubPropertyKey(h); if(!key) return false;
+    const now = new Date().toISOString();
+    let p = (await d1("SELECT id FROM properties WHERE addr_key = ?", [key]))[0];
+    if(!p){
+      await d1(`INSERT OR IGNORE INTO properties (id, addr_key, name, address, city, state, zip, county, prop_type, units, beds, baths, sqft, created_at, updated_at)
+        VALUES (?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [nid("p"), key, h.name||"", h.address||"", h.city||"", hubStateOf(h), hubZip5(h.zip), h.county||"", h.prop_type||"", s(n(h.units)), s(n(h.beds)), s(n(h.baths)), s(n(h.sqft)), now, now]);
+      p = (await d1("SELECT id FROM properties WHERE addr_key = ?", [key]))[0];
+    }
+    if(!p) return false;
+    const cid = await contactFor(h, p.id, now);
+    let deal = (await d1("SELECT id FROM deals WHERE property_id = ? AND track = ?", [p.id, cfg.track]))[0];
+    if(!deal){
+      deal = {id: nid("d")};
+      await d1(`INSERT INTO deals (id, property_id, contact_id, track, stage, next_touch, source, source_app, source_id, asking, notes, data, created_at, updated_at)
+        VALUES (?, ?, NULLIF(?, ''), ?, ?, NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [deal.id, p.id, cid||"", cfg.track, h.stage, h.next_touch||"", h.source || cfg.label, cfg.app, rec.id, s(n(h.asking)), String(h.notes||"").slice(0,4000), h.data ? JSON.stringify(h.data) : "", h.created_at || now, now]);
+      await d1(`INSERT INTO activities (id, at, property_id, deal_id, contact_id, kind, summary, by, source) VALUES (?, ?, ?, ?, NULLIF(?, ''), 'created', ?, ?, ?)`,
+        [nid("a"), now, p.id, deal.id, cid||"", "Added from the " + cfg.label, cfg.label, cfg.app]);
+    }
+    await setMap(rec.id, {hubId:deal.id, hubPid:p.id, cid:cid||"", hubAt:now, sig:null});
+    await pushUpdate(rec);
+    return true;
+  }
+  async function pushUpdate(rec){
+    const m = S.map[rec.id]; if(!m) return;
+    const h = cfg.toHub(rec), sig = sigOf(h); if(sig === m.sig) return;
+    const prev = m.sig ? JSON.parse(m.sig)[0] : null, now = new Date().toISOString();
+    await d1(`UPDATE deals SET stage = ?, next_touch = NULLIF(?, ''), asking = NULLIF(?, ''), updated_at = ? WHERE id = ?`, [h.stage, h.next_touch||"", s(n(h.asking)), now, m.hubId]);
+    await d1(`UPDATE properties SET address = COALESCE(NULLIF(address, ''), NULLIF(?, '')), zip = COALESCE(NULLIF(zip, ''), NULLIF(?, '')), updated_at = updated_at WHERE id = ?`, [h.address||"", hubZip5(h.zip), m.hubPid]);
+    await d1(`UPDATE properties SET state = ?, county = COALESCE(NULLIF(?, ''), county), prop_type = COALESCE(NULLIF(?, ''), prop_type), units = COALESCE(NULLIF(?, ''), units),
+      beds = COALESCE(NULLIF(?, ''), beds), baths = COALESCE(NULLIF(?, ''), baths), sqft = COALESCE(NULLIF(?, ''), sqft), updated_at = ? WHERE id = ?`,
+      [hubStateOf(h), h.county||"", h.prop_type||"", s(n(h.units)), s(n(h.beds)), s(n(h.baths)), s(n(h.sqft)), now, m.hubPid]);
+    let cid = m.cid || "";
+    if(!cid && (h.cname || h.phone || h.email)){
+      cid = (await contactFor(h, m.hubPid, now)) || "";
+      if(cid) await d1("UPDATE deals SET contact_id = COALESCE(contact_id, ?) WHERE id = ?", [cid, m.hubId]);
+    }
+    if(prev && prev !== h.stage) await d1(`INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'update', ?, ?, ?)`,
+      [nid("a"), now, m.hubPid, m.hubId, `${cfg.trackLabel} stage: ${prev} → ${h.stage}`, cfg.label, cfg.app]);
+    await setMap(rec.id, {...m, cid, sig, hubAt:now});
+  }
+  async function sync(){
+    if(S.busy || !S.mcp || !S.mapReady || !cfg.ready()) return;
+    S.busy = true; status("Syncing with the back office…");
+    try{
+      const rows = await d1(`SELECT d.id AS hid, d.stage, d.next_touch, d.asking, d.value, d.notes, d.source, d.source_app, d.source_id, d.data, d.created_at, d.updated_at,
+        p.id AS pid, p.name, p.address, p.city, p.state, p.zip, p.county, p.prop_type, p.units, p.beds, p.baths, p.sqft, p.acres, json_extract(p.data, '$.appraisedValue') AS appraised,
+        c.id AS cid, c.name AS cname, c.phone, c.email, c.mailing, c.opt_out
+        FROM deals d JOIN properties p ON p.id = d.property_id
+        LEFT JOIN contacts c ON c.id = COALESCE(d.contact_id, (SELECT pc.contact_id FROM property_contacts pc WHERE pc.property_id = p.id LIMIT 1))
+        WHERE d.track = ? ORDER BY d.created_at`, [cfg.track]);
+      const recs = cfg.getRecords(), byId = new Map(recs.map(r => [r.id, r]));
+      // Deals deleted in the back office (or another dashboard): drop our copy.
+      const tomb = await d1("SELECT deal_id, source_app, source_id FROM deleted_deals WHERE track = ?", [cfg.track]);
+      const tombIds = new Set(tomb.map(t => t.deal_id)), tombSrc = new Set(tomb.filter(t => t.source_app === cfg.app).map(t => t.source_id));
+      let removed = 0;
+      for(const [id, m] of Object.entries(S.map)){
+        if(!tombIds.has(m.hubId)) continue;
+        if(byId.has(id)){ await cfg.db.collection(cfg.collection).doc(id).delete().catch(()=>{}); byId.delete(id); removed++; }
+        delete S.map[id]; await cfg.db.collection("hubmap").doc(id).delete().catch(()=>{});
+      }
+      for(const r of recs){ if(!S.map[r.id] && tombSrc.has(r.id) && byId.has(r.id)){ await cfg.db.collection(cfg.collection).doc(r.id).delete().catch(()=>{}); byId.delete(r.id); removed++; } }
+      const byHub = new Map(Object.entries(S.map).map(([id, m]) => [m.hubId, id]));
+      const byKey = new Map(); recs.forEach(r => { if(!S.map[r.id] && !r.example){ const k = hubPropertyKey(cfg.toHub(r)); if(k && !byKey.has(k)) byKey.set(k, r); } });
+      const seen = new Set(); let made = 0, linked = 0, updated = 0, sent = 0, dead = 0;
+      for(const row of rows){
+        seen.add(row.hid);
+        let id = byHub.get(row.hid);
+        if(id && !byId.has(id)) continue; // deleted here: handled below
+        if(!id && row.source_app === cfg.app && byId.has(row.source_id) && !S.map[row.source_id]) id = row.source_id;
+        if(!id){ const r = byKey.get(hubPropertyKey({address:row.address, city:row.city, zip:row.zip, state:row.state, name:row.name})); if(r && !S.map[r.id]) id = r.id; }
+        if(id){
+          let m = S.map[id];
+          if(!m){ m = {hubId:row.hid, hubPid:row.pid, cid:row.cid||"", hubAt:"", sig:null}; byHub.set(row.hid, id); linked++; }
+          if(String(row.updated_at||"") > String(m.hubAt||"")){
+            const rec = byId.get(id), patch = cfg.patchFromHub(rec, row) || {};
+            if(Object.keys(patch).length){ await cfg.db.collection(cfg.collection).doc(id).update(patch); updated++; }
+            m = {...m, hubAt: row.updated_at, sig: sigOf(cfg.toHub({...rec, ...patch}))};
+          }
+          if(JSON.stringify(m) !== JSON.stringify(S.map[id] || null)) await setMap(id, m);
+          continue;
+        }
+        if(row.source_app === cfg.app && row.stage === cfg.deadStage) continue; // deleted here earlier
+        const nid2 = row.source_app === cfg.app && row.source_id ? row.source_id : "hub_" + row.hid;
+        if(byId.has(nid2)) continue;
+        const rec = cfg.fromHub(row);
+        Object.keys(rec).forEach(k => { if(rec[k] === undefined) rec[k] = null; });
+        status(`Bringing in from the back office: ${made + 1}…`);
+        await cfg.db.collection(cfg.collection).doc(nid2).set(rec);
+        await setMap(nid2, {hubId:row.hid, hubPid:row.pid, cid:row.cid||"", hubAt:row.updated_at, sig:sigOf(cfg.toHub({...rec, id:nid2}))});
+        byId.set(nid2, {...rec, id:nid2}); made++;
+      }
+      // Records deleted here since the last sync: delete them from the back office too (skipped if most links look missing, e.g. a partial load).
+      const gone = Object.entries(S.map).filter(([id]) => !byId.has(id));
+      if(gone.length && gone.length <= Math.max(5, Object.keys(S.map).length / 4)){
+        for(const [id, m] of gone){
+          await hubRemoveDeal(d1Raw, rowsOf, m.hubId, cfg.label);
+          delete S.map[id]; await cfg.db.collection("hubmap").doc(id).delete().catch(()=>{}); dead++;
+        }
+      }
+      // Push: new records here, then changed ones.
+      for(const r of recs){
+        if(r.example || !byId.has(r.id)) continue;
+        if(!S.map[r.id]){ if(sent < 25 && await pushCreate(r)) sent++; continue; }
+        if(sigOf(cfg.toHub(r)) !== S.map[r.id].sig){ await pushUpdate(r); sent++; }
+      }
+      const t = new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+      status(`Back office synced ${t} · ${rows.length} on this track${made?` · ${made} brought in`:""}${linked?` · ${linked} linked`:""}${updated?` · ${updated} updated`:""}${sent?` · ${sent} sent`:""}${dead?` · ${dead} deleted from the back office`:""}${removed?` · ${removed} removed (deleted in the back office)`:""}`);
+    }catch(e){ console.warn("hub sync", e); status("Back office sync didn't finish: " + errText(e)); }
+    S.busy = false;
+  }
+  (async () => {
+    try{ S.mcp = await window.claude.use("mcp"); }catch(_){ S.mcp = null; }
+    if(!S.mcp){ status("Back office sync isn't available in this view."); return; }
+    cfg.db.collection("hubmap").onSnapshot(snap => {
+      const m = {}; snap.docs.forEach(d => { m[d.id] = d.data(); }); S.map = m;
+      if(!S.mapReady){ S.mapReady = true; setTimeout(sync, 1500); setInterval(sync, 5*60*1000); }
+    }, () => status("Back office sync lost its connection. Reload the page."));
+  })();
+  let soon = null;
+  return { sync, soon: () => { clearTimeout(soon); soon = setTimeout(sync, 4000); } };
+}
+
+</script>
+<script>
+// Rows-per-page control (25 / 50 / 100 / All), remembered per browser. pager.slice(list) returns the rows to draw and redraws the control.
+function makePager(boxId, storeKey, onChange, btnClass){
+  const P = {size:25, page:0};
+  try{ const v = localStorage.getItem(storeKey); if(v !== null && [0,10,25,50,100].includes(+v)) P.size = +v; }catch(_){}
+  const box = document.getElementById(boxId);
+  box.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;font-size:13px";
+  box.addEventListener("change", e => { if(e.target.matches("select[data-pg]")){ P.size = +e.target.value; P.page = 0; try{ localStorage.setItem(storeKey, String(P.size)); }catch(_){} onChange(); } });
+  box.addEventListener("click", e => { const b = e.target.closest("[data-pgmove]"); if(!b) return; P.page += +b.dataset.pgmove; onChange(); });
+  P.reset = () => { P.page = 0; };
+  P.slice = list => {
+    const n = list.length, size = P.size || n || 1, pages = Math.max(1, Math.ceil(n / size));
+    P.page = Math.min(Math.max(0, P.page), pages - 1);
+    const start = P.size ? P.page * size : 0, shown = P.size ? list.slice(start, start + size) : list;
+    box.hidden = !n;
+    box.innerHTML = `<label style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select data-pg aria-label="Rows per page" style="width:auto">${[10,25,50,100,0].map(v => `<option value="${v}" ${P.size===v?"selected":""}>${v||"All"}</option>`).join("")}</select></label>
+      <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span>Showing ${n ? start + 1 : 0}–${start + shown.length} of ${n}</span>${pages > 1 ? `<button type="button" class="${btnClass}" data-pgmove="-1" ${P.page ? "" : "disabled"}>‹ Prev</button><span>Page ${P.page + 1} of ${pages}</span><button type="button" class="${btnClass}" data-pgmove="1" ${P.page < pages - 1 ? "" : "disabled"}>Next ›</button>` : ""}</span>`;
+    return shown;
+  };
+  return P;
+}
+
+</script>
+<script>
+const STAGES=["New lead","Contacted","Terms requested","Underwriting","Offer out","Under contract","Closed","Dead"];
+const REGIONS=["All","DFW core","Near DFW (≤1 hr)","Outside North Texas"];
+const FIN={confirmed:"Seller terms confirmed",listed:"Seller finance listed",unknown:"Financing unknown",none:"No seller finance"};
+let rows=[],stageF=null,regionF="All",editing=null,col=null,readOnly=false;
+const TYPES=["RV park","RV/boat storage","RV + cabins","Apartments","Mobile home park","Self storage","Laundromat","Car wash","Gas station / C-store","Hotel / motel","Restaurant / bar building","Retail / strip center","Office building","Industrial / warehouse","Mixed-use","Other business with real estate"];
+const $=id=>document.getElementById(id);
+$("f-stage").innerHTML=STAGES.map(s=>`<option>${s}</option>`).join("");
+$("f-state").innerHTML=Object.entries(HUB_STATES).map(([k,v])=>`<option value="${k}">${k} · ${v}</option>`).join("");
+
+function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2200)}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+// Search box: every word must appear somewhere in the record (address, city, state, ZIP, county, owner, phone, email, ref, notes); digits also match phone numbers.
+function searchMatch(rec, q, fields){
+  const words = String(q||"").toLowerCase().trim().split(/\s+/).filter(Boolean); if(!words.length) return true;
+  const hay = fields.map(k => rec[k] == null ? "" : String(rec[k])).join(" ").toLowerCase(), digits = hay.replace(/\D/g, "");
+  return words.every(w => hay.includes(w) || (/^\d{3,}$/.test(w.replace(/\D/g,"")) && w.replace(/[^\d]/g,"").length === w.replace(/[-().\s]/g,"").length && digits.includes(w.replace(/\D/g,""))));
+}
+let listPager=null;
+const LIST_SEARCH=["name","city","state","region","type","price","contact","terms","next","notes","stage","url","source"];
+function render(){
+  const counts=Object.fromEntries(STAGES.map(s=>[s,0]));
+  rows.forEach(r=>{if(counts[r.stage]!=null)counts[r.stage]++});
+  $("pipe").innerHTML=STAGES.map(s=>`<button type="button" class="stage" data-s="${s}" aria-pressed="${stageF===s}"><b>${counts[s]}</b><span>${s}</span></button>`).join("");
+  $("chips").innerHTML=REGIONS.map(r=>`<button type="button" class="chip" data-r="${r}" aria-pressed="${regionF===r}">${r}</button>`).join("");
+  const today=new Date().toISOString().slice(0,10);
+  const q=$("listSearch").value;
+  const vis=rows.filter(r=>searchMatch(r,q,LIST_SEARCH)&&(q||((!stageF||r.stage===stageF)&&(regionF==="All"||r.region===regionF))))
+    .sort((a,b)=>STAGES.indexOf(a.stage)-STAGES.indexOf(b.stage)||(a.date||"9").localeCompare(b.date||"9"));
+  if(!listPager) listPager=makePager("listPager","hll_creative_rows",render,"");
+  const shown=listPager.slice(vis);
+  $("list").innerHTML=vis.length?shown.map(r=>`
+    <article class="card">
+      <div class="row1">
+        <div><p class="name">${esc(r.name)}</p><div class="loc">${esc([r.address&&r.address!==r.name?r.address:"", r.city, [r.state||"TX", r.zip].filter(Boolean).join(" ")].filter(Boolean).join(", "))}${r.county?` · ${esc(r.county)} Co.`:""} · ${esc(r.region)} · ${esc(r.type)}${r.source?` · Found on ${esc(r.source)}`:""}</div></div>
+        <div class="pills"><span class="pill st">${esc(r.stage)}</span><span class="pill f-${esc(r.fin)}">${FIN[r.fin]||""}</span></div>
+      </div>
+      <dl class="stats">
+        <div><dt>Ask</dt><dd style="margin:0">${esc(r.price||"—")}</dd></div>
+        <div><dt>Sites/units</dt><dd style="margin:0">${esc(r.units||"—")}</dd></div>
+        <div><dt>Cap / NOI</dt><dd style="margin:0">${esc(r.cap||"—")}</dd></div>
+        <div><dt>Listed by</dt><dd style="margin:0">${esc(r.by||"—")}</dd></div>
+      </dl>
+      ${Number(r.appraised)>0?`<p class="terms"><strong>County appraised:</strong> $${Math.round(r.appraised).toLocaleString()} · <strong>FMV:</strong> $${Math.round(r.fmv||DealAdvisor.fmv(r.appraised)).toLocaleString()} <span style="opacity:.75">(appraised ÷ 0.8)</span></p>`:""}
+      ${r.terms?`<p class="terms"><strong>Terms:</strong> ${esc(r.terms)}</p>`:""}
+      ${r.next?`<p class="next ${r.date&&r.date<today&&r.stage!=="Dead"?"due":""}"><strong>Next:</strong> ${esc(r.next)}${r.date?` · ${esc(r.date)}`:""}</p>`:""}
+      ${r.notes?`<p class="note">${esc(r.notes)}</p>`:""}
+      ${enrichHtml(r)}
+      <div class="acts">${readOnly?"":`<button type="button" data-edit="${r.id}">Edit</button>`}<button type="button" data-advise="${r.id}">✦ Deal Advisor</button>${readOnly?"":`<button type="button" data-enrich="${r.id}" title="Property record from BatchData: owner, loans, value, county appraised value and FMV, taxes, sales, listing. Uses 1 BatchData lookup.">Enrich data</button><button type="button" data-skip="${r.id}" title="Owner phones and emails from BatchData. Uses 1 BatchData skip trace.">Skip trace owner</button>`}${r.url?`<a href="${esc(r.url)}" target="_blank" rel="noopener">Open listing ↗</a>`:""}${r.contact?`<span class="note">${esc(r.contact)}</span>`:""}</div>
+    </article>`).join(""):`<div class="empty">${rows.length?"No listings match this filter.":"No listings yet. Tap “+ Add listing” to start the pipeline."}</div>`;
+}
+
+document.addEventListener("click",e=>{
+  const s=e.target.closest("[data-s]");if(s){stageF=stageF===s.dataset.s?null:s.dataset.s;if(listPager)listPager.reset();render();return}
+  const r=e.target.closest("[data-r]");if(r){regionF=r.dataset.r;if(listPager)listPager.reset();render();return}
+  const ed=e.target.closest("[data-edit]");if(ed){openSheet(rows.find(x=>x.id===ed.dataset.edit));return}
+  const ad=e.target.closest("[data-advise]");if(ad&&advisor){advSel=ad.dataset.advise;advisor.open(advSel);return}
+  const en=e.target.closest("[data-enrich]");if(en){enrich(en.dataset.enrich,en);return}
+  const sk=e.target.closest("[data-skip]");if(sk){skipTrace(sk.dataset.skip,sk);return}
+  const uc=e.target.closest("[data-usecontact]");if(uc){useContact(uc.dataset.usecontact,uc.dataset.v);return}
+});
+const F=["name","address","city","zip","county","state","region","type","units","price","cap","fin","by","stage","date","terms","next","contact","url","notes"];
+function openSheet(r){
+  editing=r||null;$("formTitle").textContent=r?"Edit listing":"Add listing";$("delBtn").hidden=!r;
+  F.forEach(k=>$("f-"+k).value=r?.[k]??({state:"TX",region:"DFW core",type:"RV park",fin:"unknown",by:"Unknown",stage:"New lead"}[k]||""));
+  $("sheet").hidden=false;$("f-name").focus();
+}
+$("addBtn").onclick=()=>openSheet(null);
+$("listSearch").addEventListener("input",()=>{if(listPager)listPager.reset();render();});
+$("cancelBtn").onclick=()=>$("sheet").hidden=true;
+$("sheet").addEventListener("click",e=>{if(e.target.id==="sheet")$("sheet").hidden=true});
+$("form").addEventListener("submit",async e=>{
+  e.preventDefault();if(!col){toast("Saving isn't available in this view");return}
+  const body={};F.forEach(k=>body[k]=$("f-"+k).value.trim());body.updated=new Date().toISOString();
+  try{if(editing)await col.doc(editing.id).update(body);else await col.add(body);$("sheet").hidden=true;toast("Saved")}
+  catch(err){if(err?.code==="invalid_argument"){readOnly=true;render();toast("You have view-only access")}else toast("Couldn't save. Try again in a moment.")}
+});
+// ---- Enrich (BatchData property record) and Skip trace (owner phones/emails): the same data the Deal Desk and Sub-To show.
+// One click each; each uses one BatchData lookup or skip trace. Results are saved on the listing; the county appraised value
+// (and Harvey's FMV = appraised ÷ 0.8) also goes to the back office property.
+var openPanels=new Set();
+const BD="BatchData";
+const bdParse=r=>{const p=r&&r.payload;if(p&&typeof p==="object")return p;try{return JSON.parse(p)}catch(_){return null}};
+const usd0=v=>v==null||!isFinite(v)?"—":"$"+Math.round(v).toLocaleString();
+const phoneFmt=n=>{const d=String(n||"").replace(/\D/g,"").slice(-10);return d.length===10?`(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`:String(n||"")};
+const camelW=s=>String(s).replace(/([a-z])([A-Z])/g,"$1 $2").replace(/^./,c=>c.toUpperCase());
+function bdErr(e){
+  const c=e&&e.code;
+  if(c==="server_not_connected"||c==="selection_required")return "BatchData isn't connected for this view. Add or reconnect it in Settings → Connectors.";
+  if(c==="needs_reauth")return "BatchData needs you to sign in again in Settings → Connectors.";
+  if(c==="not_in_manifest"||c==="approval_required"||c==="not_granted")return "BatchData needs your permission. Tap the button again and choose Allow.";
+  if(c==="tool_error")return "BatchData couldn't process this address. Check the street, city and ZIP (or your BatchData balance).";
+  if(c==="server_unavailable")return "BatchData didn't respond. Try again in a minute.";
+  return "BatchData lookup failed. Try again.";
+}
+function addrOf(r){
+  const street=(r.address||"").trim()||(/^\d+\s+\S/.test(r.name||"")?String(r.name).trim():"");
+  if(!street)return null;
+  const o={property_street:street,property_state:hubStateOf(r)};
+  if(r.city)o.property_city=r.city; if(hubZip5(r.zip))o.property_zip=hubZip5(r.zip);
+  return o.property_city||o.property_zip?o:null;
+}
+async function bdMcp(){if(!mcpRef)mcpRef=await window.claude.use("mcp").catch(()=>null);return mcpRef}
+async function bdPrep(id){
+  const r=rows.find(x=>x.id===id); if(!r)return null;
+  if(readOnly||!col){toast("You have view-only access here.");return null}
+  const input=addrOf(r); if(!input){toast("Add the street address plus a city or ZIP, then try again.");openSheet(r);$("f-address").focus();return null}
+  const mcp=await bdMcp(); if(!mcp){toast("BatchData isn't available in this view. Open the tracker in claude.ai.");return null}
+  return {r,input,mcp};
+}
+async function enrich(id,btn){
+  const ctx=await bdPrep(id); if(!ctx)return; const {r,input,mcp}=ctx;
+  const t0=btn.textContent; btn.disabled=true; btn.textContent="Looking up…";
+  try{
+    const res=bdParse(await mcp.callTool(BD,"lookup_property",input)); const p=(res&&(res.property||res))||{};
+    if(!p.address&&!p.building&&!p.valuation&&!p.assessment)throw {code:"not_found"};
+    const a=p.address||{},b=p.building||{},g=p.general||{},as=p.assessment||{},t=p.tax||{},v=p.valuation||{},ol=p.openLien||{},o=p.owner||{},m=o.mailingAddress||{},lot=p.lot||{},ls=p.listing||{},q=p.quickLists||{},sale=(p.sale&&p.sale.lastSale)||{};
+    const mtg=(ol.mortgages||[]).slice().sort((x,y)=>String(x.recordingDate||"").localeCompare(String(y.recordingDate||"")))[0];
+    const appraised=as.totalMarketValue||as.totalAssessedValue||null;
+    const e={at:new Date().toISOString(),landUse:[g.propertyTypeCategory,g.propertyTypeDetail].filter(Boolean).join(" · "),
+      buildingSqft:b.totalBuildingAreaSquareFeet||b.livingAreaSquareFeet||null,units:b.unitCount||b.residentialUnitCount||null,yearBuilt:b.yearBuilt||null,
+      lotAcres:lot.lotSizeAcres||null,zoning:lot.zoning||lot.zoningCode||null,
+      estimatedValue:v.estimatedValue??null,valueLow:v.priceRangeMin??null,valueHigh:v.priceRangeMax??null,equityPercent:v.equityPercent??null,
+      appraisedValue:appraised,appraisedYear:as.marketValueYear||as.assessmentYear||null,fmv:appraised?DealAdvisor.fmv(appraised):null,
+      taxAmount:t.taxAmount??null,taxYear:t.taxYear||null,
+      openLienBalance:ol.totalOpenLienBalance??null,lienCount:ol.totalOpenLienCount??null,freeAndClear:!!q.freeAndClear,
+      firstLien:mtg?{lender:mtg.lenderName||"",type:[mtg.loanType,mtg.financingType].filter(Boolean).join(", "),amount:mtg.loanAmount??null,recorded:String(mtg.recordingDate||"").slice(0,10),
+        due:String(mtg.dueDate||"").slice(0,10),balance:mtg.currentEstimatedBalance??null,rate:mtg.currentEstimatedInterestRate??null,payment:mtg.estimatedPaymentAmount??null}:null,
+      ownerName:o.fullName||"",ownerOccupied:o.ownerOccupied??null,ownedSince:String(o.ownershipStartDate||"").slice(0,10),
+      mailing:[m.street,m.city,[m.state,m.zip].filter(Boolean).join(" ")].filter(Boolean).join(", "),
+      lastSalePrice:sale.price??null,lastSaleDate:String(sale.saleDate||sale.recordingDate||"").slice(0,10),
+      listingStatus:ls.status||"",listPrice:ls.price??null,apn:(p.ids&&p.ids.apn)||"",
+      tags:Object.entries(q).filter(([,x])=>x===true).map(([k])=>camelW(k))};
+    const patch={enrich:e,updated:e.at},filled=[];
+    const fill=(k,val)=>{if(val==null||val==="")return;if(r[k]==null||r[k]===""){patch[k]=String(val);filled.push(k)}};
+    fill("address",a.street||input.property_street);fill("city",a.city);fill("zip",a.zip);fill("county",a.county);fill("units",e.units);
+    if(appraised){patch.appraised=appraised;patch.fmv=e.fmv}
+    await col.doc(id).update(patch);
+    if(appraised&&dbRef){try{const h=await dbRef.doc("hubmap/"+id).get();if(h.exists&&h.data().hubPid)await DealAdvisor.saveAppraised(mcp,h.data().hubPid,appraised,`BatchData (appraisal district${e.appraisedYear?" "+e.appraisedYear:""})`)}catch(_){}}
+    openPanels.add(id);toast(`Property data added${filled.length?`. Filled in: ${filled.join(", ")}`:""}.`);
+  }catch(err){toast(err&&err.code==="not_found"?"BatchData has no record at that address. Check the street and ZIP.":bdErr(err))}
+  btn.disabled=false;btn.textContent=t0;
+}
+async function skipTrace(id,btn){
+  const ctx=await bdPrep(id); if(!ctx)return; const {r,input,mcp}=ctx;
+  const t0=btn.textContent; btn.disabled=true; btn.textContent="Skip tracing…";
+  try{
+    const res=bdParse(await mcp.callTool(BD,"skip_trace_property",input));
+    const persons=(res&&res.persons)||[]; const person=persons.find(x=>x.propertyOwner)||persons[0]||null;
+    if(!person){toast("No owner contact came back for that address.");btn.disabled=false;btn.textContent=t0;return}
+    const phones=(person.phones||[]).slice().sort((x,y)=>(x.rank||9)-(y.rank||9));
+    const ok=person.litigator?[]:phones.filter(x=>!x.dnc&&!x.tcpa&&x.reachable!==false).slice(0,4).map(x=>({n:phoneFmt(x.number),type:x.type||""}));
+    const blocked=phones.filter(x=>x.dnc||x.tcpa).map(x=>phoneFmt(x.number)+(x.dnc?" DNC":"")+(x.tcpa?" TCPA":""));
+    const emails=(person.emails||[]).slice().sort((x,y)=>(x.rank||9)-(y.rank||9)).map(x=>x.email).filter(Boolean).slice(0,4);
+    const nm=typeof person.name==="string"?person.name:(person.name&&(person.name.full||[person.name.first,person.name.last].filter(Boolean).join(" ")))||(r.enrich&&r.enrich.ownerName)||"";
+    const contacts={at:new Date().toISOString(),owner:nm,phones:ok,blocked,emails,litigator:!!person.litigator,deceased:!!person.deceased};
+    const patch={contacts,updated:contacts.at};
+    if(!r.contact){const c=[nm,ok[0]&&ok[0].n,emails[0]].filter(Boolean).join(", ");if(c)patch.contact=c}
+    await col.doc(id).update(patch);
+    openPanels.add(id);
+    toast(person.litigator?"Owner is flagged as a TCPA litigator: mail only.":`Found ${ok.length} callable phone${ok.length===1?"":"s"} and ${emails.length} email${emails.length===1?"":"s"}.`);
+  }catch(err){toast(bdErr(err))}
+  btn.disabled=false;btn.textContent=t0;
+}
+async function useContact(id,v){
+  const r=rows.find(x=>x.id===id); if(!r||readOnly||!col)return;
+  if(String(r.contact||"").includes(v)){toast("Already in the contact line.");return}
+  try{await col.doc(id).update({contact:[r.contact,v].filter(Boolean).join(", "),updated:new Date().toISOString()});toast("Added to the contact line")}catch(_){toast("Couldn't save. Try again.")}
+}
+document.addEventListener("toggle",e=>{const d=e.target;if(d&&d.dataset&&d.dataset.enr){d.open?openPanels.add(d.dataset.enr):openPanels.delete(d.dataset.enr)}},true);
+function enrichHtml(r){
+  const e=r.enrich,c=r.contacts; if(!e&&!c)return "";
+  const k=(l,v)=>v==null||v===""?"":`<div><span>${l}</span><span>${v}</span></div>`;
+  let h=`<details class="enr" data-enr="${esc(r.id)}" ${openPanels.has(r.id)?"open":""}><summary>Property data${e?` · BatchData ${esc(String(e.at||"").slice(0,10))}`:""}${c?" · owner contacts":""}${e&&e.fmv?` · FMV ${usd0(e.fmv)}`:""}</summary>`;
+  if(e){
+    const L=e.firstLien;
+    h+=`<div class="eg">${[
+      k("Est. value",e.estimatedValue!=null?usd0(e.estimatedValue)+(e.valueLow?` <small>(${usd0(e.valueLow)}–${usd0(e.valueHigh)})</small>`:""):""),
+      k("County appraised",e.appraisedValue?usd0(e.appraisedValue)+(e.appraisedYear?` (${esc(e.appraisedYear)})`:""):""),
+      k("FMV (appraised ÷ 0.8)",e.fmv?usd0(e.fmv):""),
+      k("Equity",e.equityPercent!=null?Math.round(e.equityPercent)+"%":""),
+      k("Open liens",e.freeAndClear?"Free and clear":e.openLienBalance!=null?usd0(e.openLienBalance)+(e.lienCount>1?` (${e.lienCount} liens)`:""):""),
+      k("1st lien",L?esc([L.lender,L.type,L.balance!=null?"bal. "+usd0(L.balance):"",L.rate?L.rate+"%":"",L.payment?usd0(L.payment)+"/mo":"",L.recorded?"rec. "+L.recorded:"",L.due?"due "+L.due:""].filter(Boolean).join(" · ")):""),
+      k("Owner",e.ownerName?esc(e.ownerName)+(e.ownerOccupied===false?" (absentee)":"")+(e.ownedSince?` · since ${esc(e.ownedSince.slice(0,7))}`:""):""),
+      k("Mailing",esc(e.mailing)),
+      k("Land use",esc(e.landUse)),
+      k("Building",e.buildingSqft?Math.round(e.buildingSqft).toLocaleString()+" sq ft":""),
+      k("Units",e.units!=null?esc(e.units):""),k("Year built",e.yearBuilt!=null?esc(e.yearBuilt):""),
+      k("Lot",e.lotAcres?(+e.lotAcres).toFixed(2)+" ac":""),k("Zoning",esc(e.zoning||"")),
+      k("Last sale",e.lastSalePrice?usd0(e.lastSalePrice)+(e.lastSaleDate?" · "+esc(e.lastSaleDate):""):""),
+      k("Listing",e.listingStatus?esc(e.listingStatus)+(e.listPrice?" · "+usd0(e.listPrice):""):""),
+      k("Taxes / yr",e.taxAmount?usd0(e.taxAmount)+(e.taxYear?` (${esc(e.taxYear)})`:""):""),
+      k("APN",esc(e.apn))].join("")}</div>
+      ${e.tags&&e.tags.length?`<div class="tags">${e.tags.map(t=>`<span>${esc(t)}</span>`).join("")}</div>`:""}
+      <p class="note" style="margin:0">BatchData estimates: confirm loans with a mortgage statement and values with the county.</p>`;
+  }
+  if(c){
+    h+=`<div><b style="font-size:.88rem">Owner contacts${c.owner?`: ${esc(c.owner)}`:""}</b> <span class="note">skip trace ${esc(String(c.at||"").slice(0,10))}</span></div>`;
+    if(c.litigator)h+=`<p class="warnl" style="margin:0">Owner is flagged as a TCPA litigator. Don't call or text; use mail only.</p>`;
+    if(c.deceased)h+=`<p class="note" style="margin:0">BatchData lists the owner as deceased; check probate.</p>`;
+    (c.phones||[]).forEach(x=>h+=`<div class="cl"><code>${esc(x.n)}</code>${x.type?`<span class="note">${esc(x.type)}</span>`:""}${readOnly?"":`<button type="button" data-usecontact="${esc(r.id)}" data-v="${esc(x.n)}">Add to contact</button>`}</div>`);
+    (c.emails||[]).forEach(x=>h+=`<div class="cl"><code>${esc(x)}</code>${readOnly?"":`<button type="button" data-usecontact="${esc(r.id)}" data-v="${esc(x)}">Add to contact</button>`}</div>`);
+    if(c.blocked&&c.blocked.length)h+=`<p class="note" style="margin:0">Do not call: ${esc(c.blocked.join(", "))}</p>`;
+    if(!(c.phones||[]).length&&!(c.emails||[]).length&&!c.litigator)h+=`<p class="note" style="margin:0">No callable phone or email came back.</p>`;
+    h+=`<p class="note" style="margin:0">Phones shown passed the Do Not Call and TCPA checks. Only call or text an owner who has agreed to it; otherwise reach out by mail.</p>`;
+  }
+  return h+`</details>`;
+}
+
+// ---- Deal Advisor (shared module; source: houselotandland repo src/dashboards/advisor.js) ----
+let advSel=null;
+var advisor=window.DealAdvisor?DealAdvisor.mount({
+  app:"creative", appLabel:"Creative Finance Deal Tracker", track:"creative", stages:STAGES, stageKey:"stage", nextKey:"date", notesKey:"notes",
+  fields:[{key:"name",label:"Name",type:"text"},{key:"address",label:"Street address",type:"text"},{key:"city",label:"City",type:"text"},{key:"zip",label:"ZIP",type:"text"},{key:"county",label:"County",type:"text"},{key:"state",label:"State",type:"text"},
+    {key:"region",label:"Region",options:REGIONS.filter(r=>r!=="All")},{key:"type",label:"Type",options:TYPES},{key:"units",label:"Sites / units",type:"text"},
+    {key:"price",label:"Asking price",type:"text"},{key:"cap",label:"Cap rate / NOI",type:"text"},{key:"fin",label:"Financing",options:Object.keys(FIN)},
+    {key:"by",label:"Listed by",type:"text"},{key:"terms",label:"Terms",type:"text"},{key:"next",label:"Next step",type:"text"},{key:"contact",label:"Contact",type:"text"},{key:"url",label:"Listing link",type:"text"},
+    {key:"appraised",label:"County appraised value ($)",type:"number"}],
+  getDb:()=>dbRef, getMcp:async()=>claude.use("mcp").catch(()=>null), toast,
+  ready:()=>!!col&&rows.length>0,
+  current:()=>{const r=rows.find(x=>x.id===advSel);return r?{id:r.id,title:[r.name,r.address&&r.address!==r.name?r.address:"",r.city,r.state||"TX"].filter(Boolean).join(", ")}:null},
+  getField:k=>{const r=rows.find(x=>x.id===advSel);return r?r[k]:null},
+  select:id=>{advSel=id},
+  context:id=>{const r=rows.find(x=>x.id===id);return r?{listing:r,financingKey:FIN}:{}},
+  apply:async(id,patch)=>{
+    if(readOnly||!col) throw new Error("You have view-only access here.");
+    const r=rows.find(x=>x.id===id); if(!r) throw new Error("That listing is gone.");
+    const note=patch.__note; delete patch.__note;
+    const body={}; for(const [k,v] of Object.entries(patch)) body[k]=k==="appraised"?Number(v):String(v);
+    if(body.appraised>0) body.fmv=DealAdvisor.fmv(body.appraised);
+    if(note) body.notes=(r.notes?String(r.notes).trimEnd()+"\n\n":"")+note;
+    body.updated=new Date().toISOString();
+    await col.doc(id).update(body);
+  },
+  hubIds:async id=>{try{const s=await dbRef.doc("hubmap/"+id).get();return s.exists?s.data():null}catch(_){return null}},
+  findByHub:async hid=>{try{const s=await dbRef.collection("hubmap").get();const d=s.docs.find(x=>(x.data()||{}).hubId===hid);if(d&&rows.some(r=>r.id===d.id)){advSel=d.id;return d.id}return null}catch(_){return null}},
+}):null;
+
+let delArmed=false;
+$("delBtn").onclick=async()=>{
+  if(!delArmed){delArmed=true;$("delBtn").textContent="Tap again to delete";setTimeout(()=>{delArmed=false;$("delBtn").textContent="Delete"},3000);return}
+  delArmed=false;$("delBtn").textContent="Delete";
+  try{await col.doc(editing.id).delete();$("sheet").hidden=true;toast("Deleted")}catch{toast("Couldn't delete. Try again.")}
+};
+
+// ---- Find leads: criteria in config/search, progress in runs/latest; the "Creative Finance Lead Search" scheduled task does the work ----
+const SEARCH_TASK="trig_01K3PtXMg5ecCkWYFGeJKjaf";
+// Asset types. The first five are the original income-property types; the rest are businesses that come with real estate.
+$("f-type").innerHTML=TYPES.map(t=>`<option>${esc(t)}</option>`).join("");
+const SOURCES=[["listings","Listings with seller financing"],["owners","Owners with no mortgage (BatchData)"]];
+const DEF_CRIT={types:[...TYPES],states:["TX"],dfwOnly:false,sources:["listings","owners"],maxPrice:0,minUnits:10};
+let crit={...DEF_CRIT},run=null,dbRef=null,mcpRef=null;
+function chipRow(id,items,sel,toggle){$(id).innerHTML=items.map(([v,l])=>`<button type="button" class="chip" data-cv="${esc(v)}" aria-pressed="${sel.includes(v)}">${esc(l)}</button>`).join("");$(id).querySelectorAll("[data-cv]").forEach(b=>b.onclick=()=>{toggle(b.dataset.cv);renderCrit()})}
+function renderCrit(){
+  chipRow("c-types",TYPES.map(t=>[t,t]),crit.types,v=>{crit.types=crit.types.includes(v)?crit.types.filter(x=>x!==v):[...crit.types,v]});
+  chipRow("c-sources",SOURCES,crit.sources,v=>{crit.sources=crit.sources.includes(v)?crit.sources.filter(x=>x!==v):[...crit.sources,v]});
+  if(document.activeElement!==$("c-states"))$("c-states").value=crit.states.join(", ");
+  if(document.activeElement!==$("c-maxPrice"))$("c-maxPrice").value=crit.maxPrice||0;
+  if(document.activeElement!==$("c-minUnits"))$("c-minUnits").value=crit.minUnits||0;
+  $("c-dfwOnly").checked=!!crit.dfwOnly;
+}
+$("c-states").addEventListener("input",e=>{crit.states=[...new Set(e.target.value.toUpperCase().split(/[^A-Z]+/).filter(x=>HUB_STATES[x]))]});
+$("c-maxPrice").addEventListener("input",e=>{crit.maxPrice=Math.max(0,parseFloat(e.target.value)||0)});
+$("c-minUnits").addEventListener("input",e=>{crit.minUnits=Math.max(0,parseInt(e.target.value)||0)});
+$("c-dfwOnly").addEventListener("change",e=>{crit.dfwOnly=e.target.checked});
+$("findBtn").onclick=()=>{const f=$("finder");f.hidden=!f.hidden;$("findBtn").setAttribute("aria-expanded",String(!f.hidden));if(!f.hidden)f.scrollIntoView({behavior:"smooth",block:"start"})};
+function renderRun(){
+  const box=$("runState"),btn=$("searchBtn");
+  const when=iso=>iso?new Date(iso).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"";
+  btn.disabled=readOnly||!dbRef;
+  if(!run){box.textContent="No searches yet.";return}
+  if(run.status==="queued"||run.status==="running"){
+    const stale=Date.now()-new Date(run.startedAt||run.requestedAt||0).getTime()>45*60*1000;
+    if(!stale){box.innerHTML=`<span class="pill warn">Searching</span> ${esc(run.status==="running"?`Since ${when(run.startedAt)}. New listings appear below as they're added.`:`Requested ${when(run.requestedAt)}. Starting up.`)}`;btn.disabled=true;return}
+    box.innerHTML=`<span class="pill warn">No response</span> ${esc(`The search requested ${when(run.requestedAt||run.startedAt)} hasn't reported back. You can start another.`)}`;return;
+  }
+  if(run.status==="done")box.innerHTML=`<span class="pill ok">${run.added??0} added</span> ${esc(`${when(run.finishedAt)}. ${run.message||""}`)}`;
+  else if(run.status==="failed")box.innerHTML=`<span class="pill bad">Didn't finish</span> ${esc(`${when(run.finishedAt)}. ${run.message||"The search stopped."}`)}`;
+}
+$("searchBtn").onclick=async()=>{
+  if(!dbRef){toast("Searching needs the tracker's database, which isn't available in this view.");return}
+  if(!crit.types.length||!crit.sources.length||!crit.states.length){toast("Pick at least one property type, one place to look and one state.");return}
+  $("searchBtn").disabled=true;const now=new Date().toISOString();
+  try{await dbRef.doc("config/search").set({...crit,updatedAt:now});await dbRef.doc("runs/latest").set({status:"queued",requestedAt:now,criteria:crit,added:null,message:""})}
+  catch{toast("Couldn't save your search settings. Try again.");$("searchBtn").disabled=false;return}
+  if(!mcpRef){mcpRef=await window.claude.use("mcp").catch(()=>null)}
+  if(!mcpRef){await runFail("This view can't start searches. Open the tracker in the Claude app or claude.ai, or ask Claude in chat to run the creative finance lead search.");return}
+  try{await mcpRef.callTool("Claude Code Remote","fire_trigger",{trigger_id:SEARCH_TASK,text:"Run requested from the Creative Finance Deal Tracker. Criteria for this run: "+JSON.stringify(crit)});toast("Search started")}
+  catch(e){const c=e&&e.code;
+    const msg=c==="server_not_connected"||c==="selection_required"?"Starting a search needs the Claude Code Remote connection. Allow it when the page asks, then try again."
+      :c==="not_in_manifest"||c==="approval_required"||c==="not_granted"?"The search needs your permission to start. Tap Search now again and choose Allow."
+      :c==="tool_error"?"The search task couldn't start. It may be paused; check Scheduled tasks."
+      :c==="server_unavailable"||c==="upstream_error"?"No response from the search service. It may still start; watch this line before trying again."
+      :"The search couldn't start. Try again in a moment.";
+    if(c==="server_unavailable"||c==="upstream_error"){toast(msg);return}
+    await runFail(msg)}
+};
+async function runFail(message){try{await dbRef.doc("runs/latest").update({status:"failed",finishedAt:new Date().toISOString(),message})}catch{}toast(message);$("searchBtn").disabled=false}
+renderCrit();
+
+render();
+(async()=>{
+  const db=window.claude?await window.claude.use("db"):null;
+  if(!db){$("status").textContent="Sign in to claude.ai to view and update the tracker.";readOnly=true;$("addBtn").hidden=true;render();return}
+  col=db.collection("listings");dbRef=db;
+  db.doc("config/search").onSnapshot(s=>{if(s.exists){const d=s.data();crit={...DEF_CRIT,...d,types:[...(d.types||DEF_CRIT.types)],states:[...(d.states||DEF_CRIT.states)],sources:[...(d.sources||DEF_CRIT.sources)]}}renderCrit()},()=>{});
+  db.doc("runs/latest").onSnapshot(s=>{run=s.exists?s.data():null;renderRun()},()=>{});
+  let ready=false;
+  const money=v=>v==null?"":"$"+Math.round(v).toLocaleString();
+  const hub=hubSyncStart({
+    db, track:"creative", app:"creative", collection:"listings", label:"Creative Finance Tracker", trackLabel:"Creative finance", deadStage:"Dead",
+    ready:()=>ready, getRecords:()=>rows, onStatus:t=>{$("hubStatus").textContent=t},
+    toHub:r=>({name:r.name, address:r.address||"", zip:r.zip||"", county:r.county||"", city:r.city, state:r.state, prop_type:r.type, units:r.units, stage:r.stage||"New lead", next_touch:r.date, asking:r.price,
+      notes:[r.terms&&"Terms: "+r.terms, r.next&&"Next: "+r.next, r.contact&&"Contact: "+r.contact, r.url, r.notes].filter(Boolean).join("\n"),
+      source:"Creative Finance Tracker", data:{financing:r.fin||"unknown", region:r.region||""}}),
+    patchFromHub:(r,h)=>{
+      const p={}, fill=(k,v)=>{ if(v!=null&&v!==""&&(r[k]==null||r[k]==="")) p[k]=v; };
+      if(STAGES.includes(h.stage)&&h.stage!==(r.stage||"New lead")) p.stage=h.stage;
+      if(h.next_touch&&h.next_touch!==r.date) p.date=h.next_touch;
+      if(h.asking!=null) fill("price", money(h.asking)); if(h.units!=null) fill("units", String(h.units));
+      fill("city", h.city); fill("state", hubNormState(h.state)); fill("address", h.address); fill("zip", hubZip5(h.zip)); fill("county", h.county); fill("contact", [h.cname,h.phone,h.email].filter(Boolean).join(", "));
+      if(Number(h.appraised)>0&&Number(h.appraised)!==Number(r.appraised)){ p.appraised=Number(h.appraised); p.fmv=DealAdvisor.fmv(h.appraised); }
+      if(Object.keys(p).length) p.updated=new Date().toISOString();
+      return p;
+    },
+    fromHub:h=>{ let d={}; try{ d=JSON.parse(h.data||"{}")||{}; }catch(_){}
+      const st=hubNormState(h.state)||hubZipState(h.zip)||"TX";
+      return {name:h.name||h.address||"Back office property", address:h.address||"", zip:hubZip5(h.zip), county:h.county||"", city:h.city||"", state:st, region:d.region||(st==="TX"?"DFW core":"Outside North Texas"), type:h.prop_type||"RV park",
+        units:h.units!=null?String(h.units):"", price:money(h.asking), cap:"", fin:d.financing||"unknown", by:"Unknown", stage:STAGES.includes(h.stage)?h.stage:"New lead",
+        date:h.next_touch||"", terms:"", next:"", contact:[h.cname,h.phone,h.email].filter(Boolean).join(", "), url:"", notes:h.notes||"", updated:new Date().toISOString(),
+        appraised:Number(h.appraised)>0?Number(h.appraised):null, fmv:Number(h.appraised)>0?DealAdvisor.fmv(h.appraised):null}; },
+  });
+  $("hubBtn").onclick=()=>hub.sync();
+  col.onSnapshot(s=>{rows=s.docs.map(d=>({id:d.id,...d.data()}));ready=true;hub.soon();$("status").textContent=`${rows.length} listing${rows.length===1?"":"s"} · tap a stage or region to filter`;render()},
+    ()=>{$("status").textContent="The tracker lost its connection. Reload to reconnect."});
+})();
+</script>
+
+</body></html>
