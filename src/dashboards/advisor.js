@@ -169,6 +169,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
 .da-comp{flex:none;margin:0;display:block;border-top:1px solid var(--da-line);padding:10px 16px 14px}
 .da-att{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.da-att span{display:inline-flex;gap:6px;align-items:center;font-size:12px;border:1px solid var(--da-line);border-radius:8px;padding:3px 6px}.da-att button{border:0;background:none;color:var(--da-muted);cursor:pointer;padding:0}
 .da-root .da-comp textarea{display:block;width:100%;min-height:64px;height:64px;max-height:200px;resize:vertical;border:1px solid var(--da-line);border-radius:10px;padding:8px 10px;background:transparent;color:var(--da-ink);font:inherit}
+.da-flash{margin:0 16px 8px;padding:8px 10px;border:1px solid var(--da-warn);border-radius:9px;font-size:13px;display:flex;gap:8px;align-items:center}.da-flash span{flex:1}.da-flash .da-flx{border:0;background:none;color:var(--da-muted);font-size:18px;cursor:pointer}
 .da-comp .da-bar{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}.da-comp .da-bar .da-sp{flex:1}.da-comp .da-note{font-size:12px;color:var(--da-muted)}
 .da-drop{outline:2px dashed var(--da-acc);outline-offset:-8px}
 .da-err{color:var(--da-warn);font-size:13px}
@@ -182,7 +183,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
         <div class="da-head"><div class="da-t"><b>Deal Advisor</b><small class="da-sub">Pick a deal to start</small></div>
           <button class="da-btn da-new" type="button" title="Start a new conversation on this deal">New chat</button><button class="da-x" type="button" aria-label="Close">×</button></div>
         <div class="da-log" aria-live="polite"></div>
-        <div class="da-chips"></div>
+        <div class="da-chips"></div><div class="da-flash" role="status" hidden><span></span><button type="button" class="da-btn da-perm" hidden>Open permissions</button><button type="button" class="da-flx" aria-label="Dismiss">×</button></div>
         <form class="da-comp"><div class="da-att"></div>
           <textarea placeholder="Ask about this deal, paste an email or numbers, or drop photos, screenshots and PDFs…"></textarea>
           <div class="da-bar"><button class="da-btn da-file" type="button">📎 Attach</button><input type="file" multiple hidden accept="image/*,.pdf,.txt,.csv,.tsv,.md,.json,.eml,.html,.htm,.xml">
@@ -205,7 +206,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
     async function getSample(){
       if(S.sample) return S.sample;
       try{ S.sample = await window.claude.use("sample"); }catch(_){ S.sample = null; }
-      if(S.sample && !S.limits){ try{ S.limits = await S.sample.limits(); }catch(_){ S.limits = null; } }
+      if(S.sample && !S.limits){ try{ S.limits = await Promise.race([S.sample.limits(), new Promise(r => setTimeout(() => r(null), 5000))]); }catch(_){ S.limits = null; } }
       return S.sample;
     }
     async function getMcp(){ if(S.mcp) return S.mcp; try{ S.mcp = cfg.getMcp ? await cfg.getMcp() : await window.claude.use("mcp"); }catch(_){ S.mcp = null; } return S.mcp; }
@@ -285,7 +286,17 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       }
       renderFiles();
     }
-    const toast = msg => { if(cfg.toast) cfg.toast(msg); else note.textContent = msg; };
+    // Messages show inside the panel (the dashboard's own toast can sit behind it).
+    const flash = q(".da-flash"), permBtn = q(".da-perm");
+    const toast = (msg, perm) => { flash.querySelector("span").textContent = msg; permBtn.hidden = !perm; flash.hidden = false; };
+    q(".da-flx").onclick = () => { flash.hidden = true; };
+    permBtn.onclick = async () => { try{ const p = await window.claude.use("permissions"); if(p) await p.manage(); }catch(_){ toast("Use the artifact's menu (top right) → Permissions, turn Claude on, then reload."); return; } S.sample = null; flash.hidden = true; };
+    async function whyNoClaude(){
+      let st = ""; try{ const p = await window.claude.use("permissions"); if(p) st = await p.state("sample"); }catch(_){}
+      if(st === "denied") return toast("Claude is switched off for this dashboard. Turn it on in Permissions, then press Send again.", true);
+      if(st === "prompt") return toast("claude.ai needs your OK to let this dashboard ask Claude. Press Send again and choose Allow.", true);
+      toast(`Claude isn't available to this dashboard right now${st ? " (" + st + ")" : ""}. Reload the page; if it stays, open Permissions and make sure Claude is on.`, true);
+    }
 
     /* ----- open / select ----- */
     async function open(id){
@@ -362,12 +373,13 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       // Send never fails silently: every early exit says why.
       const rec = cfg.current();
       if(!rec){ toast("Pick a deal on this dashboard first, then ask about it."); return; }
-      if(S.busy){ note.textContent = "Still working on the last answer. Press Stop to cancel it."; return; }
+      if(S.busy){ toast("Still working on the last answer. Press Stop to cancel it."); return; }
       const text = ta.value.trim(); if(!text && !S.files.length){ ta.focus(); note.textContent = "Type a question or attach a file."; return; }
       note.textContent = "Connecting to Claude…"; sendBtn.disabled = true;
       let sample = null;
-      try{ sample = await getSample(); }finally{ sendBtn.disabled = false; note.textContent = ""; }
-      if(!sample){ S.sample = null; toast("Claude isn't available to this dashboard right now. Reload the page, and allow Claude if claude.ai asks."); return; }
+      try{ sample = await Promise.race([getSample(), new Promise(r => setTimeout(() => r(null), 15000))]); }finally{ sendBtn.disabled = false; note.textContent = ""; }
+      if(!sample){ S.sample = null; await whyNoClaude(); return; }
+      flash.hidden = true;
       S.busy = true;
       const ctl = S.ctl = new AbortController();
       let shown = "", timedOut = false;
