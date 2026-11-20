@@ -107,9 +107,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
     pdfjs = new Promise((res, rej) => {
       const s = document.createElement("script");
       s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-      s.onload = () => { const lib = window.pdfjsLib; if(!lib) return rej(new Error("pdf")); lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-        // Load the worker code on the page itself (window.pdfjsWorker): pdf.js then skips starting a cross-origin Worker, which a sandboxed page can block and leave hanging.
-        const w = document.createElement("script"); w.src = lib.GlobalWorkerOptions.workerSrc; w.onload = () => res(lib); w.onerror = () => res(lib); document.head.appendChild(w); };
+      s.onload = () => { const lib = window.pdfjsLib; if(!lib) return rej(new Error("pdf")); lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(lib); };
       s.onerror = () => { pdfjs = null; rej(new Error("pdf")); };
       document.head.appendChild(s);
     });
@@ -142,12 +140,8 @@ If the deal record should change (corrected property facts, numbers, notes, stag
 :root[data-theme="dark"] .da-root{--da-bg:#171d27;--da-ink:#e5eaf2;--da-muted:#98a3b5;--da-line:#2a3342;--da-acc:#86a8dc;--da-acc-ink:#0e1420;--da-soft:#1e2a3d;--da-me:#2f4b75;--da-me-ink:#fff;--da-ok:#5cc58a;--da-warn:#e2a64a}
 .da-fab{position:fixed;right:18px;bottom:18px;z-index:9000;border:0;border-radius:999px;padding:12px 18px;background:var(--da-acc);color:var(--da-acc-ink);font:600 14.5px/1 system-ui,sans-serif;box-shadow:0 8px 24px -8px rgba(0,0,0,.45);cursor:pointer}
 .da-fab[hidden]{display:none}
-/* Wide screens: the panel docks to the right and the dashboard shrinks beside it (html.da-docked). Phones: it covers the page. */
-:root{--da-w:clamp(360px,34vw,520px)}
-@media (min-width:900px){html.da-docked body{margin-right:var(--da-w)!important}html.da-docked .da-panel{width:var(--da-w);box-shadow:none}}
 .da-panel{position:fixed;top:0;right:0;bottom:0;width:min(480px,100vw);z-index:9001;background:var(--da-bg);border-left:1px solid var(--da-line);box-shadow:-12px 0 32px -16px rgba(0,0,0,.4);display:flex;flex-direction:column}
 .da-panel[hidden]{display:none}
-.da-root [hidden]{display:none!important}
 .da-root *,.da-root *::before,.da-root *::after{box-sizing:border-box}
 .da-root button,.da-root textarea{font:inherit;letter-spacing:normal;text-transform:none;margin:0;box-shadow:none;width:auto;min-height:0;height:auto}
 .da-head{flex:none;display:flex;align-items:flex-start;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--da-line)}
@@ -169,7 +163,6 @@ If the deal record should change (corrected property facts, numbers, notes, stag
 .da-comp{flex:none;margin:0;display:block;border-top:1px solid var(--da-line);padding:10px 16px 14px}
 .da-att{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.da-att span{display:inline-flex;gap:6px;align-items:center;font-size:12px;border:1px solid var(--da-line);border-radius:8px;padding:3px 6px}.da-att button{border:0;background:none;color:var(--da-muted);cursor:pointer;padding:0}
 .da-root .da-comp textarea{display:block;width:100%;min-height:64px;height:64px;max-height:200px;resize:vertical;border:1px solid var(--da-line);border-radius:10px;padding:8px 10px;background:transparent;color:var(--da-ink);font:inherit}
-.da-flash{margin:0 16px 8px;padding:8px 10px;border:1px solid var(--da-warn);border-radius:9px;font-size:13px;display:flex;gap:8px;align-items:center}.da-flash span{flex:1}.da-flash .da-flx{border:0;background:none;color:var(--da-muted);font-size:18px;cursor:pointer}
 .da-comp .da-bar{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}.da-comp .da-bar .da-sp{flex:1}.da-comp .da-note{font-size:12px;color:var(--da-muted)}
 .da-drop{outline:2px dashed var(--da-acc);outline-offset:-8px}
 .da-err{color:var(--da-warn);font-size:13px}
@@ -183,11 +176,11 @@ If the deal record should change (corrected property facts, numbers, notes, stag
         <div class="da-head"><div class="da-t"><b>Deal Advisor</b><small class="da-sub">Pick a deal to start</small></div>
           <button class="da-btn da-new" type="button" title="Start a new conversation on this deal">New chat</button><button class="da-x" type="button" aria-label="Close">×</button></div>
         <div class="da-log" aria-live="polite"></div>
-        <div class="da-chips"></div><div class="da-flash" role="status" hidden><span></span><button type="button" class="da-btn da-perm" hidden>Open permissions</button><button type="button" class="da-flx" aria-label="Dismiss">×</button></div>
+        <div class="da-chips"></div>
         <form class="da-comp"><div class="da-att"></div>
           <textarea placeholder="Ask about this deal, paste an email or numbers, or drop photos, screenshots and PDFs…"></textarea>
           <div class="da-bar"><button class="da-btn da-file" type="button">📎 Attach</button><input type="file" multiple hidden accept="image/*,.pdf,.txt,.csv,.tsv,.md,.json,.eml,.html,.htm,.xml">
-            <span class="da-sp da-note"></span><button class="da-btn da-stop" type="button" hidden>Stop</button><button class="da-btn pri da-send" type="button">Send</button></div></form>
+            <span class="da-sp da-note"></span><button class="da-btn da-stop" type="button" hidden>Stop</button><button class="da-btn pri da-send" type="submit">Send</button></div></form>
       </aside>`;
     document.body.appendChild(root);
     const q = s => root.querySelector(s);
@@ -206,7 +199,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
     async function getSample(){
       if(S.sample) return S.sample;
       try{ S.sample = await window.claude.use("sample"); }catch(_){ S.sample = null; }
-      if(S.sample && !S.limits){ try{ S.limits = await Promise.race([S.sample.limits(), new Promise(r => setTimeout(() => r(null), 5000))]); }catch(_){ S.limits = null; } }
+      if(S.sample && !S.limits){ try{ S.limits = await S.sample.limits(); }catch(_){ S.limits = null; } }
       return S.sample;
     }
     async function getMcp(){ if(S.mcp) return S.mcp; try{ S.mcp = cfg.getMcp ? await cfg.getMcp() : await window.claude.use("mcp"); }catch(_){ S.mcp = null; } return S.mcp; }
@@ -286,21 +279,11 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       }
       renderFiles();
     }
-    // Messages show inside the panel (the dashboard's own toast can sit behind it).
-    const flash = q(".da-flash"), permBtn = q(".da-perm");
-    const toast = (msg, perm) => { flash.querySelector("span").textContent = msg; permBtn.hidden = !perm; flash.hidden = false; };
-    q(".da-flx").onclick = () => { flash.hidden = true; };
-    permBtn.onclick = async () => { try{ const p = await window.claude.use("permissions"); if(p) await p.manage(); }catch(_){ toast("Use the artifact's menu (top right) → Permissions, turn Claude on, then reload."); return; } S.sample = null; flash.hidden = true; };
-    async function whyNoClaude(){
-      let st = ""; try{ const p = await window.claude.use("permissions"); if(p) st = await p.state("sample"); }catch(_){}
-      if(st === "denied") return toast("Claude is switched off for this dashboard. Turn it on in Permissions, then press Send again.", true);
-      if(st === "prompt") return toast("claude.ai needs your OK to let this dashboard ask Claude. Press Send again and choose Allow.", true);
-      toast(`Claude isn't available to this dashboard right now${st ? " (" + st + ")" : ""}. Reload the page; if it stays, open Permissions and make sure Claude is on.`, true);
-    }
+    const toast = msg => { if(cfg.toast) cfg.toast(msg); else note.textContent = msg; };
 
     /* ----- open / select ----- */
     async function open(id){
-      panel.hidden = false; fab.hidden = true; document.documentElement.classList.add("da-docked");
+      panel.hidden = false; fab.hidden = true;
       if(id && cfg.select && (!cfg.current() || cfg.current().id !== id)) cfg.select(id);
       await sync();
       getSample().then(renderFiles);
@@ -314,7 +297,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
         if(id){ await loadThread(id); if(S.recId === id) render(); }
       } else render();
     }
-    function close(){ panel.hidden = true; fab.hidden = false; document.documentElement.classList.remove("da-docked"); }
+    function close(){ panel.hidden = true; fab.hidden = false; }
     fab.onclick = () => open();
     q(".da-x").onclick = close;
     q(".da-new").onclick = () => { if(S.busy) return; S.turns = []; saveThread(); render(); };
@@ -322,11 +305,11 @@ If the deal record should change (corrected property facts, numbers, notes, stag
     fileIn.onchange = () => { addFiles(fileIn.files); fileIn.value = ""; };
     attBox.onclick = e => { const b = e.target.closest("[data-rm]"); if(b){ S.files.splice(+b.dataset.rm, 1); renderFiles(); } };
     ta.addEventListener("paste", e => { const fs = Array.from(e.clipboardData && e.clipboardData.files || []); if(fs.length){ e.preventDefault(); addFiles(fs); } });
-    ta.addEventListener("keydown", e => { if(e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); send(); } });
+    ta.addEventListener("keydown", e => { if(e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); form.requestSubmit(); } });
     panel.addEventListener("dragover", e => { if(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")){ e.preventDefault(); panel.classList.add("da-drop"); } });
     panel.addEventListener("dragleave", e => { if(e.target === panel) panel.classList.remove("da-drop"); });
     panel.addEventListener("drop", e => { e.preventDefault(); panel.classList.remove("da-drop"); addFiles(e.dataTransfer.files); });
-    chips.onclick = e => { const b = e.target.closest("[data-i]"); if(!b) return; ta.value = CHIPS[+b.dataset.i][1]; send(); };
+    chips.onclick = e => { const b = e.target.closest("[data-i]"); if(!b) return; ta.value = CHIPS[+b.dataset.i][1]; form.requestSubmit(); };
     stopBtn.onclick = () => { if(S.ctl) S.ctl.abort(); };
 
     /* ----- reference code: the dashboard's own (Deal Desk), else one already on the property in the back office, else a stable
@@ -368,35 +351,20 @@ If the deal record should change (corrected property facts, numbers, notes, stag
     }
 
     /* ----- send ----- */
-    // Send runs from the button, Ctrl/Cmd+Enter and the chips directly. It doesn't rely on a form submit,
-    // which the dashboard viewer can block (a blocked submit fires nothing at all).
-    form.addEventListener("submit", e => { e.preventDefault(); send(); });
-    sendBtn.onclick = () => send();
-    async function send(){
+    form.onsubmit = async e => {
+      e.preventDefault();
       // Send never fails silently: every early exit says why.
       const rec = cfg.current();
       if(!rec){ toast("Pick a deal on this dashboard first, then ask about it."); return; }
-      if(S.busy){ toast("Still working on the last answer. Press Stop to cancel it."); return; }
+      if(S.busy){ note.textContent = "Still working on the last answer. Press Stop to cancel it."; return; }
       const text = ta.value.trim(); if(!text && !S.files.length){ ta.focus(); note.textContent = "Type a question or attach a file."; return; }
       note.textContent = "Connecting to Claude…"; sendBtn.disabled = true;
       let sample = null;
-      try{ sample = await Promise.race([getSample(), new Promise(r => setTimeout(() => r(null), 15000))]); }finally{ sendBtn.disabled = false; note.textContent = ""; }
-      if(!sample){ S.sample = null; await whyNoClaude(); return; }
-      flash.hidden = true;
-      S.busy = true;
-      const ctl = S.ctl = new AbortController();
-      let shown = "", timedOut = false;
-      // If Claude never starts answering (file reading included), stop waiting after 2 minutes instead of leaving Send stuck.
-      const watchdog = setTimeout(() => { if(!shown){ timedOut = true; ctl.abort(); } }, 120000);
-      // Stop and the timeout end every wait below, even one that ignores the abort.
-      const ended = new Promise((_, rej) => ctl.signal.addEventListener("abort", () => rej(Object.assign(new Error("cancelled"), {code:"cancelled", text: shown || ""})), {once:true}));
-      ended.catch(() => {});
-      const within = (p, ms) => Promise.race([p, ended, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+      try{ sample = await getSample(); }finally{ sendBtn.disabled = false; note.textContent = ""; }
+      if(!sample){ S.sample = null; toast("Claude isn't available to this dashboard right now. Reload the page, and allow Claude if claude.ai asks."); return; }
+      S.busy = true; render();
       try{
       const files = S.files.slice(); S.files = []; renderFiles();
-      // Show the question and "Thinking…" right away; attachments are read after.
-      const userTurn = {role:"user", content:"", display:text || "(attached files)", files:files.map(f => f.name), at:new Date().toISOString()};
-      S.turns.push(userTurn); ta.value = ""; render("");
       const imLim = S.limits && S.limits.images, maxImg = imLim ? imLim.maxCount || 0 : 0;
       const images = [], fileNotes = [], names = [];
       try{
@@ -405,26 +373,33 @@ If the deal record should change (corrected property facts, numbers, notes, stag
           if(/^image\//.test(f.type)){ if(images.length < maxImg){ images.push(f); fileNotes.push(`[Image attached: ${f.name}]`); } else fileNotes.push(`[Image ${f.name} not sent: too many images in one message]`); continue; }
           if(/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)){
             note.textContent = `Reading ${f.name}…`;
-            try{ const r = await within(readPdf(f, Math.max(0, Math.min(3, maxImg - images.length))), 45000);
+            try{ const r = await readPdf(f, Math.max(0, Math.min(3, maxImg - images.length)));
               images.push(...r.images);
               fileNotes.push(`--- PDF: ${f.name} (${r.pages} page${r.pages > 1 ? "s" : ""}${r.images.length ? `, first ${r.images.length} attached as images` : ""}) ---\n${r.text.slice(0, MAX_FILE_TEXT) || "(no text layer: likely a scan; see the page images)"}`); }
-            catch(err){ if(ctl.signal.aborted) throw err; fileNotes.push(`[PDF ${f.name} could not be read here; ask Harvey to paste its text if it matters]`); }
+            catch(_){ fileNotes.push(`[PDF ${f.name} could not be read]`); }
             continue;
           }
-          try{ fileNotes.push(`--- File: ${f.name} ---\n${(await within(f.text(), 20000)).slice(0, MAX_FILE_TEXT)}`); }
-          catch(err){ if(ctl.signal.aborted) throw err; fileNotes.push(`[File ${f.name} could not be read]`); }
+          fileNotes.push(`--- File: ${f.name} ---\n${(await f.text()).slice(0, MAX_FILE_TEXT)}`);
         }
-      }catch(err){ if(ctl.signal.aborted) throw err; }
-      note.textContent = "";
-      userTurn.content = [text || "(See the attached files.)", ...fileNotes].join("\n\n");
+      }catch(_){}
+      renderFiles();
+      const content = [text || "(See the attached files.)", ...fileNotes].join("\n\n");
+      const userTurn = {role:"user", content, display:text || "(attached files)", files:names, at:new Date().toISOString()};
+      S.turns.push(userTurn); ta.value = ""; render("");
       const myRec = rec.id;
-      let ctx = ""; try{ ctx = await within(contextText(rec), 30000); }catch(err){ if(ctl.signal.aborted) throw err; }
+      let ctx = ""; try{ ctx = await contextText(rec); }catch(_){}
       const hist = S.turns.filter(t => t.role === "user" || t.role === "assistant").slice(-MAX_TURNS).map(t => ({role:t.role, content:String(t.content || "").slice(0, 20000) || "(empty)"}));
       while(hist.length && hist[0].role !== "user") hist.shift();
       const input = [{role:"user", content: RULES(cfg) + "\n\n" + ctx}, ...hist];
+      const ctl = S.ctl = new AbortController();
+      let shown = "", timedOut = false;
+      // If Claude never starts answering, stop waiting after 2 minutes instead of leaving Send stuck.
+      const watchdog = setTimeout(() => { if(!shown){ timedOut = true; ctl.abort(); } }, 120000);
       try{
         const opts = {signal:ctl.signal, cache:false, modelTier:"complex", model:MODEL, onText: ({text:t}) => { shown = t; if(S.recId === myRec) render(t); }};
         if(images.length) opts.images = images;
+        // Stop and the 2-minute timeout always end the wait, even if the request ignores the abort.
+        const ended = new Promise((_, rej) => ctl.signal.addEventListener("abort", () => rej(Object.assign(new Error("cancelled"), {code:"cancelled", text: shown || ""})), {once:true}));
         const r = await Promise.race([sample(input, opts), ended]);
         if(S.recId !== myRec) return;
         const sp = splitReply(r.text);
@@ -443,9 +418,9 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       }
       clearTimeout(watchdog);
       if(S.recId === myRec){ saveThread(); }
-      }catch(err){ S.turns.push({role:"note", content: timedOut ? "Reading the attachments took too long. Try again, or paste the text instead of attaching." : ctl.signal.aborted ? "Stopped." : `Something went wrong preparing that message${err && err.message ? ": " + err.message : ""}. Try again.`}); note.textContent = ""; }
-      finally{ clearTimeout(watchdog); S.turns.forEach(t => { if(t.role === "user" && !t.content) t.content = t.display; }); S.busy = false; S.ctl = null; render(); }
-    }
+      }catch(err){ S.turns.push({role:"note", content:`Something went wrong preparing that message${err && err.message ? ": " + err.message : ""}. Try again.`}); }
+      finally{ S.busy = false; S.ctl = null; render(); }
+    };
 
     /* ----- applying proposed changes ----- */
     log.addEventListener("click", async e => {
