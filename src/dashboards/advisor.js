@@ -142,10 +142,6 @@ If the deal record should change (corrected property facts, numbers, notes, stag
 .da-fab[hidden]{display:none}
 .da-panel{position:fixed;top:0;right:0;bottom:0;width:min(480px,100vw);z-index:9001;background:var(--da-bg);border-left:1px solid var(--da-line);box-shadow:-12px 0 32px -16px rgba(0,0,0,.4);display:flex;flex-direction:column}
 .da-panel[hidden]{display:none}
-/* Side by side: on screens 900px and wider the open panel docks on the right and the dashboard narrows beside it (html.da-docked).
-   Phones keep the panel over the page. Dashboards keep their own pop-ups in the narrowed area with html.da-docked rules. */
-:root{--da-w:clamp(360px,34vw,520px)}
-@media (min-width:900px){html.da-docked body{margin-right:var(--da-w)!important}html.da-docked .da-panel{width:var(--da-w);box-shadow:none}}
 .da-root *,.da-root *::before,.da-root *::after{box-sizing:border-box}
 .da-root button,.da-root textarea{font:inherit;letter-spacing:normal;text-transform:none;margin:0;box-shadow:none;width:auto;min-height:0;height:auto}
 .da-head{flex:none;display:flex;align-items:flex-start;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--da-line)}
@@ -295,7 +291,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
 
     /* ----- open / select ----- */
     async function open(id){
-      panel.hidden = false; fab.hidden = true; document.documentElement.classList.add("da-docked");
+      panel.hidden = false; fab.hidden = true;
       if(id && cfg.select && (!cfg.current() || cfg.current().id !== id)) cfg.select(id);
       await sync();
       getSample().then(renderFiles);
@@ -309,7 +305,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
         if(id){ await loadThread(id); if(S.recId === id) render(); }
       } else render();
     }
-    function close(){ panel.hidden = true; fab.hidden = false; document.documentElement.classList.remove("da-docked"); }
+    function close(){ panel.hidden = true; fab.hidden = false; }
     fab.onclick = () => open();
     q(".da-x").onclick = close;
     q(".da-new").onclick = () => { if(S.busy) return; S.turns = []; saveThread(); render(); };
