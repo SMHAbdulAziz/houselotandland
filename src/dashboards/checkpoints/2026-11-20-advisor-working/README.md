@@ -9,7 +9,7 @@ These are the exact HTML files published as:
 | Sub-To Pipeline | https://claude.ai/artifact/FtLdvSwuLyK8tRCEQKL2N8 | 1795211737-b492 |
 | Creative Finance Tracker | https://claude.ai/artifact/34uqcPNYFQnpZAwZvtxvTp | 1795211733-6f69 |
 
-Repo: git tag `checkpoint-2026-11-20-advisor-working` (advisor source `src/dashboards/advisor.js`, back office, worker).
+Repo: branch `checkpoint/2026-11-20-advisor-working` (GitHub; tags are blocked here) (advisor source `src/dashboards/advisor.js`, back office, worker).
 
 To restore a dashboard: republish its file here to the same artifact URL (keep the stored capabilities;
-Creative's include BatchData lookup_property and skip_trace_property). To restore the repo: `git checkout checkpoint-2026-11-20-advisor-working -- <paths>`.
+Creative's include BatchData lookup_property and skip_trace_property). To restore the repo: `git checkout origin/checkpoint/2026-11-20-advisor-working -- <paths>`.
