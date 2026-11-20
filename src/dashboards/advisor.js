@@ -140,6 +140,9 @@ If the deal record should change (corrected property facts, numbers, notes, stag
 :root[data-theme="dark"] .da-root{--da-bg:#171d27;--da-ink:#e5eaf2;--da-muted:#98a3b5;--da-line:#2a3342;--da-acc:#86a8dc;--da-acc-ink:#0e1420;--da-soft:#1e2a3d;--da-me:#2f4b75;--da-me-ink:#fff;--da-ok:#5cc58a;--da-warn:#e2a64a}
 .da-fab{position:fixed;right:18px;bottom:18px;z-index:9000;border:0;border-radius:999px;padding:12px 18px;background:var(--da-acc);color:var(--da-acc-ink);font:600 14.5px/1 system-ui,sans-serif;box-shadow:0 8px 24px -8px rgba(0,0,0,.45);cursor:pointer}
 .da-fab[hidden]{display:none}
+/* Wide screens: the panel docks to the right and the dashboard shrinks beside it (html.da-docked). Phones: it covers the page. */
+:root{--da-w:clamp(360px,34vw,520px)}
+@media (min-width:900px){html.da-docked body{margin-right:var(--da-w)!important}html.da-docked .da-panel{width:var(--da-w);box-shadow:none}}
 .da-panel{position:fixed;top:0;right:0;bottom:0;width:min(480px,100vw);z-index:9001;background:var(--da-bg);border-left:1px solid var(--da-line);box-shadow:-12px 0 32px -16px rgba(0,0,0,.4);display:flex;flex-direction:column}
 .da-panel[hidden]{display:none}
 .da-root *,.da-root *::before,.da-root *::after{box-sizing:border-box}
@@ -283,7 +286,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
 
     /* ----- open / select ----- */
     async function open(id){
-      panel.hidden = false; fab.hidden = true;
+      panel.hidden = false; fab.hidden = true; document.documentElement.classList.add("da-docked");
       if(id && cfg.select && (!cfg.current() || cfg.current().id !== id)) cfg.select(id);
       await sync();
       getSample().then(renderFiles);
@@ -297,7 +300,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
         if(id){ await loadThread(id); if(S.recId === id) render(); }
       } else render();
     }
-    function close(){ panel.hidden = true; fab.hidden = false; }
+    function close(){ panel.hidden = true; fab.hidden = false; document.documentElement.classList.remove("da-docked"); }
     fab.onclick = () => open();
     q(".da-x").onclick = close;
     q(".da-new").onclick = () => { if(S.busy) return; S.turns = []; saveThread(); render(); };

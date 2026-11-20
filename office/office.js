@@ -36,7 +36,7 @@ const LINKS = [
   ["Deal pipelines", [
     ["Wholesale Deal Desk", "https://claude.ai/artifact/5MAcErFcTQZoe6VCGzbjHs", "Wholesale leads, offers, agreements, Funding and Services panels"],
     ["Sub-To Pipeline", "https://claude.ai/artifact/FtLdvSwuLyK8tRCEQKL2N8", "Subject-to leads with the deal analyzer"],
-    ["Creative Finance Deal Tracker", "https://claude.ai/artifact/34uqcPNYFQnpZAwZvtxvTp", "Seller-finance RV parks and multifamily"],
+    ["Creative Finance Deal Tracker", "https://claude.ai/artifact/34uqcPNYFQnpZAwZvtxvTp", "Seller-finance RV parks, multifamily and businesses with real estate"],
     ["Sub-To Deal Kit", "https://claude.ai/artifact/F1KTc9QAdmU7kpybhoCxd8", "Scripts, checklists and paperwork for sub-to deals"],
     ["Seller Agreement Templates", "https://claude.ai/artifact/BVUBuBv8iR8y7bDdca5wY3", "Draft for attorney review"],
   ]],
@@ -57,7 +57,10 @@ const EQUIP = ["Truck", "Trailer", "Mower and trimmer", "Pressure washer", "Pain
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
 const W_STATUS = ["applied", "approved", "active", "inactive", "declined"];
 const W_PILL = { applied: "warn", approved: "", active: "ok", inactive: "mute", declined: "bad" };
-const TYPES = ["Single-family", "Duplex to fourplex", "Mobile home on land", "Apartment complex", "RV park", "Mobile home park", "Land", "Commercial", "Other"];
+// Residential, then income property and businesses that come with their real estate (the Creative Finance Tracker uses the same commercial names).
+const TYPES = ["Single-family", "Duplex to fourplex", "Mobile home on land", "Apartment complex", "Land",
+  "RV park", "RV/boat storage", "Mobile home park", "Self storage", "Laundromat", "Car wash", "Gas station / C-store", "Hotel / motel",
+  "Restaurant / bar building", "Retail / strip center", "Office building", "Industrial / warehouse", "Mixed-use", "Other business with real estate", "Commercial", "Other"];
 
 // ---------------- Shabbat ----------------
 function shabbatBanner() {
@@ -436,7 +439,7 @@ async function openProperty(id) {
         ${[["name", "Name (parks, complexes)"], ["address", "Street address"], ["city", "City"]].map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(p[k] ?? "")}"></label>`).join("")}
         <label>State${stateSelect("state", p.state || "TX")}</label>
         ${[["zip", "ZIP"], ["county", "County"]].map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(p[k] ?? "")}"></label>`).join("")}
-        <label>Type<select name="prop_type">${["", ...TYPES].map((t) => `<option ${p.prop_type === t ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label>
+        <label>Type<select name="prop_type">${["", ...TYPES, ...(p.prop_type && !TYPES.includes(p.prop_type) ? [p.prop_type] : [])].map((t) => `<option ${p.prop_type === t ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label>
         ${[["units", "Units / sites"], ["beds", "Beds"], ["baths", "Baths"], ["sqft", "Sq ft"], ["acres", "Acres"]].map(([k, l]) => `<label>${l}<input name="${k}" inputmode="decimal" value="${esc(p[k] ?? "")}"></label>`).join("")}
         <div class="wide"><button class="btn">Save details</button></div></form></section>
     <section class="card"><div class="head"><h3>History</h3></div>
