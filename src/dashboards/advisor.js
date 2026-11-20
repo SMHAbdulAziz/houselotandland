@@ -107,7 +107,9 @@ If the deal record should change (corrected property facts, numbers, notes, stag
     pdfjs = new Promise((res, rej) => {
       const s = document.createElement("script");
       s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-      s.onload = () => { const lib = window.pdfjsLib; if(!lib) return rej(new Error("pdf")); lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(lib); };
+      s.onload = () => { const lib = window.pdfjsLib; if(!lib) return rej(new Error("pdf")); lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        // Load the worker code on the page itself (window.pdfjsWorker): pdf.js then skips starting a cross-origin Worker, which a sandboxed page can block and leave hanging.
+        const w = document.createElement("script"); w.src = lib.GlobalWorkerOptions.workerSrc; w.onload = () => res(lib); w.onerror = () => res(lib); document.head.appendChild(w); };
       s.onerror = () => { pdfjs = null; rej(new Error("pdf")); };
       document.head.appendChild(s);
     });
@@ -145,6 +147,7 @@ If the deal record should change (corrected property facts, numbers, notes, stag
 @media (min-width:900px){html.da-docked body{margin-right:var(--da-w)!important}html.da-docked .da-panel{width:var(--da-w);box-shadow:none}}
 .da-panel{position:fixed;top:0;right:0;bottom:0;width:min(480px,100vw);z-index:9001;background:var(--da-bg);border-left:1px solid var(--da-line);box-shadow:-12px 0 32px -16px rgba(0,0,0,.4);display:flex;flex-direction:column}
 .da-panel[hidden]{display:none}
+.da-root [hidden]{display:none!important}
 .da-root *,.da-root *::before,.da-root *::after{box-sizing:border-box}
 .da-root button,.da-root textarea{font:inherit;letter-spacing:normal;text-transform:none;margin:0;box-shadow:none;width:auto;min-height:0;height:auto}
 .da-head{flex:none;display:flex;align-items:flex-start;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--da-line)}
@@ -365,9 +368,20 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       let sample = null;
       try{ sample = await getSample(); }finally{ sendBtn.disabled = false; note.textContent = ""; }
       if(!sample){ S.sample = null; toast("Claude isn't available to this dashboard right now. Reload the page, and allow Claude if claude.ai asks."); return; }
-      S.busy = true; render();
+      S.busy = true;
+      const ctl = S.ctl = new AbortController();
+      let shown = "", timedOut = false;
+      // If Claude never starts answering (file reading included), stop waiting after 2 minutes instead of leaving Send stuck.
+      const watchdog = setTimeout(() => { if(!shown){ timedOut = true; ctl.abort(); } }, 120000);
+      // Stop and the timeout end every wait below, even one that ignores the abort.
+      const ended = new Promise((_, rej) => ctl.signal.addEventListener("abort", () => rej(Object.assign(new Error("cancelled"), {code:"cancelled", text: shown || ""})), {once:true}));
+      ended.catch(() => {});
+      const within = (p, ms) => Promise.race([p, ended, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
       try{
       const files = S.files.slice(); S.files = []; renderFiles();
+      // Show the question and "Thinking…" right away; attachments are read after.
+      const userTurn = {role:"user", content:"", display:text || "(attached files)", files:files.map(f => f.name), at:new Date().toISOString()};
+      S.turns.push(userTurn); ta.value = ""; render("");
       const imLim = S.limits && S.limits.images, maxImg = imLim ? imLim.maxCount || 0 : 0;
       const images = [], fileNotes = [], names = [];
       try{
@@ -376,33 +390,26 @@ If the deal record should change (corrected property facts, numbers, notes, stag
           if(/^image\//.test(f.type)){ if(images.length < maxImg){ images.push(f); fileNotes.push(`[Image attached: ${f.name}]`); } else fileNotes.push(`[Image ${f.name} not sent: too many images in one message]`); continue; }
           if(/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)){
             note.textContent = `Reading ${f.name}…`;
-            try{ const r = await readPdf(f, Math.max(0, Math.min(3, maxImg - images.length)));
+            try{ const r = await within(readPdf(f, Math.max(0, Math.min(3, maxImg - images.length))), 45000);
               images.push(...r.images);
               fileNotes.push(`--- PDF: ${f.name} (${r.pages} page${r.pages > 1 ? "s" : ""}${r.images.length ? `, first ${r.images.length} attached as images` : ""}) ---\n${r.text.slice(0, MAX_FILE_TEXT) || "(no text layer: likely a scan; see the page images)"}`); }
-            catch(_){ fileNotes.push(`[PDF ${f.name} could not be read]`); }
+            catch(err){ if(ctl.signal.aborted) throw err; fileNotes.push(`[PDF ${f.name} could not be read here; ask Harvey to paste its text if it matters]`); }
             continue;
           }
-          fileNotes.push(`--- File: ${f.name} ---\n${(await f.text()).slice(0, MAX_FILE_TEXT)}`);
+          try{ fileNotes.push(`--- File: ${f.name} ---\n${(await within(f.text(), 20000)).slice(0, MAX_FILE_TEXT)}`); }
+          catch(err){ if(ctl.signal.aborted) throw err; fileNotes.push(`[File ${f.name} could not be read]`); }
         }
-      }catch(_){}
-      renderFiles();
-      const content = [text || "(See the attached files.)", ...fileNotes].join("\n\n");
-      const userTurn = {role:"user", content, display:text || "(attached files)", files:names, at:new Date().toISOString()};
-      S.turns.push(userTurn); ta.value = ""; render("");
+      }catch(err){ if(ctl.signal.aborted) throw err; }
+      note.textContent = "";
+      userTurn.content = [text || "(See the attached files.)", ...fileNotes].join("\n\n");
       const myRec = rec.id;
-      let ctx = ""; try{ ctx = await contextText(rec); }catch(_){}
+      let ctx = ""; try{ ctx = await within(contextText(rec), 30000); }catch(err){ if(ctl.signal.aborted) throw err; }
       const hist = S.turns.filter(t => t.role === "user" || t.role === "assistant").slice(-MAX_TURNS).map(t => ({role:t.role, content:String(t.content || "").slice(0, 20000) || "(empty)"}));
       while(hist.length && hist[0].role !== "user") hist.shift();
       const input = [{role:"user", content: RULES(cfg) + "\n\n" + ctx}, ...hist];
-      const ctl = S.ctl = new AbortController();
-      let shown = "", timedOut = false;
-      // If Claude never starts answering, stop waiting after 2 minutes instead of leaving Send stuck.
-      const watchdog = setTimeout(() => { if(!shown){ timedOut = true; ctl.abort(); } }, 120000);
       try{
         const opts = {signal:ctl.signal, cache:false, modelTier:"complex", model:MODEL, onText: ({text:t}) => { shown = t; if(S.recId === myRec) render(t); }};
         if(images.length) opts.images = images;
-        // Stop and the 2-minute timeout always end the wait, even if the request ignores the abort.
-        const ended = new Promise((_, rej) => ctl.signal.addEventListener("abort", () => rej(Object.assign(new Error("cancelled"), {code:"cancelled", text: shown || ""})), {once:true}));
         const r = await Promise.race([sample(input, opts), ended]);
         if(S.recId !== myRec) return;
         const sp = splitReply(r.text);
@@ -421,8 +428,8 @@ If the deal record should change (corrected property facts, numbers, notes, stag
       }
       clearTimeout(watchdog);
       if(S.recId === myRec){ saveThread(); }
-      }catch(err){ S.turns.push({role:"note", content:`Something went wrong preparing that message${err && err.message ? ": " + err.message : ""}. Try again.`}); }
-      finally{ S.busy = false; S.ctl = null; render(); }
+      }catch(err){ S.turns.push({role:"note", content: timedOut ? "Reading the attachments took too long. Try again, or paste the text instead of attaching." : ctl.signal.aborted ? "Stopped." : `Something went wrong preparing that message${err && err.message ? ": " + err.message : ""}. Try again.`}); note.textContent = ""; }
+      finally{ clearTimeout(watchdog); S.turns.forEach(t => { if(t.role === "user" && !t.content) t.content = t.display; }); S.busy = false; S.ctl = null; render(); }
     };
 
     /* ----- applying proposed changes ----- */
