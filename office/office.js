@@ -37,6 +37,7 @@ const LINKS = [
     ["Wholesale Deal Desk", "https://claude.ai/artifact/5MAcErFcTQZoe6VCGzbjHs", "Wholesale leads, offers, agreements, Funding and Services panels"],
     ["Sub-To Pipeline", "https://claude.ai/artifact/FtLdvSwuLyK8tRCEQKL2N8", "Subject-to leads with the deal analyzer"],
     ["Creative Finance Deal Tracker", "https://claude.ai/artifact/34uqcPNYFQnpZAwZvtxvTp", "Seller-finance RV parks, multifamily and businesses with real estate"],
+    ["OTC Tax Parcel Finder", "https://claude.ai/artifact/R4w8ZRSRBczn5XXhkWdunB", "Over-the-counter tax deeds and liens, Texas struck-off parcels, scored against the buy box"],
     ["Sub-To Deal Kit", "https://claude.ai/artifact/F1KTc9QAdmU7kpybhoCxd8", "Scripts, checklists and paperwork for sub-to deals"],
     ["Seller Agreement Templates", "https://claude.ai/artifact/BVUBuBv8iR8y7bDdca5wY3", "Draft for attorney review"],
   ]],
@@ -181,6 +182,7 @@ async function settingsView() {
     let n = 0;
     if (cfg.batchdata_allowed) for (const k of ["subto", "creative"]) { const c = cfg.searches[k]; if (!c.on) continue;
       if (c.pulls.batchdata_search) n += c.limits.max_records; if (c.pulls.batchdata_enrich) n += c.limits.max_enrich * (k === "subto" ? 2 : 1); }
+    if (cfg.batchdata_allowed && cfg.searches.otc && cfg.searches.otc.on && cfg.searches.otc.pulls.batchdata_enrich) n += cfg.searches.otc.limits.max_enrich * 2;
     $("autoEst").textContent = n ? `Up to about ${n} BatchData records a week at these limits.` : "No automatic BatchData spending.";
     const dirty = JSON.stringify(cfg) !== saved; $("autoSave").disabled = !dirty; $("autoUndo").disabled = !dirty;
   };
@@ -504,7 +506,7 @@ function dealCard(d) {
     <div class="acts"><button class="btn small gold">Save</button>${dashLink(d)}<span style="flex:1"></span><button type="button" class="btn small danger" data-rmdeal="${esc(d.id)}" title="Takes this property off the ${esc(tr.label)} track here and in its dashboard">Remove from ${esc(tr.label)}</button></div></form>`;
 }
 function dashLink(d) {
-  const L = { wholesale: LINKS[0][1][0], subto: LINKS[0][1][1], creative: LINKS[0][1][2] }[d.track];
+  const L = { wholesale: LINKS[0][1][0], subto: LINKS[0][1][1], creative: LINKS[0][1][2], taxotc: LINKS[0][1][3] }[d.track];
   if (!L) return "";
   // The dashboard opens this deal with its Deal Advisor (claude.ai passes a plain #name through to the page).
   const adv = /^d_[a-z0-9]+$/i.test(d.id) ? `${L[1]}#advise-${d.id.replace("_", "-")}` : "";

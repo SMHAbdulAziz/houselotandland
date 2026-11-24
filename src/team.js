@@ -4,7 +4,7 @@
 // active members in the `team` table get past this check. Until an owner row exists, everyone Access lets in is owner
 // (how the back office worked before teams), so adding the first owner row is what turns roles on.
 
-export const TRACK_KEYS = ["wholesale", "subto", "creative", "funding", "services"];
+export const TRACK_KEYS = ["wholesale", "subto", "creative", "funding", "services", "taxotc"];
 
 // Permission keys. Track access is separate (member.tracks).
 export const PERMS = {
@@ -28,7 +28,7 @@ export const PERMS = {
 
 export const ROLES = {
   owner: { label: "Owner", tracks: TRACK_KEYS, perms: Object.keys(PERMS) },
-  acquisitions: { label: "Acquisitions", tracks: ["wholesale", "subto", "creative", "funding"],
+  acquisitions: { label: "Acquisitions", tracks: ["wholesale", "subto", "creative", "funding", "taxotc"],
     perms: ["deals", "deals.edit", "contacts", "contacts.edit", "email", "add"] },
   wholesale: { label: "Wholesaling associate", tracks: ["wholesale"],
     perms: ["deals", "deals.edit", "contacts", "contacts.edit", "email", "add"] },

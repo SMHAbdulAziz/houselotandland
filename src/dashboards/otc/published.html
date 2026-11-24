@@ -1,0 +1,1244 @@
+<title>OTC Tax Parcel Finder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: pipeline strip on top, filter chips, then one card per listing; edit in a bottom sheet. */
+:root{
+  --bg:#f3f5f2;--surface:#ffffff;--ink:#1c2420;--muted:#5d6b63;--line:#d9e0db;
+  --accent:#2f6b4f;--accent-ink:#ffffff;--accent-soft:#e2efe7;
+  --ok:#2f7d4a;--warn:#a86a0c;--bad:#b23a32;--info:#2d5f8a;
+  --f-display:"Archivo",system-ui,sans-serif;--f-body:"Source Sans 3",system-ui,sans-serif;--f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141a17;--surface:#1c2420;--ink:#e6ece8;--muted:#9aa9a0;--line:#2e3933;
+  --accent:#6fbf93;--accent-ink:#0f1a14;--accent-soft:#223a2d;
+  --ok:#6fcf8f;--warn:#e0a948;--bad:#ef7d74;--info:#7fb2df;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a17;--surface:#1c2420;--ink:#e6ece8;--muted:#9aa9a0;--line:#2e3933;
+  --accent:#6fbf93;--accent-ink:#0f1a14;--accent-soft:#223a2d;
+  --ok:#6fcf8f;--warn:#e0a948;--bad:#ef7d74;--info:#7fb2df;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:980px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
+h1{font-family:var(--f-display);font-weight:800;font-size:1.55rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:2px 0 0;font-size:.9rem}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 12px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:left;display:grid;gap:2px}
+.stage[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.stage b{font-family:var(--f-mono);font-size:1.3rem;font-variant-numeric:tabular-nums}
+.stage span{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border-radius:999px;padding:5px 12px;font-size:.85rem}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.list{display:grid;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:8px;min-width:0}
+.row1{display:flex;gap:10px;justify-content:space-between;align-items:start;flex-wrap:wrap}
+.name{font-family:var(--f-display);font-weight:700;font-size:1.05rem;margin:0}
+.loc{color:var(--muted);font-size:.85rem}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;border:1px solid currentColor}
+.f-confirmed{color:var(--ok)}.f-listed{color:var(--warn)}.f-none{color:var(--bad)}.f-unknown{color:var(--muted)}
+.st{color:var(--info)}
+.stats{display:flex;flex-wrap:wrap;gap:4px 18px;font-family:var(--f-mono);font-size:.82rem;font-variant-numeric:tabular-nums}
+.stats dt{color:var(--muted);font-family:var(--f-body);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
+.stats div{display:grid}
+.stats dl{margin:0}
+.terms,.next{font-size:.9rem;margin:0}
+.next{color:var(--muted)}.next strong{color:var(--ink)}
+.next.due strong{color:var(--bad)}
+.acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.acts a{color:var(--accent);font-size:.88rem}
+.empty{border:1px dashed var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--muted)}
+.enr{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);display:grid;gap:8px}
+.enr summary{cursor:pointer;font-weight:600;font-size:.9rem}
+.enr .eg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 14px;margin-top:8px}
+.enr .eg div{display:grid;min-width:0}.enr .eg span:first-child{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.enr .eg span:last-child{font-family:var(--f-mono);font-size:.82rem;overflow-wrap:anywhere}
+.enr .tags{display:flex;flex-wrap:wrap;gap:4px}.enr .tags span{font-size:.72rem;border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+.enr .warnl{color:var(--bad);font-weight:600;font-size:.85rem}
+.enr .cl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem}.enr .cl code{font-family:var(--f-mono)}
+.enr button{padding:3px 8px;font-size:.8rem}
+.note{font-size:.82rem;color:var(--muted)}
+.sheet{position:fixed;inset:0;background:rgb(0 0 0 / .45);display:grid;align-items:end;justify-items:center;z-index:20}
+.sheet form{background:var(--surface);width:min(640px,100%);max-height:90vh;overflow:auto;border-radius:16px 16px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:12px}
+.sheet h2{font-family:var(--f-display);margin:0;font-size:1.15rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:480px){.grid2{grid-template-columns:1fr}}
+label{display:grid;gap:4px;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+input,select,textarea{font:inherit;font-size:.95rem;text-transform:none;letter-spacing:0;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px}
+textarea{min-height:70px;resize:vertical}
+.formacts{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.danger{color:var(--bad)}
+.finder{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.fgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+@media (max-width:720px){.fgrid{grid-template-columns:1fr}}
+.flabel{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:10px 0 6px}
+.fbox{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:10px;align-content:start;background:var(--bg)}
+.fbox .primary{justify-self:start}
+.pill.ok{color:var(--ok)}.pill.bad{color:var(--bad)}.pill.warn{color:var(--warn)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.88rem;z-index:30}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}.card:hover{border-color:var(--accent)}}
+
+/* OTC Tax Parcel Finder additions */
+[hidden]{display:none!important}
+.tests{display:flex;flex-wrap:wrap;gap:6px}
+.t{font-size:.78rem;border-radius:999px;padding:3px 9px;border:1px solid currentColor;display:inline-flex;gap:5px;align-items:center}
+.t.pass{color:var(--ok)}.t.fail{color:var(--bad)}.t.unk{color:var(--muted);border-style:dashed}
+.verdict{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:999px}
+.verdict.q{background:var(--ok);color:var(--surface)}.verdict.f{background:var(--bad);color:var(--surface)}.verdict.n{border:1px dashed var(--muted);color:var(--muted)}
+.math{font-family:var(--f-mono);font-size:.8rem;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;overflow-wrap:anywhere}
+.math b{font-weight:600}
+.bb{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.bbgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.inline{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;text-transform:none!important;letter-spacing:0!important;font-size:.9rem!important;color:var(--ink)!important}
+.inline input{width:auto}
+.comps{font-size:.82rem;display:grid;gap:2px}
+.comps div{display:flex;gap:10px;flex-wrap:wrap;font-family:var(--f-mono)}
+.warnbox{border-left:3px solid var(--warn);padding:6px 10px;font-size:.85rem;background:var(--bg);border-radius:0 8px 8px 0}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters select{width:auto}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>OTC Tax Parcel Finder</h1>
+      <p class="sub">Over-the-counter tax deeds and liens, plus Texas struck-off resale, scored against your buy box</p>
+    </div>
+    <div class="acts"><button id="bbBtn" type="button" aria-expanded="false" aria-controls="bbBox">Buy box</button><button id="findBtn" type="button" aria-expanded="false" aria-controls="finder">Find parcels</button><button id="hubBtn" type="button" title="Two-way sync with the OTC tax parcels track in the back office (houselotandland.org/office)">Sync back office</button><button class="primary" id="addBtn" type="button">+ Add parcel</button></div>
+  </header>
+  <p class="note" id="hubStatus" aria-live="polite"></p>
+
+  <section class="bb" id="bbBox" hidden aria-labelledby="h-bb">
+    <div class="row1"><h2 id="h-bb" style="font-family:var(--f-display);margin:0;font-size:1.15rem">Buy box</h2><span class="note" id="bbSaved"></span></div>
+    <p class="note" style="margin:0">Every parcel is scored live against these numbers, and the weekly scan uses them too. Change them any time; scores update right away.</p>
+    <div class="bbgrid">
+      <label>Max OTC purchase price ($)<input id="bb-maxPrice" type="number" min="0" step="50" inputmode="numeric"></label>
+      <label>Max other liens, total ($)<input id="bb-maxLiens" type="number" min="0" step="500" inputmode="numeric"></label>
+      <label>Comps value ≥ this × total cost<input id="bb-multiple" type="number" min="1" step="0.5" inputmode="decimal"></label>
+      <label>Min. number of comps<input id="bb-minComps" type="number" min="1" step="1" inputmode="numeric"></label>
+      <label>Comps sold within (months)<input id="bb-compMonths" type="number" min="1" max="60" step="1" inputmode="numeric"></label>
+      <label>Comps within (miles)<input id="bb-compMiles" type="number" min="0.1" max="25" step="0.25" inputmode="decimal"></label>
+      <label>Quiet title estimate ($, shown, not in the 5x test)<input id="bb-quietTitle" type="number" min="0" step="250" inputmode="numeric"></label>
+    </div>
+    <label class="inline"><input id="bb-noFlood" type="checkbox"> No FEMA flood zone (special flood hazard area)</label>
+    <div><div class="flabel">Parcel kinds</div><div class="chips" id="bb-kinds"></div></div>
+    <label>Only these states (2-letter, comma-separated; blank = any state that lets non-residents buy)<input id="bb-states" placeholder="FL, AZ, CO, AL, IA, TX"></label>
+    <div class="acts"><button class="primary" id="bbSave" type="button">Save buy box</button><button id="bbReset" type="button">Reset to defaults</button></div>
+  </section>
+
+  <section class="finder" id="finder" hidden aria-labelledby="h-find">
+    <div class="row1"><h2 id="h-find" style="font-family:var(--f-display);margin:0;font-size:1.15rem">Find parcels</h2><span class="note">Runs every Thursday at 6:17 AM, or tap Scan now. Takes 15 to 30 minutes.</span></div>
+    <div class="fbox">
+      <p class="note" style="margin:0">The scan reads county over-the-counter lists (Florida "Lands Available for Taxes", OTC tax lien states that allow non-residents) and Texas struck-off resale lists, keeps parcels under your max price, checks FEMA flood maps for free, and adds new ones here. BatchData lien and comps checks only run if you turn them on in the back office (Settings, Automatic searches), up to the limit set there; otherwise tap <b>Check parcel</b> on the ones you like.</p>
+      <button class="primary" id="searchBtn" type="button">Scan now</button>
+      <div class="note" id="runState" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="pipe" id="pipe" aria-label="Stages"></section>
+  <div class="filters">
+    <div class="chips" id="vchips" aria-label="Filter by buy-box result"></div>
+    <select id="kindF" aria-label="Kind"><option value="">All kinds</option></select>
+    <select id="stateF" aria-label="State"><option value="">All states</option></select>
+    <input id="listSearch" type="search" placeholder="Search parcel, county, address, notes…" aria-label="Search" autocomplete="off" style="max-width:300px;flex:1 1 200px">
+  </div>
+  <p class="note" id="status">Loading parcels…</p>
+  <section class="list" id="list"></section>
+  <div id="listPager" hidden></div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <form id="form">
+    <h2 id="formTitle">Edit parcel</h2>
+    <div class="grid2">
+      <label>Kind<select id="f-kind"></select></label>
+      <label>Parcel ID / APN<input id="f-apn" autocomplete="off"></label>
+    </div>
+    <label>Street address (needed for Check parcel)<input id="f-address" autocomplete="off" placeholder="1234 Main St"></label>
+    <div class="grid2">
+      <label>City<input id="f-city"></label>
+      <label>ZIP<input id="f-zip" inputmode="numeric" maxlength="10"></label>
+      <label>County<input id="f-county"></label>
+      <label>State<select id="f-state"></select></label>
+      <label>OTC price / min. bid ($)<input id="f-price" type="number" min="0" step="1" inputmode="decimal"></label>
+      <label>Fees to buy and record ($)<input id="f-fees" type="number" min="0" step="1" inputmode="decimal"></label>
+      <label>Other liens, total ($; blank = unknown)<input id="f-liens" type="number" min="0" step="1" inputmode="decimal"></label>
+      <label>Flood zone<select id="f-flood"><option value="">Unknown</option><option value="no">Not in a flood zone</option><option value="yes">In a flood zone</option></select></label>
+      <label>Property type<input id="f-landUse" placeholder="Vacant land, single-family…"></label>
+      <label>Acres<input id="f-acres" inputmode="decimal"></label>
+      <label>County appraised value ($)<input id="f-appraised" type="number" min="0" step="1" inputmode="numeric"></label>
+      <label>Deadline (bid / purchase by)<input id="f-deadline" type="date"></label>
+      <label>Stage<select id="f-stage"></select></label>
+      <label>Next step date<input id="f-date" type="date"></label>
+    </div>
+    <label>Next step<input id="f-next"></label>
+    <label>List / source name<input id="f-sourceName" placeholder="Polk County Lands Available for Taxes"></label>
+    <label>List or parcel link<input id="f-url" type="url"></label>
+    <label>Notes<textarea id="f-notes"></textarea></label>
+    <div class="formacts">
+      <button type="button" class="danger" id="delBtn">Delete</button>
+      <div class="acts"><button type="button" id="cancelBtn">Cancel</button><button class="primary" type="submit">Save</button></div>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* Deal Advisor: a chat with Claude about one deal, shared by the Deal Desk, Sub-To Pipeline and Creative Finance Tracker.
+   Inlined into each dashboard (claude.ai artifacts). Runs on the viewer's Claude plan through the `sample` capability
+   (images declared). Claude sees the deal, the dashboard's own numbers, the property's other tracks in the back office,
+   the saved conversation and anything attached (photos, screenshots, PDFs, text/CSV/email files). It never changes
+   anything by itself: proposed changes come back in a ```hll-actions block and wait for Harvey's click.
+   The conversation is saved per record in the dashboard's db at advisor/<record id>.
+   Deep link from the back office: <artifact url>#advise-<hub deal id with "_" as "-">  (e.g. #advise-d-2cmis2zb5nyi).
+   Source of truth: houselotandland repo, src/dashboards/advisor.js. Keep the three dashboards' copies identical. */
+window.DealAdvisor = (function(){
+  "use strict";
+  const DB_ID = "41cd2c24-fb52-41ae-95b9-748ee75b2d31", CF = "Cloudflare Developer Platform";
+  const MODEL = "claude-opus-5-5";
+  const TRACKS = {
+    wholesale: {label:"Wholesale (Deal Desk)", stages:["Lead","Analyzing","Offer sent","Under contract","Marketing","Assigned","Closed","Dead"]},
+    subto: {label:"Sub-To (take over the existing loan)", stages:["New","Contacted","Appointment","Offer sent","Under contract","Closed","Dead"]},
+    creative: {label:"Creative finance (seller financing, JV, terms)", stages:["New lead","Contacted","Terms requested","Underwriting","Offer out","Under contract","Closed","Dead"]},
+  };
+  const MAX_TURNS = 24, MAX_STORED = 9000, MAX_FILE_TEXT = 16000;
+  // Harvey's market value: FMV = county appraisal-district value ÷ 0.8. Shown beside BatchData's Est. value, never instead of it (same as fmvFromAppraised in js/hub-keys.js).
+  const FMV_RATIO = 0.8;
+  const fmv = v => { const n = Number(String(v ?? "").replace(/[$,\s]/g, "")); return n > 0 ? Math.round(n / FMV_RATIO) : null; };
+  // Save a county appraised value (and its FMV) on the master-list property, so the back office and the other dashboards see it.
+  async function saveAppraised(mcp, hubPid, value, source){
+    const v = Number(String(value ?? "").replace(/[$,\s]/g, ""));
+    if(!mcp || !hubPid || !(v > 0)) return false;
+    await mcp.callTool(CF, "d1_database_query", {database_id:DB_ID, params:[String(v), String(fmv(v)), String(source || "BatchData"), new Date().toISOString(), hubPid],
+      sql:"UPDATE properties SET data = json_set(COALESCE(data, '{}'), '$.appraisedValue', CAST(? AS REAL), '$.fmv', CAST(? AS REAL), '$.appraisedSource', ?), updated_at = ? WHERE id = ?"});
+    return true;
+  }
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+
+  const RULES = (cfg) => `You are the Deal Advisor inside House Lot & Land Sales Co. LLC's ${cfg.appLabel}. You work for Harvey Searcy, the owner (Dallas-Fort Worth, Texas; buys nationwide). He is the principal and decides; you advise him like a sharp, frugal real estate investor and acquisitions manager who knows his business.
+
+THE BUSINESS
+- Tracks (exit strategies) in his system:
+  • wholesale: put the property under contract below value and assign it to a cash buyer for a fee (Deal Desk; default fee about $15,000, minimum about $7,500; cash offers start near 70% of ARV minus repairs and fee). Offer options he uses: assignable cash offer, option to purchase, seller-finance terms. He prefers the option with the least cash out of his pocket. On land or 3+ acre deals he likes keeping some acreage free.
+  • subto: buy "subject to" the existing mortgage: take over the seller's payments, keep the loan in place, then rent and hold, JV rent-hold, or assign. Needs a below-market or workable loan, PITI the rent can cover, equity or a motivated seller (pre-foreclosure, probate/inherited, tired landlord, expired listing). Due-on-sale risk is managed with reserves.
+  • creative: seller financing / terms / JV / partnerships, mostly income property (RV parks, mobile home parks, storage, apartments) but any property where terms beat cash.
+  • pass: not worth pursuing.
+- Partnering: when another investor or wholesaler brings a deal, find out whether they own it or control it (assignable contract, price, closing date), and consider a JV or double close instead of paying retail.
+- Rules he never breaks: closed for all new business from sunset Friday to sunset Saturday (Shabbat); never call or text anyone without recorded consent (texts only through his bridge); offers and agreements go out only by his click; never collect SSNs, tax IDs or bank/account numbers; no legal or tax advice (say when an attorney, title company or CPA should confirm); in Texas the wholesaler disclosure (Occupations Code §1101.0045) applies to assigned contracts; buyer entity: "House Lot & Land Sales Co. LLC, a Texas-based limited liability company". He is frugal: flag anything that costs money (data credits, inspections, travel) and suggest the cheapest way to learn the same thing.
+
+HOW TO ANSWER
+- Lead with the answer: recommended track and exit, in one or two sentences, then why, with the numbers worked out (show the arithmetic briefly). Then risks and red flags, then the questions to ask or documents to get next. Be direct and specific; no filler. Use short headings and bullets; tables only for comparisons.
+- Values: "Est. value" is BatchData's automated estimate. Harvey also uses his own market value, FMV = county appraisal-district value ÷ 0.8 (shown as fmv / appraisedValue with the deal). Report FMV beside Est. value whenever the appraised value is known, never in place of it, and say which one each calculation uses (the dashboard's own math uses Est. value / ARV). If a screenshot or document shows the county appraised (market) value, propose it as the "appraised" update so FMV is computed.
+- Compare data sources: public records/BatchData vs. what a seller, agent or investor claims vs. photos/documents. Point out every mismatch (beds, baths, square feet, owner name, liens, listing status, price) and what it might mean (unpermitted addition, outdated records, wrong owner, middleman).
+- When images are attached, say briefly what you see that matters (condition, repairs, rooms, roof, foundation clues, the text in a screenshot), because later turns will not include the images again.
+- Reference code: every deal has one (shown as REFERENCE CODE with the deal, like HL-SMEGG). Every email, letter or text you draft about this property must carry it exactly as given: in an email subject as "(Ref HL-XXXXX)" after the property address and again on its own line above the signature as "Reference: HL-XXXXX"; in a text as "Ref HL-XXXXX". Spanish: "(Ref HL-XXXXX)" and "Referencia: HL-XXXXX". Never make up or change a code.
+- Never invent facts or comps. If you are estimating, say so. If information is missing, say what is missing and how to get it.
+- Today is ${today()}.
+
+PROPOSING CHANGES
+If the deal record should change (corrected property facts, numbers, notes, stage, next follow-up date, or adding the property to another track), end your reply with ONE fenced block exactly like this, and only include what should change:
+\`\`\`hll-actions
+{"updates": {"<field>": <value>}, "note": "<one or two lines to add to the deal notes>", "stage": "<stage>", "nextTouch": "YYYY-MM-DD", "addTrack": "<track>", "why": "<one short sentence>"}
+\`\`\`
+- "updates" keys must come from this list (use numbers for numeric fields): ${cfg.fields.map(f => f.key + (f.type === "number" ? " (number)" : f.type === "date" ? " (YYYY-MM-DD)" : f.options ? " (one of: " + f.options.join(" | ") + ")" : "")).join(", ")}.
+- "stage" must be one of: ${(cfg.stages || []).join(" | ")}.
+- "addTrack" may be "wholesale", "subto" or "creative" (not this dashboard's own track, "${cfg.track}"); it adds the property to that track in the back office so it appears on that dashboard too.
+- Harvey reviews each change and clicks Apply; nothing changes until he does. Do not mention the block in your prose beyond "I've proposed updates below." Leave the block out when nothing should change.`;
+
+  /* ---------- tiny Markdown renderer (escaped first) ---------- */
+  function inline(s){
+    return s.replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+  function md(src){
+    const lines = esc(src).split("\n"), out = []; let list = null, table = null, para = [];
+    const flushP = () => { if(para.length){ out.push("<p>" + inline(para.join("<br>")) + "</p>"); para = []; } };
+    const flushL = () => { if(list){ out.push(`<${list.t}>` + list.items.map(i => "<li>" + inline(i) + "</li>").join("") + `</${list.t}>`); list = null; } };
+    const flushT = () => { if(table){ const rows = table.filter(r => !/^\s*\|?\s*:?-{2,}/.test(r)).map(r => r.replace(/^\s*\||\|\s*$/g, "").split("|").map(c => inline(c.trim())));
+      if(rows.length) out.push('<div class="da-tw"><table><thead><tr>' + rows[0].map(c => "<th>" + c + "</th>").join("") + "</tr></thead><tbody>" + rows.slice(1).map(r => "<tr>" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>");
+      table = null; } };
+    for(const raw of lines){
+      const l = raw.replace(/\s+$/, "");
+      if(/^\s*\|.*\|\s*$/.test(l)){ flushP(); flushL(); (table = table || []).push(l); continue; } else flushT();
+      let m;
+      if(!l.trim()){ flushP(); flushL(); continue; }
+      if((m = l.match(/^(#{1,4})\s+(.*)$/))){ flushP(); flushL(); out.push(`<h4>${inline(m[2])}</h4>`); continue; }
+      if((m = l.match(/^\s*[-*•]\s+(.*)$/))){ flushP(); if(!list || list.t !== "ul"){ flushL(); list = {t:"ul", items:[]}; } list.items.push(m[1]); continue; }
+      if((m = l.match(/^\s*\d+[.)]\s+(.*)$/))){ flushP(); if(!list || list.t !== "ol"){ flushL(); list = {t:"ol", items:[]}; } list.items.push(m[1]); continue; }
+      if(/^\s*(-{3,}|\*{3,})\s*$/.test(l)){ flushP(); flushL(); out.push("<hr>"); continue; }
+      if(list && /^\s{2,}\S/.test(l)){ list.items[list.items.length-1] += " " + l.trim(); continue; }
+      flushL(); para.push(l);
+    }
+    flushP(); flushL(); flushT();
+    return out.join("");
+  }
+  // Split a reply into prose and the actions block (also hides a half-written block while streaming).
+  function splitReply(text){
+    const i = text.indexOf("```hll-actions");
+    if(i < 0) return {prose:text, actions:null};
+    const prose = text.slice(0, i).trimEnd(), rest = text.slice(i + 14), j = rest.indexOf("```");
+    if(j < 0) return {prose, actions:null, partial:true};
+    let actions = null; try{ actions = JSON.parse(rest.slice(0, j).trim()); }catch(_){ actions = null; }
+    const after = rest.slice(j + 3).trim();
+    return {prose: after ? prose + "\n\n" + after : prose, actions};
+  }
+
+  /* ---------- files ---------- */
+  let pdfjs = null;
+  function loadPdfJs(){
+    if(pdfjs) return pdfjs;
+    pdfjs = new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      s.onload = () => { const lib = window.pdfjsLib; if(!lib) return rej(new Error("pdf")); lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(lib); };
+      s.onerror = () => { pdfjs = null; rej(new Error("pdf")); };
+      document.head.appendChild(s);
+    });
+    return pdfjs;
+  }
+  async function readPdf(file, wantPages){
+    const lib = await loadPdfJs();
+    const doc = await lib.getDocument({data: new Uint8Array(file._buf ? file._buf.slice(0) : await file.arrayBuffer()), isEvalSupported:false}).promise;
+    let text = "";
+    for(let p = 1; p <= Math.min(doc.numPages, 40) && text.length < MAX_FILE_TEXT; p++){
+      const pg = await doc.getPage(p); const tc = await pg.getTextContent();
+      text += `\n[page ${p}]\n` + tc.items.map(i => i.str + (i.hasEOL ? "\n" : " ")).join("");
+    }
+    const images = [];
+    for(let p = 1; p <= Math.min(doc.numPages, wantPages); p++){
+      const pg = await doc.getPage(p); const vp = pg.getViewport({scale:1}); const scale = Math.min(2, 1400 / Math.max(vp.width, vp.height));
+      const v2 = pg.getViewport({scale}); const c = document.createElement("canvas"); c.width = v2.width; c.height = v2.height;
+      await pg.render({canvasContext:c.getContext("2d"), viewport:v2}).promise;
+      const b = await new Promise(r => c.toBlob(r, "image/jpeg", 0.85)); if(b) images.push(new File([b], `${file.name} p${p}.jpg`, {type:"image/jpeg"}));
+    }
+    return {text: text.trim(), pages: doc.numPages, images};
+  }
+  const TEXT_RE = /\.(txt|csv|tsv|md|json|eml|html?|xml|rtf|log)$/i;
+
+  /* ---------- styles ---------- */
+  const CSS = `
+.da-root{--da-bg:#fff;--da-ink:#151b26;--da-muted:#5a6577;--da-line:#d6dce5;--da-acc:#2b4c7e;--da-acc-ink:#fff;--da-soft:#e8eef7;--da-me:#2b4c7e;--da-me-ink:#fff;--da-ok:#1e7a46;--da-warn:#9a5b00;
+  font:14.5px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--da-ink)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .da-root{--da-bg:#171d27;--da-ink:#e5eaf2;--da-muted:#98a3b5;--da-line:#2a3342;--da-acc:#86a8dc;--da-acc-ink:#0e1420;--da-soft:#1e2a3d;--da-me:#2f4b75;--da-me-ink:#fff;--da-ok:#5cc58a;--da-warn:#e2a64a}}
+:root[data-theme="dark"] .da-root{--da-bg:#171d27;--da-ink:#e5eaf2;--da-muted:#98a3b5;--da-line:#2a3342;--da-acc:#86a8dc;--da-acc-ink:#0e1420;--da-soft:#1e2a3d;--da-me:#2f4b75;--da-me-ink:#fff;--da-ok:#5cc58a;--da-warn:#e2a64a}
+.da-fab{position:fixed;right:18px;bottom:18px;z-index:9000;border:0;border-radius:999px;padding:12px 18px;background:var(--da-acc);color:var(--da-acc-ink);font:600 14.5px/1 system-ui,sans-serif;box-shadow:0 8px 24px -8px rgba(0,0,0,.45);cursor:pointer}
+.da-fab[hidden]{display:none}
+.da-panel{position:fixed;top:0;right:0;bottom:0;width:min(480px,100vw);z-index:9001;background:var(--da-bg);border-left:1px solid var(--da-line);box-shadow:-12px 0 32px -16px rgba(0,0,0,.4);display:flex;flex-direction:column}
+.da-panel[hidden]{display:none}
+.da-root *,.da-root *::before,.da-root *::after{box-sizing:border-box}
+.da-root button,.da-root textarea{font:inherit;letter-spacing:normal;text-transform:none;margin:0;box-shadow:none;width:auto;min-height:0;height:auto}
+.da-head{flex:none;display:flex;align-items:flex-start;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--da-line)}
+.da-head .da-t{flex:1;min-width:0}.da-head b{display:block;font-size:16px}.da-head small{display:block;color:var(--da-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.da-root .da-btn{display:inline-block;line-height:1.3;border:1px solid var(--da-line);background:transparent;color:var(--da-ink);border-radius:9px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+.da-root .da-btn:hover{background:var(--da-soft)}.da-root .da-btn.pri{background:var(--da-acc);color:var(--da-acc-ink);border-color:var(--da-acc)}.da-btn:disabled{opacity:.55;cursor:default}
+.da-x{border:0;background:transparent;color:var(--da-muted);font-size:22px;line-height:1;cursor:pointer;padding:2px 4px}
+.da-log{flex:1 1 auto;min-height:0;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.da-msg{max-width:100%;overflow-wrap:anywhere}.da-msg.me{align-self:flex-end;max-width:88%;background:var(--da-me);color:var(--da-me-ink);border-radius:14px 14px 4px 14px;padding:8px 12px;white-space:pre-wrap}
+.da-msg.ai{border-left:3px solid var(--da-acc);padding:2px 0 2px 12px}.da-msg.ai p{margin:.35em 0}.da-msg.ai h4{margin:.8em 0 .3em;font-size:14.5px}.da-msg.ai ul,.da-msg.ai ol{margin:.3em 0;padding-left:1.3em}.da-msg.ai code{background:var(--da-soft);border-radius:4px;padding:0 4px}
+.da-msg.sys{align-self:center;color:var(--da-muted);font-size:12.5px;text-align:center}
+.da-files{font-size:12px;opacity:.85;margin-top:4px}
+.da-tw{overflow:auto;max-width:100%}.da-root .da-msg table{width:auto;min-width:0;max-width:none;table-layout:auto;border-collapse:collapse;font-size:13px;margin:.4em 0;background:none}.da-root .da-msg th,.da-root .da-msg td{border:1px solid var(--da-line);padding:4px 7px;text-align:left;vertical-align:top;white-space:normal;font:inherit;font-size:13px;letter-spacing:normal;text-transform:none;color:var(--da-ink);background:none;position:static}.da-root .da-msg th{font-weight:600}
+.da-think{color:var(--da-muted);font-style:italic}
+.da-act{border:1px solid var(--da-line);border-radius:12px;padding:10px 12px;background:var(--da-soft)}
+.da-act h5{margin:0 0 6px;font-size:13.5px}.da-act label{display:flex;font-weight:400;color:var(--da-ink);gap:8px;align-items:flex-start;font-size:13.5px;margin:4px 0}.da-act input{margin-top:3px;width:auto;flex:none}
+.da-act .da-why{color:var(--da-muted);font-size:12.5px;margin:0 0 6px}.da-act .da-row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}.da-act .da-done{color:var(--da-ok);font-size:13px}
+.da-chips{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 8px}.da-chip{border:1px solid var(--da-line);border-radius:999px;padding:4px 10px;background:transparent;color:var(--da-ink);font-size:12.5px;cursor:pointer}.da-chip:hover{background:var(--da-soft)}
+.da-comp{flex:none;margin:0;display:block;border-top:1px solid var(--da-line);padding:10px 16px 14px}
+.da-att{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.da-att span{display:inline-flex;gap:6px;align-items:center;font-size:12px;border:1px solid var(--da-line);border-radius:8px;padding:3px 6px}.da-att button{border:0;background:none;color:var(--da-muted);cursor:pointer;padding:0}
+.da-root .da-comp textarea{display:block;width:100%;min-height:64px;height:64px;max-height:200px;resize:vertical;border:1px solid var(--da-line);border-radius:10px;padding:8px 10px;background:transparent;color:var(--da-ink);font:inherit}
+.da-comp .da-bar{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}.da-comp .da-bar .da-sp{flex:1}.da-comp .da-note{font-size:12px;color:var(--da-muted)}
+.da-drop{outline:2px dashed var(--da-acc);outline-offset:-8px}
+.da-err{color:var(--da-warn);font-size:13px}
+@media (max-width:560px){.da-fab{right:12px;bottom:12px;padding:11px 15px}}`;
+
+  function mount(cfg){
+    if(!document.getElementById("da-style")){ const st = document.createElement("style"); st.id = "da-style"; st.textContent = CSS; document.head.appendChild(st); }
+    const root = document.createElement("div"); root.className = "da-root";
+    root.innerHTML = `<button class="da-fab" type="button">✦ Deal Advisor</button>
+      <aside class="da-panel" hidden aria-label="Deal Advisor">
+        <div class="da-head"><div class="da-t"><b>Deal Advisor</b><small class="da-sub">Pick a deal to start</small></div>
+          <button class="da-btn da-new" type="button" title="Start a new conversation on this deal">New chat</button><button class="da-x" type="button" aria-label="Close">×</button></div>
+        <div class="da-log" aria-live="polite"></div>
+        <div class="da-chips"></div>
+        <form class="da-comp"><div class="da-att"></div>
+          <textarea placeholder="Ask about this deal, paste an email or numbers, or drop photos, screenshots and PDFs…"></textarea>
+          <div class="da-bar"><button class="da-btn da-file" type="button">📎 Attach</button><input type="file" multiple hidden accept="image/*,.pdf,.txt,.csv,.tsv,.md,.json,.eml,.html,.htm,.xml">
+            <span class="da-sp da-note"></span><button class="da-btn da-stop" type="button" hidden>Stop</button><button class="da-btn pri da-send" type="submit">Send</button></div></form>
+      </aside>`;
+    document.body.appendChild(root);
+    const q = s => root.querySelector(s);
+    const fab = q(".da-fab"), panel = q(".da-panel"), log = q(".da-log"), sub = q(".da-sub"), chips = q(".da-chips"), form = q(".da-comp"), ta = q("textarea"),
+      fileIn = q("input[type=file]"), attBox = q(".da-att"), note = q(".da-comp .da-note"), sendBtn = q(".da-send"), stopBtn = q(".da-stop");
+    const S = {recId:null, turns:[], files:[], busy:false, ctl:null, sample:null, limits:null, loadedFor:null, mcp:null};
+
+    const CHIPS = [
+      ["Best track & exit", "What's the best track and exit strategy for this deal, and what would you offer? Work the numbers."],
+      ["Check the data", "Compare everything we know about this property (public records, what the seller/agent/investor said, the listing) and flag every mismatch and what it means."],
+      ["What to ask next", "What questions should I ask, and what documents should I get, before making an offer?"],
+      ["Draft a reply", "Draft my reply to the latest message from the seller or the person who sent this deal. Keep it short, in my voice, with the reference code."],
+    ];
+    chips.innerHTML = CHIPS.map(([l], i) => `<button type="button" class="da-chip" data-i="${i}">${esc(l)}</button>`).join("");
+
+    async function getSample(){
+      if(S.sample) return S.sample;
+      try{ S.sample = await window.claude.use("sample"); }catch(_){ S.sample = null; }
+      if(S.sample && !S.limits){ try{ S.limits = await S.sample.limits(); }catch(_){ S.limits = null; } }
+      return S.sample;
+    }
+    async function getMcp(){ if(S.mcp) return S.mcp; try{ S.mcp = cfg.getMcp ? await cfg.getMcp() : await window.claude.use("mcp"); }catch(_){ S.mcp = null; } return S.mcp; }
+    const rowsOf = r => { let p = r && r.payload; if(typeof p === "string"){ try{ p = JSON.parse(p); }catch(_){ return []; } }
+      const a = Array.isArray(p) ? p : (p && (p.result || p.results)) || []; if(Array.isArray(a) && a[0] && Array.isArray(a[0].results)) return a[0].results;
+      return Array.isArray(a) ? a.filter(x => x && typeof x === "object" && !("success" in x && "meta" in x)) : []; };
+    async function d1(sql, params){ const m = await getMcp(); if(!m) throw new Error("The back office connection isn't available in this view.");
+      return rowsOf(await m.callTool(CF, "d1_database_query", {database_id:DB_ID, sql, params:(params || []).map(v => v == null ? "" : String(v))})); }
+    const db = () => cfg.getDb && cfg.getDb();
+
+    /* ----- conversation storage ----- */
+    async function loadThread(id){
+      S.turns = []; const d = db(); if(!d) return;
+      try{ const s = await d.doc("advisor/" + id).get(); if(s.exists){ const v = s.data(); S.turns = Array.isArray(v.turns) ? v.turns : []; } }catch(_){}
+    }
+    let saving = Promise.resolve();
+    function saveThread(){
+      const d = db(), id = S.recId; if(!d || !id) return;
+      const turns = S.turns.slice(-MAX_TURNS * 2).map(t => ({...t, content: String(t.content || "").slice(0, MAX_STORED)}));
+      saving = saving.then(() => d.doc("advisor/" + id).set({turns, updatedAt:new Date().toISOString(), app:cfg.app})).catch(() => {});
+    }
+
+    /* ----- rendering ----- */
+    function actionCard(t, idx){
+      const a = t.actions; if(!a || typeof a !== "object") return "";
+      const rec = cfg.current(), items = [];
+      const fields = Object.fromEntries(cfg.fields.map(f => [f.key, f]));
+      const curVal = k => { const v = cfg.getField ? cfg.getField(k) : rec && rec.data && rec.data[k]; return v == null || v === "" ? "—" : String(v); };
+      if(a.updates && typeof a.updates === "object") for(const [k0, v] of Object.entries(a.updates)){
+        const k = fields[k0] ? k0 : fields["inputs." + k0] ? "inputs." + k0 : null; // accept analyzer inputs named without the prefix
+        if(k && v != null && String(v) !== "") items.push({kind:"u", k, v, label:`${fields[k].label}: ${curVal(k)} → ${v}`}); }
+      if(a.stage && (cfg.stages || []).includes(a.stage)) items.push({kind:"stage", v:a.stage, label:`Stage → ${a.stage}`});
+      if(a.nextTouch && /^\d{4}-\d{2}-\d{2}$/.test(a.nextTouch) && cfg.nextKey) items.push({kind:"next", v:a.nextTouch, label:`Next follow-up → ${a.nextTouch}`});
+      if(a.note && cfg.notesKey) items.push({kind:"note", v:String(a.note).slice(0, 1500), label:`Add to notes: “${String(a.note).slice(0, 300)}${String(a.note).length > 300 ? "…" : ""}”`});
+      if(a.addTrack && TRACKS[a.addTrack] && a.addTrack !== cfg.track) items.push({kind:"track", v:a.addTrack, label:`Add this property to the ${TRACKS[a.addTrack].label.split(" (")[0]} track (back office and that dashboard)`});
+      if(!items.length) return "";
+      t._items = items;
+      if(t.applied) return `<div class="da-act"><h5>Proposed changes</h5><p class="da-done">✓ ${esc(t.applied)}</p></div>`;
+      return `<div class="da-act" data-idx="${idx}"><h5>Proposed changes</h5>${a.why ? `<p class="da-why">${esc(a.why)}</p>` : ""}
+        ${items.map((it, j) => `<label><input type="checkbox" data-j="${j}" checked> <span>${esc(it.label)}</span></label>`).join("")}
+        <div class="da-row"><button type="button" class="da-btn pri da-apply">Apply selected</button><button type="button" class="da-btn da-skip">Dismiss</button><span class="da-err"></span></div></div>`;
+    }
+    function render(streamText){
+      const rec = cfg.current();
+      sub.textContent = rec ? rec.title : "Pick a deal on this dashboard to start";
+      const parts = [];
+      if(!S.turns.length && !streamText) parts.push(`<div class="da-msg sys">${rec ? "Ask anything about this deal. I can see its details and numbers; attach photos, screenshots, PDFs or paste emails for me to weigh in. I'll propose changes for you to approve." : "Open a deal, then ask me about it."}</div>`);
+      S.turns.forEach((t, i) => {
+        if(t.hidden) return;
+        if(t.role === "user") parts.push(`<div class="da-msg me">${esc(t.display || t.content)}${t.files && t.files.length ? `<div class="da-files">📎 ${esc(t.files.join(", "))}</div>` : ""}</div>`);
+        else if(t.role === "assistant") parts.push(`<div class="da-msg ai">${md(splitReply(t.content).prose)}</div>${actionCard(t, i)}`);
+        else if(t.role === "note") parts.push(`<div class="da-msg sys">${esc(t.content)}</div>`);
+      });
+      if(streamText != null) parts.push(`<div class="da-msg ai">${streamText ? md(splitReply(streamText).prose) : `<span class="da-think">Thinking…</span>`}</div>`);
+      log.innerHTML = parts.join("");
+      log.scrollTop = log.scrollHeight;
+      const can = !!rec && !S.busy;
+      sendBtn.disabled = !can; ta.disabled = !rec; q(".da-file").disabled = !can; q(".da-new").disabled = !rec || S.busy || !S.turns.length;
+      chips.hidden = !rec || S.busy;
+      sendBtn.hidden = S.busy; stopBtn.hidden = !S.busy;
+    }
+    function renderFiles(){
+      attBox.innerHTML = S.files.map((f, i) => `<span>${/^image\//.test(f.type) ? "🖼" : /pdf$/i.test(f.name) ? "📄" : "📝"} ${esc(f.name)} <button type="button" data-rm="${i}" aria-label="Remove">×</button></span>`).join("");
+      const im = S.limits && S.limits.images;
+      note.textContent = S.files.length ? `${S.files.length} file${S.files.length > 1 ? "s" : ""} attached` : im ? "Photos, screenshots, PDFs, text and CSV files" : "PDFs, text and CSV files";
+    }
+    function addFiles(list){
+      const im = S.limits && S.limits.images;
+      for(const f of Array.from(list || [])){
+        const isImg = /^image\//.test(f.type), isPdf = /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name), isText = /^text\//.test(f.type) || /json|xml|message\/rfc822/.test(f.type) || TEXT_RE.test(f.name);
+        if(isImg && !im){ toast("Photos can't be sent from this view. Open the dashboard in claude.ai."); continue; }
+        if(isImg && im && im.mediaTypes && !im.mediaTypes.includes(f.type)){ toast(`${f.name}: use JPG, PNG, WebP or GIF.`); continue; }
+        if(!isImg && !isPdf && !isText){ toast(`${f.name}: I can read photos, PDFs, and text, CSV or email files. Save spreadsheets as CSV.`); continue; }
+        if(f.size > 25 * 1024 * 1024){ toast(`${f.name} is too large (25 MB max).`); continue; }
+        if(S.files.length >= 12){ toast("Up to 12 files at a time."); break; }
+        S.files.push(f); f._reading = readNow(f);
+      }
+      renderFiles();
+    }
+    // Read the file's bytes as soon as it's attached (10-second limit). A file the computer can't hand over (for example
+    // one stored in iCloud or Google Drive that isn't downloaded) is dropped with a message, instead of freezing Send later.
+    const limit = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+    async function readNow(f){
+      try{ f._buf = await limit(f.arrayBuffer(), 10000); }
+      catch(_){ const i = S.files.indexOf(f); if(i >= 0) S.files.splice(i, 1); renderFiles();
+        note.textContent = `Couldn't open ${f.name}. If it's in iCloud or Google Drive, download it to your computer first, or paste its text instead.`; }
+    }
+    const toast = msg => { if(cfg.toast) cfg.toast(msg); else note.textContent = msg; };
+
+    /* ----- open / select ----- */
+    async function open(id){
+      panel.hidden = false; fab.hidden = true;
+      if(id && cfg.select && (!cfg.current() || cfg.current().id !== id)) cfg.select(id);
+      await sync();
+      getSample().then(renderFiles);
+      setTimeout(() => ta.focus({preventScroll:true}), 50);
+    }
+    async function sync(){
+      const rec = cfg.current(), id = rec ? rec.id : null;
+      if(id !== S.recId){
+        if(S.busy && S.ctl) S.ctl.abort();
+        S.recId = id; S.turns = []; S.files = []; renderFiles(); render();
+        if(id){ await loadThread(id); if(S.recId === id) render(); }
+      } else render();
+    }
+    function close(){ panel.hidden = true; fab.hidden = false; }
+    fab.onclick = () => open();
+    q(".da-x").onclick = close;
+    q(".da-new").onclick = () => { if(S.busy) return; S.turns = []; saveThread(); render(); };
+    q(".da-file").onclick = () => fileIn.click();
+    fileIn.onchange = () => { addFiles(fileIn.files); fileIn.value = ""; };
+    attBox.onclick = e => { const b = e.target.closest("[data-rm]"); if(b){ S.files.splice(+b.dataset.rm, 1); renderFiles(); } };
+    ta.addEventListener("paste", e => { const fs = Array.from(e.clipboardData && e.clipboardData.files || []); if(fs.length){ e.preventDefault(); addFiles(fs); } });
+    ta.addEventListener("keydown", e => { if(e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); form.requestSubmit(); } });
+    panel.addEventListener("dragover", e => { if(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")){ e.preventDefault(); panel.classList.add("da-drop"); } });
+    panel.addEventListener("dragleave", e => { if(e.target === panel) panel.classList.remove("da-drop"); });
+    panel.addEventListener("drop", e => { e.preventDefault(); panel.classList.remove("da-drop"); addFiles(e.dataTransfer.files); });
+    chips.onclick = e => { const b = e.target.closest("[data-i]"); if(!b) return; ta.value = CHIPS[+b.dataset.i][1]; form.requestSubmit(); };
+    stopBtn.onclick = () => { if(S.ctl) S.ctl.abort(); };
+
+    /* ----- reference code: the dashboard's own (Deal Desk), else one already on the property in the back office, else a stable
+       code made from the property id (same algorithm as the Deal Desk's makeRef), saved to the hub deal so every draft reuses it ----- */
+    const RA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    const makeRef = id => { let h = 2166136261; for(const ch of String(id)){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } h >>>= 0; let r = ""; for(let i = 0; i < 5; i++){ r += RA[h % RA.length]; h = Math.floor(h / RA.length); } return "HL-" + r; };
+    const REF_OK = /^HL-[A-HJ-NP-Z2-9]{5}$/i, refCache = {};
+    async function refFor(rec, ids){
+      if(refCache[rec.id]) return refCache[rec.id];
+      let ref = cfg.ownRef ? cfg.ownRef(rec.id) : null;
+      try{
+        if(ids && ids.hubPid){
+          if(!ref){ const rows = await d1(`SELECT ref FROM deals WHERE property_id = ? AND ref LIKE 'HL-%' ORDER BY CASE track WHEN 'wholesale' THEN 0 ELSE 1 END, created_at LIMIT 1`, [ids.hubPid]);
+            ref = rows[0] && REF_OK.test(rows[0].ref) ? rows[0].ref.toUpperCase() : makeRef(ids.hubPid); }
+          if(ids.hubId) await d1(`UPDATE deals SET ref = ? WHERE id = ? AND (ref IS NULL OR ref = '')`, [ref, ids.hubId]);
+        }
+      }catch(_){}
+      ref = ref || makeRef(rec.id);
+      return (refCache[rec.id] = ref);
+    }
+
+    /* ----- context for Claude ----- */
+    async function contextText(rec){
+      let ctx = "";
+      try{ ctx = JSON.stringify(cfg.context(rec.id), (k, v) => typeof v === "string" && v.length > 4000 ? v.slice(0, 4000) + "…" : v, 1); }catch(_){ ctx = "{}"; }
+      if(ctx.length > 30000) ctx = ctx.slice(0, 30000) + "…";
+      let hub = "", ids = null;
+      try{ ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null; }catch(_){}
+      const ref = await refFor(rec, ids);
+      try{
+        if(ids && ids.hubPid){
+          const rows = await d1(`SELECT d.track, d.stage, d.next_touch, d.asking, d.updated_at, c.name AS contact, c.consent, c.opt_out
+            FROM deals d LEFT JOIN contacts c ON c.id = d.contact_id WHERE d.property_id = ?`, [ids.hubPid]);
+          const acts = await d1(`SELECT at, kind, summary FROM activities WHERE property_id = ? ORDER BY at DESC LIMIT 12`, [ids.hubPid]);
+          hub = `\n\nBACK OFFICE (master list) for this property:\nTracks: ${rows.map(r => `${r.track} (${r.stage}${r.next_touch ? ", next touch " + r.next_touch : ""}${r.contact ? ", contact " + r.contact + (r.opt_out == 1 ? " OPTED OUT" : r.consent == 1 ? " (text consent on file)" : " (no text consent)") : ""})`).join("; ") || "none"}\nRecent activity:\n${acts.map(a => `- ${String(a.at).slice(0,10)} ${a.kind}: ${a.summary}`).join("\n") || "- none"}`;
+        } else hub = "\n\nBACK OFFICE: this record isn't linked to the master list yet (it links on the next back office sync).";
+      }catch(_){ hub = ""; }
+      return `REFERENCE CODE for this property: ${ref}\n\nCURRENT DEAL on the ${cfg.appLabel} (record id ${rec.id}):\n${ctx}${hub}`;
+    }
+
+    /* ----- send ----- */
+    form.onsubmit = async e => {
+      e.preventDefault();
+      // Send never fails silently: every early exit says why.
+      const rec = cfg.current();
+      if(!rec){ toast("Pick a deal on this dashboard first, then ask about it."); return; }
+      if(S.busy){ note.textContent = "Still working on the last answer. Press Stop to cancel it."; return; }
+      const text = ta.value.trim(); if(!text && !S.files.length){ ta.focus(); note.textContent = "Type a question or attach a file."; return; }
+      note.textContent = "Connecting to Claude…"; sendBtn.disabled = true;
+      let sample = null;
+      try{ sample = await getSample(); }finally{ sendBtn.disabled = false; note.textContent = ""; }
+      if(!sample){ S.sample = null; toast("Claude isn't available to this dashboard right now. Reload the page, and allow Claude if claude.ai asks."); return; }
+      S.busy = true;
+      const ctl = S.ctl = new AbortController();
+      let shown = "", timedOut = false;
+      // If Claude never starts answering, stop waiting after 2 minutes instead of leaving Send stuck.
+      const watchdog = setTimeout(() => { if(!shown){ timedOut = true; ctl.abort(); } }, 120000);
+      // Stop and the 2-minute timeout always end the wait, even if the request ignores the abort.
+      const ended = new Promise((_, rej) => ctl.signal.addEventListener("abort", () => rej(Object.assign(new Error("cancelled"), {code:"cancelled", text: shown || ""})), {once:true}));
+      ended.catch(() => {});
+      const within = (p, ms) => Promise.race([p, ended, limit(new Promise(() => {}), ms)]);
+      try{
+      const files = S.files.slice(); S.files = []; renderFiles();
+      // Show the question and "Thinking…" right away; attachments are read after.
+      const userTurn = {role:"user", content:"", display:text || "(attached files)", files:files.map(f => f.name), at:new Date().toISOString()};
+      S.turns.push(userTurn); ta.value = ""; render("");
+      const imLim = S.limits && S.limits.images, maxImg = imLim ? imLim.maxCount || 0 : 0;
+      const images = [], fileNotes = [], names = [];
+      try{
+        for(const f of files){
+          names.push(f.name);
+          if(/^image\//.test(f.type)){ if(images.length < maxImg){ images.push(f); fileNotes.push(`[Image attached: ${f.name}]`); } else fileNotes.push(`[Image ${f.name} not sent: too many images in one message]`); continue; }
+          try{ await within(f._reading || Promise.resolve(), 15000); }catch(err){ if(ctl.signal.aborted) throw err; }
+          if(!f._buf){ fileNotes.push(`[${f.name} could not be opened]`); continue; }
+          if(/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)){
+            note.textContent = `Reading ${f.name}…`;
+            try{ const r = await within(readPdf(f, Math.max(0, Math.min(3, maxImg - images.length))), 45000);
+              images.push(...r.images);
+              fileNotes.push(`--- PDF: ${f.name} (${r.pages} page${r.pages > 1 ? "s" : ""}${r.images.length ? `, first ${r.images.length} attached as images` : ""}) ---\n${r.text.slice(0, MAX_FILE_TEXT) || "(no text layer: likely a scan; see the page images)"}`); }
+            catch(err){ if(ctl.signal.aborted) throw err; fileNotes.push(`[PDF ${f.name} could not be read here; ask Harvey to paste its text if it matters]`); }
+            continue;
+          }
+          fileNotes.push(`--- File: ${f.name} ---\n${new TextDecoder().decode(f._buf).slice(0, MAX_FILE_TEXT)}`);
+        }
+      }catch(err){ if(ctl.signal.aborted) throw err; }
+      note.textContent = "";
+      userTurn.content = [text || "(See the attached files.)", ...fileNotes].join("\n\n");
+      const myRec = rec.id;
+      let ctx = ""; try{ ctx = await within(contextText(rec), 30000); }catch(err){ if(ctl.signal.aborted) throw err; }
+      const hist = S.turns.filter(t => t.role === "user" || t.role === "assistant").slice(-MAX_TURNS).map(t => ({role:t.role, content:String(t.content || "").slice(0, 20000) || "(empty)"}));
+      while(hist.length && hist[0].role !== "user") hist.shift();
+      const input = [{role:"user", content: RULES(cfg) + "\n\n" + ctx}, ...hist];
+      try{
+        const opts = {signal:ctl.signal, cache:false, modelTier:"complex", model:MODEL, onText: ({text:t}) => { shown = t; if(S.recId === myRec) render(t); }};
+        if(images.length) opts.images = images;
+        const r = await Promise.race([sample(input, opts), ended]);
+        if(S.recId !== myRec) return;
+        const sp = splitReply(r.text);
+        S.turns.push({role:"assistant", content:r.text, actions:sp.actions || null, at:new Date().toISOString(), truncated:!!r.truncated});
+        if(r.truncated) S.turns.push({role:"note", content:"That answer was cut short. Ask me to continue."});
+      }catch(err){
+        const c = err && err.code;
+        if(S.recId === myRec){
+          if(err && err.text) S.turns.push({role:"assistant", content:err.text + "\n\n*(interrupted)*", at:new Date().toISOString()});
+          const msg = timedOut ? "No answer from Claude after 2 minutes. Try again; if it keeps happening, reload the page." : c === "cancelled" ? "Stopped." : c === "not_granted" || c === "sampling_disabled" ? "Claude isn't allowed for this dashboard. Allow it when claude.ai asks, then try again."
+            : c === "rate_limited" ? "You've hit a Claude usage limit for now. Try again in a little while." : c === "prompt_too_large" ? "That's too much text at once. Start a New chat or attach less."
+            : c === "image_rejected" ? "One of the images couldn't be used. Try a JPG or PNG under 20 MB." : c === "refused" ? "Claude declined that request. Rephrase it and try again."
+            : c === "images_unavailable" ? "Images can't be sent from this view; text works." : `Something went wrong reaching Claude${c ? " (" + c + ")" : ""}. Try again.`;
+          S.turns.push({role:"note", content:msg});
+        }
+      }
+      clearTimeout(watchdog);
+      if(S.recId === myRec){ saveThread(); }
+      }catch(err){ S.turns.push({role:"note", content: timedOut ? "Reading the attachments took too long. Try again, or paste the text instead of attaching." : ctl.signal.aborted ? "Stopped." : `Something went wrong preparing that message${err && err.message ? ": " + err.message : ""}. Try again.`}); note.textContent = ""; }
+      finally{ clearTimeout(watchdog); S.turns.forEach(t => { if(t.role === "user" && !t.content) t.content = t.display; }); S.busy = false; S.ctl = null; render(); }
+    };
+
+    /* ----- applying proposed changes ----- */
+    log.addEventListener("click", async e => {
+      const card = e.target.closest(".da-act[data-idx]"); if(!card) return;
+      const t = S.turns[+card.dataset.idx]; if(!t) return;
+      if(e.target.closest(".da-skip")){ t.applied = "Dismissed"; saveThread(); render(); return; }
+      if(!e.target.closest(".da-apply")) return;
+      const rec = cfg.current(); const errEl = card.querySelector(".da-err");
+      if(!rec || rec.id !== S.recId){ errEl.textContent = "Open this deal again first."; return; }
+      const picked = (t._items || []).filter((_, j) => { const cb = card.querySelector(`input[data-j="${j}"]`); return cb && cb.checked; });
+      if(!picked.length){ errEl.textContent = "Tick at least one change."; return; }
+      const patch = {}, done = [];
+      for(const it of picked){
+        if(it.kind === "u"){ const f = cfg.fields.find(x => x.key === it.k); let v = it.v;
+          if(f.type === "number"){ v = parseFloat(String(v).replace(/[$,%\s]/g, "")); if(!isFinite(v)) continue; }
+          else if(f.options && !f.options.includes(String(v))) continue; else v = String(v);
+          patch[it.k] = v; done.push(`${f.label} ${v}`); }
+        if(it.kind === "stage"){ patch[cfg.stageKey] = it.v; done.push(`stage ${it.v}`); }
+        if(it.kind === "next"){ patch[cfg.nextKey] = it.v; done.push(`next touch ${it.v}`); }
+        if(it.kind === "note"){ patch.__note = `[${today()} Deal Advisor] ${it.v}`; done.push("note added"); }
+      }
+      const track = picked.find(it => it.kind === "track");
+      card.querySelectorAll("button").forEach(b => b.disabled = true); errEl.textContent = "Saving…";
+      try{
+        const apv = patch.appraised; // adapters may consume it
+        if(Object.keys(patch).length) await cfg.apply(rec.id, patch);
+        if(apv != null){ try{ const ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null; if(ids && ids.hubPid) await saveAppraised(await getMcp(), ids.hubPid, apv, "From the Deal Advisor"); }catch(_){} }
+        if(track){ await addTrack(rec, track.v); done.push(`added to ${TRACKS[track.v].label.split(" (")[0]}`); }
+        t.applied = "Applied: " + done.join(", ");
+        S.turns.push({role:"user", content:`(I applied these changes: ${done.join("; ")}.)`, hidden:true, at:new Date().toISOString()});
+        saveThread(); render(); toast("Deal updated");
+      }catch(err){ errEl.textContent = (err && err.message) || "Couldn't apply. Try again."; card.querySelectorAll("button").forEach(b => b.disabled = false); }
+    });
+    async function addTrack(rec, track){
+      const ids = cfg.hubIds ? await cfg.hubIds(rec.id) : null;
+      if(!ids || !ids.hubPid) throw new Error("This deal isn't linked to the back office yet. Tap “Sync back office”, then apply again.");
+      const now = new Date().toISOString(), stage = TRACKS[track].stages[0];
+      const rid = "d_" + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+      const exists = await d1("SELECT id FROM deals WHERE property_id = ? AND track = ?", [ids.hubPid, track]);
+      if(exists.length) return;
+      await d1(`INSERT OR IGNORE INTO deals (id, property_id, contact_id, track, stage, ref, next_touch, source, source_app, asking, notes, created_at, updated_at)
+        SELECT ?, ?, contact_id, ?, ?, ?, ?, 'Deal Advisor', 'office', asking, ?, ?, ? FROM deals WHERE id = ?`,
+        [rid, ids.hubPid, track, stage, await refFor(rec, ids), today(), `Added by the Deal Advisor from the ${cfg.appLabel}.`, now, now, ids.hubId]);
+      await d1(`INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'created', ?, 'Deal Advisor', ?)`,
+        ["a_" + rid.slice(2), now, ids.hubPid, rid, `Added to ${TRACKS[track].label.split(" (")[0]} by the Deal Advisor`, cfg.app]);
+    }
+
+    /* ----- deep link from the back office: #advise-d-xxxx ----- */
+    async function fromHash(){
+      const m = /^#advise-d-([a-z0-9]+)$/i.exec(location.hash || ""); if(!m) return;
+      const hid = "d_" + m[1].toLowerCase();
+      for(let i = 0; i < 60 && !(cfg.ready && cfg.ready()); i++) await new Promise(r => setTimeout(r, 500));
+      let id = null; try{ id = cfg.findByHub ? await cfg.findByHub(hid) : null; }catch(_){}
+      if(id){ await open(id); }
+      else { panel.hidden = false; fab.hidden = true; await sync(); S.turns.length || log.insertAdjacentHTML("afterbegin", `<div class="da-msg sys">That deal isn't on this dashboard yet. Tap “Sync back office”, wait a moment, then open the link again.</div>`); }
+      try{ window.history.replaceState(null, "", location.pathname + location.search); }catch(_){}
+    }
+    window.addEventListener("hashchange", fromHash);
+    setTimeout(fromHash, 300);
+
+    return { open, close, refresh: () => { if(!panel.hidden) sync(); }, get isOpen(){ return !panel.hidden; } };
+  }
+  return { mount, md, splitReply, fmv, FMV_RATIO, saveAppraised };
+})();
+
+</script>
+
+<script>
+// ---- Back office master list (D1 "hub") sync: one track of houselotandland.org/office <-> this dashboard ----
+// Pull: every deal on the track appears here; back office stage / next touch / price changes flow in.
+// Push: records made here are added to the master list; stage, next touch, price, state and property details flow out
+// (each stage change is logged in the property's back office history). Deleting a record here deletes it there, and the reverse.
+// Link bookkeeping lives in the "hubmap" collection (one doc per record id), so records themselves stay untouched.
+const HUB_STATES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"District of Columbia",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming",PR:"Puerto Rico"};
+const hubNormState = v => { const t = String(v||"").trim(); if(!t) return ""; const u = t.toUpperCase(); if(HUB_STATES[u]) return u; const h = Object.entries(HUB_STATES).find(([,n]) => n.toLowerCase() === t.toLowerCase()); return h ? h[0] : ""; };
+const HUB_ZIP3 = [[5,5,"NY"],[6,9,"PR"],[10,27,"MA"],[28,29,"RI"],[30,38,"NH"],[39,49,"ME"],[55,55,"MA"],[50,59,"VT"],[60,69,"CT"],[70,89,"NJ"],[100,149,"NY"],[150,196,"PA"],[197,199,"DE"],[200,200,"DC"],[201,201,"VA"],[202,205,"DC"],[206,219,"MD"],[220,246,"VA"],[247,268,"WV"],[270,289,"NC"],[290,299,"SC"],[300,319,"GA"],[398,399,"GA"],[320,349,"FL"],[350,369,"AL"],[370,385,"TN"],[386,397,"MS"],[400,427,"KY"],[430,459,"OH"],[460,479,"IN"],[480,499,"MI"],[500,528,"IA"],[530,549,"WI"],[550,567,"MN"],[570,577,"SD"],[580,588,"ND"],[590,599,"MT"],[600,629,"IL"],[630,658,"MO"],[660,679,"KS"],[680,693,"NE"],[700,714,"LA"],[716,729,"AR"],[733,733,"TX"],[730,749,"OK"],[750,799,"TX"],[885,885,"TX"],[800,816,"CO"],[820,831,"WY"],[832,838,"ID"],[840,847,"UT"],[850,865,"AZ"],[870,884,"NM"],[889,898,"NV"],[900,961,"CA"],[967,968,"HI"],[970,979,"OR"],[980,994,"WA"],[995,999,"AK"]];
+const hubZip5 = z => (String(z||"").match(/\b(\d{5})(?:-\d{4})?\b/)||[])[1] || "";
+const hubZipState = z => { const m = hubZip5(z); if(!m) return ""; const n = +m.slice(0,3); const h = HUB_ZIP3.find(([a,b]) => n>=a && n<=b); return h ? h[2] : ""; };
+const hubStateOf = r => hubNormState(r && r.state) || hubZipState(r && r.zip) || "TX";
+const HUB_SUF = {street:"st",st:"st",drive:"dr",dr:"dr",road:"rd",rd:"rd",avenue:"ave",ave:"ave",av:"ave",lane:"ln",ln:"ln",boulevard:"blvd",blvd:"blvd",court:"ct",ct:"ct",place:"pl",pl:"pl",
+  highway:"hwy",hwy:"hwy",parkway:"pkwy",pkwy:"pkwy",trail:"trl",trl:"trl",circle:"cir",cir:"cir",terrace:"ter",ter:"ter",way:"way",freeway:"fwy",fwy:"fwy",expressway:"expy",expy:"expy",
+  "farm-to-market":"fm","farm to market":"fm",fm:"fm",business:"bus",bus:"bus",bnd:"bnd",bend:"bnd",north:"n",south:"s",east:"e",west:"w",n:"n",s:"s",e:"e",w:"w",northeast:"ne",northwest:"nw",southeast:"se",southwest:"sw"};
+function hubNormStreet(s){ let t = String(s||"").toLowerCase().replace(/farm[\s-]+to[\s-]+market(\s+road)?/g,"fm").replace(/[.,#]/g," "); t = t.replace(/\b(apt|unit|suite|ste|lot|space|spc)\b.*$/,""); return t.split(/\s+/).filter(Boolean).map(w => HUB_SUF[w]||w).join(" ").trim(); }
+// Must match propertyKey() in the site's js/hub-keys.js.
+function hubPropertyKey({address, city, zip, name, state} = {}){
+  const st = hubNormStreet(address), c = String(city||"").toLowerCase().replace(/[^a-z ]/g,"").trim();
+  const s2 = hubNormState(state) || hubZipState(zip), sfx = s2 && s2 !== "TX" ? "|" + s2.toLowerCase() : "";
+  if(/^\d/.test(st)) return hubZip5(zip) ? `${st}|${hubZip5(zip)}` : `${st}|${c}${sfx}`;
+  const n = String(name || address || "").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+  return n ? `name:${n}|${c}${sfx}` : "";
+}
+// Remove one deal from the master list (same rules as the back office's Delete): tombstone it so every dashboard drops its copy,
+// delete the deal, and if the property has no other track left, delete the property, its links and history, and contacts tied to
+// nothing else (never opted-out or TCPA-litigator contacts, which stay on the do-not-contact list).
+async function hubRemoveDeal(q, rowsOf, hid, by){
+  const id = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+  const d = rowsOf(await q("SELECT d.id, d.property_id, d.track, d.source_app, d.source_id, COALESCE(p.address, p.name, '') AS label FROM deals d LEFT JOIN properties p ON p.id = d.property_id WHERE d.id = ?", [hid]))[0];
+  if(!d) return false;
+  const now = new Date().toISOString();
+  await q("INSERT OR REPLACE INTO deleted_deals (deal_id, property_id, track, source_app, source_id, label, at, by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [d.id, d.property_id||"", d.track, d.source_app||"", d.source_id||"", d.label, now, by]);
+  await q("DELETE FROM deals WHERE id = ?", [d.id]);
+  const left = rowsOf(await q("SELECT COUNT(*) AS n FROM deals WHERE property_id = ?", [d.property_id]))[0];
+  if(left && Number(left.n) > 0){
+    await q("INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'update', ?, ?, 'dashboard')", ["a_"+id(), now, d.property_id, d.id, "Deleted in the " + by, by]);
+    return true;
+  }
+  const cs = rowsOf(await q("SELECT contact_id FROM property_contacts WHERE property_id = ?", [d.property_id])).map(r => r.contact_id);
+  await q("DELETE FROM property_contacts WHERE property_id = ?", [d.property_id]);
+  await q("DELETE FROM activities WHERE property_id = ?", [d.property_id]);
+  await q("DELETE FROM properties WHERE id = ?", [d.property_id]);
+  for(const c of cs) await q("DELETE FROM contacts WHERE id = ? AND COALESCE(opt_out, 0) = 0 AND COALESCE(litigator, 0) = 0 AND NOT EXISTS (SELECT 1 FROM property_contacts WHERE contact_id = ?) AND NOT EXISTS (SELECT 1 FROM deals WHERE contact_id = ?)", [c, c, c]);
+  return true;
+}
+function hubSyncStart(cfg){
+  const CF = "Cloudflare Developer Platform", DB_ID = "41cd2c24-fb52-41ae-95b9-748ee75b2d31";
+  const S = {busy:false, map:{}, mapReady:false, mcp:null, timer:null};
+  const status = t => { try{ cfg.onStatus && cfg.onStatus(t); }catch(_){} };
+  const nid = p => p + "_" + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+  const s = v => v==null || (typeof v==="number" && !isFinite(v)) ? "" : String(v);
+  const n = v => { const x = parseFloat(String(v ?? "").replace(/[$,\s]/g,"")); return isFinite(x) ? x : null; };
+  const rowsOf = r => { let p = r && r.payload; if(typeof p==="string"){ try{ p = JSON.parse(p); }catch(_){ return []; } }
+    const a = Array.isArray(p) ? p : (p && (p.result || p.results)) || []; if(Array.isArray(a) && a[0] && Array.isArray(a[0].results)) return a[0].results;
+    return Array.isArray(a) ? a.filter(x => x && typeof x==="object" && !("success" in x && "meta" in x)) : []; };
+  const d1Raw = (sql, params) => S.mcp.callTool(CF, "d1_database_query", {database_id:DB_ID, sql, params:(params||[]).map(s)});
+  const d1 = async (sql, params) => rowsOf(await d1Raw(sql, params));
+  const sigOf = h => JSON.stringify([h.stage, h.next_touch||"", n(h.asking), hubStateOf(h), h.county||"", h.address||"", hubZip5(h.zip), h.prop_type||"", n(h.units), n(h.beds), n(h.baths), n(h.sqft), h.cname||"", h.phone||"", String(h.email||"").toLowerCase()]);
+  const setMap = (id, m) => { S.map[id] = m; return cfg.db.collection("hubmap").doc(id).set(m).catch(()=>{}); };
+  const errText = e => { const c = e && e.code;
+    return c==="server_not_connected" || c==="selection_required" ? "connect Cloudflare Developer Platform in Settings → Connectors."
+      : c==="not_in_manifest" || c==="approval_required" || c==="not_granted" ? "allow the Cloudflare connection when the page asks, then tap Sync."
+      : c==="needs_reauth" ? "sign in to Cloudflare again in Settings → Connectors." : "tap Sync to try again."; };
+  async function contactFor(h, pid, now){
+    const pk = String(h.phone||"").replace(/\D/g,"").slice(-10), em = String(h.email||"").trim().toLowerCase(), okEm = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em);
+    let cid = null;
+    if(pk.length===10) cid = ((await d1("SELECT id FROM contacts WHERE phone_key = ? LIMIT 1", [pk]))[0]||{}).id || null;
+    if(!cid && okEm) cid = ((await d1("SELECT id FROM contacts WHERE email = ? LIMIT 1", [em]))[0]||{}).id || null;
+    if(!cid && (pk.length===10 || okEm || h.cname)){
+      cid = nid("c");
+      await d1(`INSERT INTO contacts (id, name, phone_key, phone, email, mailing, created_at, updated_at) VALUES (?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [cid, h.cname||"", pk.length===10?pk:"", h.phone||"", okEm?em:"", h.mailing||"", now, now]);
+    }
+    if(cid) await d1("INSERT OR IGNORE INTO property_contacts (property_id, contact_id, role, created_at) VALUES (?, ?, 'owner', ?)", [pid, cid, now]);
+    return cid;
+  }
+  async function pushCreate(rec){
+    const h = cfg.toHub(rec), key = hubPropertyKey(h); if(!key) return false;
+    const now = new Date().toISOString();
+    let p = (await d1("SELECT id FROM properties WHERE addr_key = ?", [key]))[0];
+    if(!p){
+      await d1(`INSERT OR IGNORE INTO properties (id, addr_key, name, address, city, state, zip, county, prop_type, units, beds, baths, sqft, created_at, updated_at)
+        VALUES (?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [nid("p"), key, h.name||"", h.address||"", h.city||"", hubStateOf(h), hubZip5(h.zip), h.county||"", h.prop_type||"", s(n(h.units)), s(n(h.beds)), s(n(h.baths)), s(n(h.sqft)), now, now]);
+      p = (await d1("SELECT id FROM properties WHERE addr_key = ?", [key]))[0];
+    }
+    if(!p) return false;
+    const cid = await contactFor(h, p.id, now);
+    let deal = (await d1("SELECT id FROM deals WHERE property_id = ? AND track = ?", [p.id, cfg.track]))[0];
+    if(!deal){
+      deal = {id: nid("d")};
+      await d1(`INSERT INTO deals (id, property_id, contact_id, track, stage, next_touch, source, source_app, source_id, asking, notes, data, created_at, updated_at)
+        VALUES (?, ?, NULLIF(?, ''), ?, ?, NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [deal.id, p.id, cid||"", cfg.track, h.stage, h.next_touch||"", h.source || cfg.label, cfg.app, rec.id, s(n(h.asking)), String(h.notes||"").slice(0,4000), h.data ? JSON.stringify(h.data) : "", h.created_at || now, now]);
+      await d1(`INSERT INTO activities (id, at, property_id, deal_id, contact_id, kind, summary, by, source) VALUES (?, ?, ?, ?, NULLIF(?, ''), 'created', ?, ?, ?)`,
+        [nid("a"), now, p.id, deal.id, cid||"", "Added from the " + cfg.label, cfg.label, cfg.app]);
+    }
+    await setMap(rec.id, {hubId:deal.id, hubPid:p.id, cid:cid||"", hubAt:now, sig:null});
+    await pushUpdate(rec);
+    return true;
+  }
+  async function pushUpdate(rec){
+    const m = S.map[rec.id]; if(!m) return;
+    const h = cfg.toHub(rec), sig = sigOf(h); if(sig === m.sig) return;
+    const prev = m.sig ? JSON.parse(m.sig)[0] : null, now = new Date().toISOString();
+    await d1(`UPDATE deals SET stage = ?, next_touch = NULLIF(?, ''), asking = NULLIF(?, ''), updated_at = ? WHERE id = ?`, [h.stage, h.next_touch||"", s(n(h.asking)), now, m.hubId]);
+    await d1(`UPDATE properties SET address = COALESCE(NULLIF(address, ''), NULLIF(?, '')), zip = COALESCE(NULLIF(zip, ''), NULLIF(?, '')), updated_at = updated_at WHERE id = ?`, [h.address||"", hubZip5(h.zip), m.hubPid]);
+    await d1(`UPDATE properties SET state = ?, county = COALESCE(NULLIF(?, ''), county), prop_type = COALESCE(NULLIF(?, ''), prop_type), units = COALESCE(NULLIF(?, ''), units),
+      beds = COALESCE(NULLIF(?, ''), beds), baths = COALESCE(NULLIF(?, ''), baths), sqft = COALESCE(NULLIF(?, ''), sqft), updated_at = ? WHERE id = ?`,
+      [hubStateOf(h), h.county||"", h.prop_type||"", s(n(h.units)), s(n(h.beds)), s(n(h.baths)), s(n(h.sqft)), now, m.hubPid]);
+    let cid = m.cid || "";
+    if(!cid && (h.cname || h.phone || h.email)){
+      cid = (await contactFor(h, m.hubPid, now)) || "";
+      if(cid) await d1("UPDATE deals SET contact_id = COALESCE(contact_id, ?) WHERE id = ?", [cid, m.hubId]);
+    }
+    if(prev && prev !== h.stage) await d1(`INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'update', ?, ?, ?)`,
+      [nid("a"), now, m.hubPid, m.hubId, `${cfg.trackLabel} stage: ${prev} → ${h.stage}`, cfg.label, cfg.app]);
+    await setMap(rec.id, {...m, cid, sig, hubAt:now});
+  }
+  async function sync(){
+    if(S.busy || !S.mcp || !S.mapReady || !cfg.ready()) return;
+    S.busy = true; status("Syncing with the back office…");
+    try{
+      const rows = await d1(`SELECT d.id AS hid, d.stage, d.next_touch, d.asking, d.value, d.notes, d.source, d.source_app, d.source_id, d.data, d.created_at, d.updated_at,
+        p.id AS pid, p.name, p.address, p.city, p.state, p.zip, p.county, p.prop_type, p.units, p.beds, p.baths, p.sqft, p.acres, json_extract(p.data, '$.appraisedValue') AS appraised,
+        c.id AS cid, c.name AS cname, c.phone, c.email, c.mailing, c.opt_out
+        FROM deals d JOIN properties p ON p.id = d.property_id
+        LEFT JOIN contacts c ON c.id = COALESCE(d.contact_id, (SELECT pc.contact_id FROM property_contacts pc WHERE pc.property_id = p.id LIMIT 1))
+        WHERE d.track = ? ORDER BY d.created_at`, [cfg.track]);
+      const recs = cfg.getRecords(), byId = new Map(recs.map(r => [r.id, r]));
+      // Deals deleted in the back office (or another dashboard): drop our copy.
+      const tomb = await d1("SELECT deal_id, source_app, source_id FROM deleted_deals WHERE track = ?", [cfg.track]);
+      const tombIds = new Set(tomb.map(t => t.deal_id)), tombSrc = new Set(tomb.filter(t => t.source_app === cfg.app).map(t => t.source_id));
+      let removed = 0;
+      for(const [id, m] of Object.entries(S.map)){
+        if(!tombIds.has(m.hubId)) continue;
+        if(byId.has(id)){ await cfg.db.collection(cfg.collection).doc(id).delete().catch(()=>{}); byId.delete(id); removed++; }
+        delete S.map[id]; await cfg.db.collection("hubmap").doc(id).delete().catch(()=>{});
+      }
+      for(const r of recs){ if(!S.map[r.id] && tombSrc.has(r.id) && byId.has(r.id)){ await cfg.db.collection(cfg.collection).doc(r.id).delete().catch(()=>{}); byId.delete(r.id); removed++; } }
+      const byHub = new Map(Object.entries(S.map).map(([id, m]) => [m.hubId, id]));
+      const byKey = new Map(); recs.forEach(r => { if(!S.map[r.id] && !r.example){ const k = hubPropertyKey(cfg.toHub(r)); if(k && !byKey.has(k)) byKey.set(k, r); } });
+      const seen = new Set(); let made = 0, linked = 0, updated = 0, sent = 0, dead = 0;
+      for(const row of rows){
+        seen.add(row.hid);
+        let id = byHub.get(row.hid);
+        if(id && !byId.has(id)) continue; // deleted here: handled below
+        if(!id && row.source_app === cfg.app && byId.has(row.source_id) && !S.map[row.source_id]) id = row.source_id;
+        if(!id){ const r = byKey.get(hubPropertyKey({address:row.address, city:row.city, zip:row.zip, state:row.state, name:row.name})); if(r && !S.map[r.id]) id = r.id; }
+        if(id){
+          let m = S.map[id];
+          if(!m){ m = {hubId:row.hid, hubPid:row.pid, cid:row.cid||"", hubAt:"", sig:null}; byHub.set(row.hid, id); linked++; }
+          if(String(row.updated_at||"") > String(m.hubAt||"")){
+            const rec = byId.get(id), patch = cfg.patchFromHub(rec, row) || {};
+            if(Object.keys(patch).length){ await cfg.db.collection(cfg.collection).doc(id).update(patch); updated++; }
+            m = {...m, hubAt: row.updated_at, sig: sigOf(cfg.toHub({...rec, ...patch}))};
+          }
+          if(JSON.stringify(m) !== JSON.stringify(S.map[id] || null)) await setMap(id, m);
+          continue;
+        }
+        if(row.source_app === cfg.app && row.stage === cfg.deadStage) continue; // deleted here earlier
+        const nid2 = row.source_app === cfg.app && row.source_id ? row.source_id : "hub_" + row.hid;
+        if(byId.has(nid2)) continue;
+        const rec = cfg.fromHub(row);
+        Object.keys(rec).forEach(k => { if(rec[k] === undefined) rec[k] = null; });
+        status(`Bringing in from the back office: ${made + 1}…`);
+        await cfg.db.collection(cfg.collection).doc(nid2).set(rec);
+        await setMap(nid2, {hubId:row.hid, hubPid:row.pid, cid:row.cid||"", hubAt:row.updated_at, sig:sigOf(cfg.toHub({...rec, id:nid2}))});
+        byId.set(nid2, {...rec, id:nid2}); made++;
+      }
+      // Records deleted here since the last sync: delete them from the back office too (skipped if most links look missing, e.g. a partial load).
+      const gone = Object.entries(S.map).filter(([id]) => !byId.has(id));
+      if(gone.length && gone.length <= Math.max(5, Object.keys(S.map).length / 4)){
+        for(const [id, m] of gone){
+          await hubRemoveDeal(d1Raw, rowsOf, m.hubId, cfg.label);
+          delete S.map[id]; await cfg.db.collection("hubmap").doc(id).delete().catch(()=>{}); dead++;
+        }
+      }
+      // Push: new records here, then changed ones.
+      for(const r of recs){
+        if(r.example || !byId.has(r.id)) continue;
+        if(!S.map[r.id]){ if(sent < 25 && await pushCreate(r)) sent++; continue; }
+        if(sigOf(cfg.toHub(r)) !== S.map[r.id].sig){ await pushUpdate(r); sent++; }
+      }
+      const t = new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+      status(`Back office synced ${t} · ${rows.length} on this track${made?` · ${made} brought in`:""}${linked?` · ${linked} linked`:""}${updated?` · ${updated} updated`:""}${sent?` · ${sent} sent`:""}${dead?` · ${dead} deleted from the back office`:""}${removed?` · ${removed} removed (deleted in the back office)`:""}`);
+    }catch(e){ console.warn("hub sync", e); status("Back office sync didn't finish: " + errText(e)); }
+    S.busy = false;
+  }
+  (async () => {
+    try{ S.mcp = await window.claude.use("mcp"); }catch(_){ S.mcp = null; }
+    if(!S.mcp){ status("Back office sync isn't available in this view."); return; }
+    cfg.db.collection("hubmap").onSnapshot(snap => {
+      const m = {}; snap.docs.forEach(d => { m[d.id] = d.data(); }); S.map = m;
+      if(!S.mapReady){ S.mapReady = true; setTimeout(sync, 1500); setInterval(sync, 5*60*1000); }
+    }, () => status("Back office sync lost its connection. Reload the page."));
+  })();
+  let soon = null;
+  return { sync, soon: () => { clearTimeout(soon); soon = setTimeout(sync, 4000); } };
+}
+
+</script>
+
+<script>
+// Rows-per-page control (25 / 50 / 100 / All), remembered per browser. pager.slice(list) returns the rows to draw and redraws the control.
+function makePager(boxId, storeKey, onChange, btnClass){
+  const P = {size:25, page:0};
+  try{ const v = localStorage.getItem(storeKey); if(v !== null && [0,10,25,50,100].includes(+v)) P.size = +v; }catch(_){}
+  const box = document.getElementById(boxId);
+  box.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;font-size:13px";
+  box.addEventListener("change", e => { if(e.target.matches("select[data-pg]")){ P.size = +e.target.value; P.page = 0; try{ localStorage.setItem(storeKey, String(P.size)); }catch(_){} onChange(); } });
+  box.addEventListener("click", e => { const b = e.target.closest("[data-pgmove]"); if(!b) return; P.page += +b.dataset.pgmove; onChange(); });
+  P.reset = () => { P.page = 0; };
+  P.slice = list => {
+    const n = list.length, size = P.size || n || 1, pages = Math.max(1, Math.ceil(n / size));
+    P.page = Math.min(Math.max(0, P.page), pages - 1);
+    const start = P.size ? P.page * size : 0, shown = P.size ? list.slice(start, start + size) : list;
+    box.hidden = !n;
+    box.innerHTML = `<label style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select data-pg aria-label="Rows per page" style="width:auto">${[10,25,50,100,0].map(v => `<option value="${v}" ${P.size===v?"selected":""}>${v||"All"}</option>`).join("")}</select></label>
+      <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span>Showing ${n ? start + 1 : 0}–${start + shown.length} of ${n}</span>${pages > 1 ? `<button type="button" class="${btnClass}" data-pgmove="-1" ${P.page ? "" : "disabled"}>‹ Prev</button><span>Page ${P.page + 1} of ${pages}</span><button type="button" class="${btnClass}" data-pgmove="1" ${P.page < pages - 1 ? "" : "disabled"}>Next ›</button>` : ""}</span>`;
+    return shown;
+  };
+  return P;
+}
+
+</script>
+
+<script>
+// ---- OTC Tax Parcel Finder ----
+// Records: collection "parcels". Buy box: doc config/buybox. Scan progress: runs/latest. Back office track: "taxotc".
+// Every parcel is scored live against the buy box: price, flood zone, other liens, comps (count and median vs. multiple × total cost).
+const STAGES=["Found","Screened","Checked","Qualifies","Buying","Bought","Redemption / title","Sold","Pass"];
+const KINDS={deed:"OTC tax deed",lien:"OTC tax lien",struck:"Texas struck-off resale"};
+const DEF_BB={maxPrice:1000,maxLiens:5000,multiple:5,minComps:3,compMonths:12,compMiles:1,noFlood:true,kinds:["deed","lien","struck"],states:[],quietTitle:1500};
+const SCAN_TASK="trig_011BbbxoeBe63M7ELjcmyE3H";
+let rows=[],bb={...DEF_BB},bbSaved=null,stageF=null,verdictF="",editing=null,col=null,dbRef=null,mcpRef=null,readOnly=false,run=null;
+const $=id=>document.getElementById(id);
+function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+const num=v=>{if(v==null||v==="")return null;const n=parseFloat(String(v).replace(/[$,\s]/g,""));return isFinite(n)?n:null};
+const usd=v=>v==null||!isFinite(v)?"—":"$"+Math.round(v).toLocaleString();
+$("f-stage").innerHTML=STAGES.map(s=>`<option>${s}</option>`).join("");
+$("f-kind").innerHTML=Object.entries(KINDS).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join("");
+$("f-state").innerHTML=Object.entries(HUB_STATES).map(([k,v])=>`<option value="${k}">${k} · ${v}</option>`).join("");
+$("kindF").innerHTML+=Object.entries(KINDS).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join("");
+
+/* ---------- scoring ---------- */
+function costOf(r){const p=num(r.price),f=num(r.fees)||0,l=num(r.liens);return{price:p,fees:f,liens:l,total:(p||0)+f+(l||0),liensKnown:l!=null}}
+function score(r,B=bb){
+  const c=costOf(r),t=[];
+  const inStates=!B.states||!B.states.length||B.states.includes(String(r.state||"").toUpperCase());
+  const inKinds=(B.kinds||[]).includes(r.kind);
+  t.push({k:"box",label:inKinds&&inStates?"In buy box":"Outside buy box",st:inKinds&&inStates?"pass":"fail",why:!inKinds?`${KINDS[r.kind]||"This kind"} isn't selected in the buy box`:!inStates?`${r.state||"This state"} isn't in the buy box states`:""});
+  t.push(c.price==null?{k:"price",label:"Price unknown",st:"unk"}:{k:"price",label:`Price ${usd(c.price)}`,st:c.price<=B.maxPrice?"pass":"fail",why:c.price>B.maxPrice?`over ${usd(B.maxPrice)}`:""});
+  if(B.noFlood){const f=r.flood||{};t.push(f.sfha===true?{k:"flood",label:`Flood zone${f.zone?" "+f.zone:""}`,st:"fail"}:f.sfha===false?{k:"flood",label:`No flood zone${f.zone?" ("+f.zone+")":""}`,st:"pass"}:{k:"flood",label:"Flood unknown",st:"unk"})}
+  t.push(!c.liensKnown?{k:"liens",label:"Liens unknown",st:"unk"}:{k:"liens",label:`Other liens ${usd(c.liens)}`,st:c.liens<=B.maxLiens?"pass":"fail",why:c.liens>B.maxLiens?`over ${usd(B.maxLiens)}`:""});
+  const cp=r.comps,need=B.multiple*c.total;
+  if(!cp||cp.count==null)t.push({k:"comps",label:"Comps not checked",st:"unk"});
+  else if(cp.count<B.minComps)t.push({k:"comps",label:`${cp.count} comp${cp.count===1?"":"s"} (need ${B.minComps})`,st:"fail"});
+  else if(cp.median==null)t.push({k:"comps",label:`${cp.count} comps, no prices`,st:"unk"});
+  else t.push({k:"comps",label:`Comps median ${usd(cp.median)} vs ${usd(need)} needed`,st:cp.median>=need?(c.liensKnown?"pass":"unk"):"fail",why:!c.liensKnown&&cp.median>=need?"passes at $0 liens; check liens":""});
+  const verdict=t.some(x=>x.st==="fail")?"f":t.every(x=>x.st==="pass")?"q":"n";
+  return{tests:t,verdict,cost:c,need};
+}
+const VERDICT={q:"Qualifies",n:"Needs check",f:"Fails"};
+
+/* ---------- list ---------- */
+function searchMatch(rec,q){const words=String(q||"").toLowerCase().trim().split(/\s+/).filter(Boolean);if(!words.length)return true;
+  const hay=["name","address","city","county","state","zip","apn","sourceName","notes","next","landUse","stage"].map(k=>rec[k]??"").join(" ").toLowerCase();return words.every(w=>hay.includes(w))}
+let listPager=null;
+function render(){
+  const counts=Object.fromEntries(STAGES.map(s=>[s,0]));rows.forEach(r=>{if(counts[r.stage]!=null)counts[r.stage]++});
+  $("pipe").innerHTML=STAGES.map(s=>`<button type="button" class="stage" data-s="${esc(s)}" aria-pressed="${stageF===s}"><b>${counts[s]}</b><span>${esc(s)}</span></button>`).join("");
+  const scored=rows.map(r=>({r,s:score(r)}));
+  const vc={q:0,n:0,f:0};scored.forEach(x=>vc[x.s.verdict]++);
+  $("vchips").innerHTML=[["","All"],["q",`Qualifies (${vc.q})`],["n",`Needs check (${vc.n})`],["f",`Fails (${vc.f})`]].map(([v,l])=>`<button type="button" class="chip" data-v="${v}" aria-pressed="${verdictF===v}">${esc(l)}</button>`).join("");
+  const sts=[...new Set(rows.map(r=>r.state).filter(Boolean))].sort();const sf=$("stateF"),cur=sf.value;
+  sf.innerHTML=`<option value="">All states</option>`+sts.map(s=>`<option ${s===cur?"selected":""}>${esc(s)}</option>`).join("");
+  const q=$("listSearch").value,kf=$("kindF").value,stf=sf.value,today=new Date().toISOString().slice(0,10);
+  const vis=scored.filter(({r,s})=>searchMatch(r,q)&&(!stageF||r.stage===stageF)&&(!verdictF||s.verdict===verdictF)&&(!kf||r.kind===kf)&&(!stf||r.state===stf))
+    .sort((a,b)=>"qnf".indexOf(a.s.verdict)-"qnf".indexOf(b.s.verdict)||(a.r.deadline||"9").localeCompare(b.r.deadline||"9")||(num(a.r.price)??1e9)-(num(b.r.price)??1e9));
+  if(!listPager)listPager=makePager("listPager","hll_otc_rows",render,"");
+  const shown=listPager.slice(vis);
+  $("list").innerHTML=vis.length?shown.map(({r,s})=>card(r,s,today)).join(""):`<div class="empty">${rows.length?"No parcels match this filter.":"No parcels yet. Tap “Find parcels” to scan county lists, or “+ Add parcel” to enter one."}</div>`;
+}
+function card(r,s,today){
+  const c=s.cost,cp=r.comps,qt=num(bb.quietTitle)||0;
+  const loc=[r.address,r.city,[r.state,r.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  return `<article class="card">
+    <div class="row1">
+      <div><p class="name">${esc(r.name||r.address||("Parcel "+(r.apn||"")))}</p><div class="loc">${esc(loc)}${r.county?` · ${esc(r.county)} Co.`:""}${r.apn?` · APN ${esc(r.apn)}`:""} · ${esc(KINDS[r.kind]||"Kind?")}${r.landUse?` · ${esc(r.landUse)}`:""}${r.acres?` · ${esc(r.acres)} ac`:""}</div></div>
+      <div class="pills"><span class="verdict ${s.verdict}">${VERDICT[s.verdict]}</span><span class="pill st">${esc(r.stage||"Found")}</span></div>
+    </div>
+    <div class="tests">${s.tests.map(t=>`<span class="t ${t.st}" title="${esc(t.why||"")}">${t.st==="pass"?"✓":t.st==="fail"?"✗":"?"} ${esc(t.label)}</span>`).join("")}</div>
+    <div class="math">Cost: <b>${usd(c.price)}</b> price${c.fees?` + ${usd(c.fees)} fees`:""} + ${c.liensKnown?usd(c.liens):"? "} liens = <b>${usd(c.total)}</b>${c.liensKnown?"":" (liens unknown)"} · × ${bb.multiple} = <b>${usd(s.need)}</b> needed
+      ${cp&&cp.median!=null?` · comps median <b>${usd(cp.median)}</b> (${cp.count} sales${cp.avg!=null?`, avg ${usd(cp.avg)}`:""})`:""}${Number(r.appraised)>0?` · county appraised ${usd(r.appraised)} → FMV <b>${usd(r.fmv||DealAdvisor.fmv(r.appraised))}</b>`:""}${qt?` · quiet title est. ${usd(qt)} (not in the test)`:""}</div>
+    ${r.kind==="lien"?`<p class="warnbox">Tax lien: you buy the lien certificate, not the property. The owner can redeem with interest; you only get the parcel if they don't, after the state's redemption period and foreclosure steps.</p>`:""}
+    ${r.deadline?`<p class="next ${r.deadline<today?"due":""}"><strong>Deadline:</strong> ${esc(r.deadline)}</p>`:""}
+    ${r.next?`<p class="next ${r.date&&r.date<today&&!["Sold","Pass"].includes(r.stage)?"due":""}"><strong>Next:</strong> ${esc(r.next)}${r.date?` · ${esc(r.date)}`:""}</p>`:""}
+    ${cp&&cp.items&&cp.items.length?`<details class="enr"><summary>Comps · ${esc(cp.months||bb.compMonths)} mo, ${esc(cp.miles||bb.compMiles)} mi · checked ${esc(String(cp.at||"").slice(0,10))}</summary><div class="comps">${cp.items.slice(0,10).map(x=>`<div><span>${usd(x.price)}</span><span>${esc(x.date||"")}</span><span>${esc(x.address||"")}</span>${x.miles!=null?`<span>${esc(x.miles)} mi</span>`:""}</div>`).join("")}</div></details>`:""}
+    ${cp&&cp.error?`<p class="note">Comps: ${esc(cp.error)}</p>`:""}
+    ${r.notes?`<p class="note">${esc(r.notes)}</p>`:""}
+    <div class="acts">${readOnly?"":`<button type="button" data-edit="${r.id}">Edit</button>`}<button type="button" data-advise="${r.id}">✦ Deal Advisor</button>${readOnly?"":`<button type="button" data-check="${r.id}" title="BatchData property lookup (liens, value, type, flood if available) plus a comps pull for the buy-box window. About 2 BatchData pulls.">Check parcel</button>`}${r.lat&&r.lon?`<a href="https://msc.fema.gov/portal/search?AddressQuery=${encodeURIComponent(r.lat+","+r.lon)}" target="_blank" rel="noopener">FEMA flood map ↗</a>`:loc?`<a href="https://msc.fema.gov/portal/search?AddressQuery=${encodeURIComponent(loc)}" target="_blank" rel="noopener">FEMA flood map ↗</a>`:""}${r.url?`<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.sourceName||"County list")} ↗</a>`:r.sourceName?`<span class="note">${esc(r.sourceName)}</span>`:""}</div>
+  </article>`;
+}
+document.addEventListener("click",e=>{
+  const s=e.target.closest("[data-s]");if(s){stageF=stageF===s.dataset.s?null:s.dataset.s;listPager&&listPager.reset();render();return}
+  const v=e.target.closest("[data-v]");if(v){verdictF=v.dataset.v;listPager&&listPager.reset();render();return}
+  const ed=e.target.closest("[data-edit]");if(ed){openSheet(rows.find(x=>x.id===ed.dataset.edit));return}
+  const ad=e.target.closest("[data-advise]");if(ad&&advisor){advSel=ad.dataset.advise;advisor.open(advSel);return}
+  const ck=e.target.closest("[data-check]");if(ck){checkParcel(ck.dataset.check,ck);return}
+});
+["kindF","stateF"].forEach(id=>$(id).addEventListener("change",()=>{listPager&&listPager.reset();render()}));
+$("listSearch").addEventListener("input",()=>{listPager&&listPager.reset();render()});
+
+/* ---------- add / edit ---------- */
+const F=["kind","apn","address","city","zip","county","state","price","fees","liens","landUse","acres","appraised","deadline","stage","date","next","sourceName","url","notes"];
+const NUMF=new Set(["price","fees","liens","appraised"]);
+function openSheet(r){
+  editing=r||null;$("formTitle").textContent=r?"Edit parcel":"Add parcel";$("delBtn").hidden=!r;
+  F.forEach(k=>$("f-"+k).value=r?(r[k]??""):({kind:"deed",state:"FL",stage:"Found"}[k]||""));
+  $("f-flood").value=r&&r.flood?(r.flood.sfha===true?"yes":r.flood.sfha===false?"no":""):"";
+  $("sheet").hidden=false;$("f-apn").focus();
+}
+$("addBtn").onclick=()=>openSheet(null);
+$("cancelBtn").onclick=()=>$("sheet").hidden=true;
+$("sheet").addEventListener("click",e=>{if(e.target.id==="sheet")$("sheet").hidden=true});
+$("form").addEventListener("submit",async e=>{
+  e.preventDefault();if(!col){toast("Saving isn't available in this view");return}
+  const body={};F.forEach(k=>{const v=$("f-"+k).value.trim();body[k]=NUMF.has(k)?num(v):v});
+  body.state=hubNormState(body.state)||body.state;
+  if(!body.address&&!body.apn){toast("Enter a street address or a parcel ID.");return}
+  body.name=body.address||("Parcel "+body.apn);
+  if(body.appraised>0)body.fmv=DealAdvisor.fmv(body.appraised);
+  const fv=$("f-flood").value,prevF=editing&&editing.flood||{};
+  if(fv==="")body.flood=prevF.source&&prevF.source!=="entered by hand"?prevF:{sfha:null};
+  else if(fv!==(prevF.sfha===true?"yes":prevF.sfha===false?"no":""))body.flood={sfha:fv==="yes",zone:"",source:"entered by hand",at:new Date().toISOString()};
+  if(body.liens!==(editing?num(editing.liens):null))body.liensSource=body.liens==null?"":"entered by hand";
+  body.updated=new Date().toISOString();
+  try{if(editing)await col.doc(editing.id).update(body);else await col.add({...body,foundAt:body.updated,source:"Added by hand"});$("sheet").hidden=true;toast("Saved")}
+  catch(err){if(err?.code==="invalid_argument"){readOnly=true;render();toast("You have view-only access")}else toast("Couldn't save. Try again in a moment.")}
+});
+let delArmed=false;
+$("delBtn").onclick=async()=>{
+  if(!delArmed){delArmed=true;$("delBtn").textContent="Tap again to delete";setTimeout(()=>{delArmed=false;$("delBtn").textContent="Delete"},3000);return}
+  delArmed=false;$("delBtn").textContent="Delete";
+  try{await col.doc(editing.id).delete();$("sheet").hidden=true;toast("Deleted")}catch{toast("Couldn't delete. Try again.")}
+};
+
+/* ---------- Check parcel: BatchData lookup (liens, value, type, location, flood if present) + comps ---------- */
+const BD="BatchData";
+const bdParse=r=>{const p=r&&r.payload;if(p&&typeof p==="object")return p;try{return JSON.parse(p)}catch(_){return null}};
+function bdErr(e){const c=e&&e.code;
+  if(c==="server_not_connected"||c==="selection_required")return "BatchData isn't connected for this view. Add or reconnect it in Settings → Connectors.";
+  if(c==="needs_reauth")return "BatchData needs you to sign in again in Settings → Connectors.";
+  if(c==="not_in_manifest"||c==="approval_required"||c==="not_granted")return "BatchData needs your permission. Tap Check parcel again and choose Allow.";
+  if(c==="tool_error")return "BatchData couldn't process this parcel. Check the street, city and ZIP (or your BatchData balance).";
+  if(c==="server_unavailable")return "BatchData didn't respond. Try again in a minute.";
+  return "BatchData lookup failed. Try again.";}
+// Find the first value under any key matching re (BatchData field names vary by dataset).
+function findKey(o,re,depth=0){if(!o||typeof o!=="object"||depth>5)return undefined;for(const [k,v] of Object.entries(o)){if(re.test(k)&&(typeof v!=="object"||v===null))return v}for(const v of Object.values(o)){if(v&&typeof v==="object"){const f=findKey(v,re,depth+1);if(f!==undefined)return f}}return undefined}
+const SFHA=/^(A|AE|AH|AO|AR|A99|V|VE|A\d+|V\d+)$/i;
+function floodFrom(p){
+  const sf=findKey(p,/sfha|specialFloodHazard|inFloodZone|floodHazard/i),zone=findKey(p,/^floodZone(Code)?$|^fldZone$|femaFloodZone/i);
+  if(typeof sf==="boolean")return{sfha:sf,zone:zone?String(zone):"",source:"BatchData"};
+  if(typeof sf==="string"&&/^(y|n|t|f|true|false|yes|no)$/i.test(sf))return{sfha:/^(y|t|true|yes)$/i.test(sf),zone:zone?String(zone):"",source:"BatchData"};
+  if(zone)return{sfha:SFHA.test(String(zone).trim()),zone:String(zone),source:"BatchData"};
+  return null;
+}
+// Comps result: find the array of comparable records and read price, sale date, address and distance from each.
+function compsFrom(res){
+  let arr=null;const walk=(o,d=0)=>{if(arr||!o||typeof o!=="object"||d>4)return;for(const v of Object.values(o)){if(Array.isArray(v)&&v.length&&typeof v[0]==="object"&&v.some(x=>findKey(x,/price/i)!=null)){arr=v;return}}for(const v of Object.values(o))if(v&&typeof v==="object"&&!Array.isArray(v))walk(v,d+1)};walk(res);
+  const items=(arr||[]).map(x=>{const s=x.sale&&x.sale.lastSale||{},a=x.address||{};
+    const price=num(s.price??x.lastSalePrice??x.salePrice??x.price??findKey(x,/^(lastSalePrice|salePrice|soldPrice|price)$/i));
+    const date=String(s.saleDate??x.saleDate??x.lastSaleDate??findKey(x,/saleDate|soldDate|recordingDate/i)??"").slice(0,10);
+    const addr=typeof a==="string"?a:[a.street,a.city].filter(Boolean).join(", ")||x.street||"";
+    const mi=num(x.distance??x.distanceMiles??findKey(x,/distance/i));
+    return{price,date,address:addr,miles:mi!=null?Math.round(mi*100)/100:null}}).filter(x=>x.price>0);
+  const total=num(findKey(res,/^(total|totalCount|count|resultCount)$/i));
+  const prices=items.map(x=>x.price).sort((a,b)=>a-b),m=prices.length;
+  const median=m?(m%2?prices[(m-1)/2]:(prices[m/2-1]+prices[m/2])/2):null;
+  const avg=num(findKey(res,/averagePrice/i));
+  return{count:total!=null&&total>=m&&total<1e6?total:m,median,avg,items,found:!!arr};
+}
+async function checkParcel(id,btn){
+  const r=rows.find(x=>x.id===id);if(!r)return;
+  if(readOnly||!col){toast("You have view-only access here.");return}
+  const st=hubNormState(r.state)||"";
+  if(!r.address||!(r.city||r.zip)||!st){toast("Add the street address, a city or ZIP, and the state first.");openSheet(r);return}
+  if(!mcpRef)mcpRef=await window.claude.use("mcp").catch(()=>null);
+  if(!mcpRef){toast("BatchData isn't available in this view. Open the dashboard in claude.ai.");return}
+  const t0=btn.textContent;btn.disabled=true;btn.textContent="Looking up…";
+  const patch={updated:new Date().toISOString()};const now=patch.updated;
+  try{
+    const input={property_street:r.address,property_state:st};if(r.city)input.property_city=r.city;if(hubZip5(r.zip))input.property_zip=hubZip5(r.zip);
+    const res=bdParse(await mcpRef.callTool(BD,"lookup_property",input));const p=(res&&(res.property||res))||{};
+    if(p.address||p.building||p.valuation||p.assessment||p.lot){
+      const a=p.address||{},g=p.general||{},lot=p.lot||{},b=p.building||{},as=p.assessment||{},ol=p.openLien||{};
+      const fill=(k,v)=>{if(v!=null&&v!==""&&(r[k]==null||r[k]===""))patch[k]=v};
+      fill("zip",a.zip);fill("county",a.county);fill("city",a.city);fill("landUse",[g.propertyTypeCategory,g.propertyTypeDetail].filter(Boolean).join(" · "));
+      fill("acres",lot.lotSizeAcres?String(Math.round(lot.lotSizeAcres*100)/100):"");
+      const lat=num(a.latitude??findKey(p,/^lat(itude)?$/i)),lon=num(a.longitude??findKey(p,/^(lon|lng|longitude)$/i));if(lat&&lon){patch.lat=lat;patch.lon=lon}
+      const appr=as.totalMarketValue||as.totalAssessedValue||null;if(appr){patch.appraised=appr;patch.fmv=DealAdvisor.fmv(appr)}
+      // Other liens: open mortgages/liens BatchData knows about. Tax liens being bought here aren't "other" liens.
+      const lienBal=num(ol.totalOpenLienBalance);if(lienBal!=null&&(r.liensSource||"")!=="entered by hand"){patch.liens=lienBal;patch.liensSource="BatchData open liens (mortgages; confirm judgments and code liens with the county)"}
+      else if(lienBal==null&&r.liens==null&&ol&&(ol.totalOpenLienCount===0||(p.quickLists&&p.quickLists.freeAndClear))){patch.liens=0;patch.liensSource="BatchData: no open liens (confirm with the county)"}
+      const fl=floodFrom(p);if(fl&&(!r.flood||r.flood.source!=="entered by hand"))patch.flood={...fl,at:now};
+      patch.enrich={at:now,estimatedValue:num(p.valuation&&p.valuation.estimatedValue),owner:(p.owner&&p.owner.fullName)||"",ownerOccupied:p.owner?p.owner.ownerOccupied:null,yearBuilt:b.yearBuilt||null,sqft:b.totalBuildingAreaSquareFeet||b.livingAreaSquareFeet||null,lienCount:ol.totalOpenLienCount??null,taxDefault:!!(p.quickLists&&p.quickLists.taxDefault)};
+    } else patch.enrich={at:now,error:"BatchData has no record at that address."};
+    btn.textContent="Pulling comps…";
+    const end=new Date(),start=new Date(end);start.setMonth(start.getMonth()-(+bb.compMonths||12));
+    const landish=/land|vacant|lot|acre/i.test((patch.landUse||r.landUse||"")+" "+(r.name||""));
+    const cin={subject_property_street:r.address,subject_property_state:st,distance_miles:+bb.compMiles||1,last_sold_date_min:start.toISOString().slice(0,10),last_sold_date_max:end.toISOString().slice(0,10),
+      use_year_built:false,use_bathrooms:false};
+    if(r.city||patch.city)cin.subject_property_city=r.city||patch.city;if(hubZip5(r.zip||patch.zip))cin.subject_property_zip=hubZip5(r.zip||patch.zip);
+    if(landish){cin.use_area=false;cin.use_bedrooms=false;cin.use_lot_size=true;cin.min_lot_size_percent=-50;cin.max_lot_size_percent=100}
+    try{const cr=bdParse(await mcpRef.callTool(BD,"comparable_property_preview",cin));const c=compsFrom(cr||{});
+      patch.comps={...c,at:now,months:+bb.compMonths||12,miles:+bb.compMiles||1,land:landish};if(!c.found)patch.comps.error="The comps result came back in a shape this page couldn't read; ask Claude in chat to check it."}
+    catch(e){patch.comps={count:null,at:now,error:bdErr(e)}}
+    await col.doc(id).update(patch);
+    if(patch.appraised&&dbRef){try{const h=await dbRef.doc("hubmap/"+id).get();if(h.exists&&h.data().hubPid)await DealAdvisor.saveAppraised(mcpRef,h.data().hubPid,patch.appraised,"BatchData (appraisal district)")}catch(_){}}
+    const s=score({...r,...patch});toast(`Checked: ${VERDICT[s.verdict]}.`);
+  }catch(e){toast(bdErr(e))}
+  btn.disabled=false;btn.textContent=t0;
+}
+
+/* ---------- buy box settings ---------- */
+const BBN=["maxPrice","maxLiens","multiple","minComps","compMonths","compMiles","quietTitle"];
+function renderBB(){
+  BBN.forEach(k=>{if(document.activeElement!==$("bb-"+k))$("bb-"+k).value=bb[k]});
+  $("bb-noFlood").checked=!!bb.noFlood;
+  if(document.activeElement!==$("bb-states"))$("bb-states").value=(bb.states||[]).join(", ");
+  $("bb-kinds").innerHTML=Object.entries(KINDS).map(([k,l])=>`<button type="button" class="chip" data-bbk="${k}" aria-pressed="${bb.kinds.includes(k)}">${esc(l)}</button>`).join("");
+  $("bb-kinds").querySelectorAll("[data-bbk]").forEach(b=>b.onclick=()=>{const k=b.dataset.bbk;bb.kinds=bb.kinds.includes(k)?bb.kinds.filter(x=>x!==k):[...bb.kinds,k];renderBB();render()});
+  $("bbSaved").textContent=bbSaved?`Saved ${new Date(bbSaved).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}`:"Defaults (not saved yet)";
+  $("bbSave").disabled=readOnly||!dbRef;
+}
+BBN.forEach(k=>$("bb-"+k).addEventListener("input",e=>{const v=parseFloat(e.target.value);if(isFinite(v)&&v>=0){bb[k]=v;render()}}));
+$("bb-noFlood").addEventListener("change",e=>{bb.noFlood=e.target.checked;render()});
+$("bb-states").addEventListener("input",e=>{bb.states=[...new Set(e.target.value.toUpperCase().split(/[^A-Z]+/).filter(x=>HUB_STATES[x]))];render()});
+$("bbBtn").onclick=()=>{const f=$("bbBox");f.hidden=!f.hidden;$("bbBtn").setAttribute("aria-expanded",String(!f.hidden));if(!f.hidden)f.scrollIntoView({behavior:"smooth",block:"start"})};
+$("bbSave").onclick=async()=>{
+  if(!dbRef)return;if(!bb.kinds.length){toast("Pick at least one parcel kind.");return}
+  const clean={...bb};BBN.forEach(k=>clean[k]=Math.max(0,+clean[k]||0));clean.multiple=Math.max(1,clean.multiple);clean.minComps=Math.max(1,Math.round(clean.minComps));clean.compMonths=Math.max(1,Math.min(60,Math.round(clean.compMonths)));
+  try{await dbRef.doc("config/buybox").set({...clean,updatedAt:new Date().toISOString()});toast("Buy box saved")}catch{toast("Couldn't save the buy box. Try again.")}
+};
+$("bbReset").onclick=()=>{bb={...DEF_BB,kinds:[...DEF_BB.kinds],states:[]};renderBB();render();toast("Defaults loaded. Tap Save buy box to keep them.")};
+
+/* ---------- scan (scheduled task) ---------- */
+$("findBtn").onclick=()=>{const f=$("finder");f.hidden=!f.hidden;$("findBtn").setAttribute("aria-expanded",String(!f.hidden));if(!f.hidden)f.scrollIntoView({behavior:"smooth",block:"start"})};
+function renderRun(){
+  const box=$("runState"),btn=$("searchBtn");
+  const when=iso=>iso?new Date(iso).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"";
+  btn.disabled=readOnly||!dbRef;
+  if(!run){box.textContent="No scans yet.";return}
+  if(run.status==="queued"||run.status==="running"){
+    const stale=Date.now()-new Date(run.startedAt||run.requestedAt||0).getTime()>60*60*1000;
+    if(!stale){box.innerHTML=`<span class="pill warn">Scanning</span> ${esc(run.status==="running"?`Since ${when(run.startedAt)}. New parcels appear below as they're added.`:`Requested ${when(run.requestedAt)}. Starting up.`)}`;btn.disabled=true;return}
+    box.innerHTML=`<span class="pill warn">No response</span> ${esc(`The scan requested ${when(run.requestedAt||run.startedAt)} hasn't reported back. You can start another.`)}`;return;
+  }
+  if(run.status==="done")box.innerHTML=`<span class="pill ok">${run.added??0} added</span> ${esc(`${when(run.finishedAt)}. ${run.message||""}`)}`;
+  else if(run.status==="failed")box.innerHTML=`<span class="pill bad">Didn't finish</span> ${esc(`${when(run.finishedAt)}. ${run.message||"The scan stopped."}`)}`;
+}
+async function runFail(message){try{await dbRef.doc("runs/latest").update({status:"failed",finishedAt:new Date().toISOString(),message})}catch{}toast(message);$("searchBtn").disabled=false}
+$("searchBtn").onclick=async()=>{
+  if(!dbRef){toast("Scanning needs the dashboard's database, which isn't available in this view.");return}
+  $("searchBtn").disabled=true;const now=new Date().toISOString();
+  try{await dbRef.doc("runs/latest").set({status:"queued",requestedAt:now,added:null,message:""})}catch{toast("Couldn't start the scan. Try again.");$("searchBtn").disabled=false;return}
+  if(!mcpRef)mcpRef=await window.claude.use("mcp").catch(()=>null);
+  if(!mcpRef){await runFail("This view can't start scans. Open the dashboard in claude.ai, or ask Claude in chat to run the OTC tax parcel scan.");return}
+  try{await mcpRef.callTool("Claude Code Remote","fire_trigger",{trigger_id:SCAN_TASK,text:"Run requested from the OTC Tax Parcel Finder."});toast("Scan started")}
+  catch(e){const c=e&&e.code;
+    const msg=c==="server_not_connected"||c==="selection_required"?"Starting a scan needs the Claude Code Remote connection. Allow it when the page asks, then try again."
+      :c==="not_in_manifest"||c==="approval_required"||c==="not_granted"?"The scan needs your permission to start. Tap Scan now again and choose Allow."
+      :c==="tool_error"?"The scan task couldn't start. It may be paused; check Scheduled tasks."
+      :c==="server_unavailable"||c==="upstream_error"?"No response from the scan service. It may still start; watch this line before trying again."
+      :"The scan couldn't start. Try again in a moment.";
+    if(c==="server_unavailable"||c==="upstream_error"){toast(msg);return}
+    await runFail(msg)}
+};
+
+/* ---------- Deal Advisor ---------- */
+let advSel=null;
+var advisor=window.DealAdvisor?DealAdvisor.mount({
+  app:"taxotc", appLabel:"OTC Tax Parcel Finder (over-the-counter tax deeds and liens, Texas struck-off resale)", track:"taxotc", stages:STAGES, stageKey:"stage", nextKey:"date", notesKey:"notes",
+  fields:[{key:"address",label:"Street address",type:"text"},{key:"city",label:"City",type:"text"},{key:"zip",label:"ZIP",type:"text"},{key:"county",label:"County",type:"text"},{key:"state",label:"State",type:"text"},
+    {key:"apn",label:"Parcel ID / APN",type:"text"},{key:"kind",label:"Kind",options:Object.keys(KINDS)},{key:"price",label:"OTC price ($)",type:"number"},{key:"fees",label:"Fees ($)",type:"number"},
+    {key:"liens",label:"Other liens total ($)",type:"number"},{key:"landUse",label:"Property type",type:"text"},{key:"acres",label:"Acres",type:"text"},{key:"deadline",label:"Deadline",type:"date"},
+    {key:"next",label:"Next step",type:"text"},{key:"appraised",label:"County appraised value ($)",type:"number"}],
+  getDb:()=>dbRef, getMcp:async()=>claude.use("mcp").catch(()=>null), toast,
+  ready:()=>!!col&&rows.length>0,
+  current:()=>{const r=rows.find(x=>x.id===advSel);return r?{id:r.id,title:[r.address||("Parcel "+(r.apn||"")),r.city,r.state].filter(Boolean).join(", ")}:null},
+  getField:k=>{const r=rows.find(x=>x.id===advSel);return r?r[k]:null},
+  select:id=>{advSel=id},
+  context:id=>{const r=rows.find(x=>x.id===id);if(!r)return{};const s=score(r);
+    return{parcel:r,buyBox:bb,buyBoxResult:{verdict:VERDICT[s.verdict],tests:s.tests.map(t=>`${t.st.toUpperCase()}: ${t.label}${t.why?" ("+t.why+")":""}`),totalCost:s.cost.total,valueNeeded:s.need},
+      kinds:KINDS,howToUse:"Harvey buys over-the-counter tax deeds/liens and Texas struck-off resale parcels that fit his buy box. Judge the parcel against the buy box, flag what is unverified (liens beyond mortgages: judgments, code liens, IRS; access; zoning; title/quiet title), and say what to check with the county before buying. A tax lien is not ownership; redemption rules vary by state. No legal advice."}},
+  apply:async(id,patch)=>{
+    if(readOnly||!col)throw new Error("You have view-only access here.");
+    const r=rows.find(x=>x.id===id);if(!r)throw new Error("That parcel is gone.");
+    const note=patch.__note;delete patch.__note;
+    const body={};for(const [k,v] of Object.entries(patch))body[k]=NUMF.has(k)?num(v):String(v);
+    if(body.appraised>0)body.fmv=DealAdvisor.fmv(body.appraised);
+    if("liens" in body)body.liensSource="Deal Advisor";
+    if(note)body.notes=(r.notes?String(r.notes).trimEnd()+"\n\n":"")+note;
+    body.updated=new Date().toISOString();
+    await col.doc(id).update(body);
+  },
+  hubIds:async id=>{try{const s=await dbRef.doc("hubmap/"+id).get();return s.exists?s.data():null}catch(_){return null}},
+  findByHub:async hid=>{try{const s=await dbRef.collection("hubmap").get();const d=s.docs.find(x=>(x.data()||{}).hubId===hid);if(d&&rows.some(r=>r.id===d.id)){advSel=d.id;return d.id}return null}catch(_){return null}},
+}):null;
+
+/* ---------- start ---------- */
+renderBB();render();
+(async()=>{
+  const db=window.claude?await window.claude.use("db"):null;
+  if(!db){$("status").textContent="Sign in to claude.ai to view and update parcels.";readOnly=true;$("addBtn").hidden=true;render();return}
+  col=db.collection("parcels");dbRef=db;
+  db.doc("config/buybox").onSnapshot(s=>{if(s.exists){const d=s.data();bb={...DEF_BB,...d,kinds:[...(d.kinds||DEF_BB.kinds)],states:[...(d.states||[])]};bbSaved=d.updatedAt||null}renderBB();render()},()=>{});
+  db.doc("runs/latest").onSnapshot(s=>{run=s.exists?s.data():null;renderRun()},()=>{});
+  let ready=false;
+  const kindOf=d=>KINDS[d.kind]?d.kind:"deed";
+  const hub=hubSyncStart({
+    db, track:"taxotc", app:"taxotc", collection:"parcels", label:"OTC Tax Parcel Finder", trackLabel:"OTC tax parcels", deadStage:"Pass",
+    ready:()=>ready, getRecords:()=>rows, onStatus:t=>{$("hubStatus").textContent=t},
+    toHub:r=>({name:r.name||r.address||("Parcel "+(r.apn||"")), address:r.address||"", zip:r.zip||"", county:r.county||"", city:r.city||"", state:r.state, prop_type:r.landUse||"", stage:STAGES.includes(r.stage)?r.stage:"Found", next_touch:r.date||"", asking:r.price,
+      notes:[KINDS[r.kind]||"", r.apn&&"APN "+r.apn, r.deadline&&"Deadline "+r.deadline, r.liens!=null&&"Other liens $"+Math.round(r.liens).toLocaleString(), r.next&&"Next: "+r.next, r.url, r.notes].filter(Boolean).join("\n"),
+      source:"OTC Tax Parcel Finder", data:{kind:r.kind||"", apn:r.apn||"", otcPrice:num(r.price), otherLiens:num(r.liens), deadline:r.deadline||"", verdict:VERDICT[score(r).verdict]}}),
+    patchFromHub:(r,h)=>{
+      const p={},fill=(k,v)=>{if(v!=null&&v!==""&&(r[k]==null||r[k]===""))p[k]=v};
+      if(STAGES.includes(h.stage)&&h.stage!==(r.stage||"Found"))p.stage=h.stage;
+      if(h.next_touch&&h.next_touch!==r.date)p.date=h.next_touch;
+      if(h.asking!=null&&r.price==null)p.price=Number(h.asking);
+      fill("city",h.city);fill("state",hubNormState(h.state));fill("address",h.address);fill("zip",hubZip5(h.zip));fill("county",h.county);fill("landUse",h.prop_type);
+      if(Number(h.appraised)>0&&Number(h.appraised)!==Number(r.appraised)){p.appraised=Number(h.appraised);p.fmv=DealAdvisor.fmv(h.appraised)}
+      if(Object.keys(p).length)p.updated=new Date().toISOString();
+      return p;
+    },
+    fromHub:h=>{let d={};try{d=JSON.parse(h.data||"{}")||{}}catch(_){}
+      const st=hubNormState(h.state)||hubZipState(h.zip)||"TX";
+      return{name:h.name||h.address||"Back office parcel",address:h.address||"",zip:hubZip5(h.zip),county:h.county||"",city:h.city||"",state:st,kind:kindOf(d),apn:d.apn||"",
+        price:h.asking!=null?Number(h.asking):(d.otcPrice??null),fees:null,liens:d.otherLiens??null,liensSource:d.otherLiens!=null?"back office":"",flood:{sfha:null},landUse:h.prop_type||"",acres:h.acres!=null?String(h.acres):"",
+        deadline:d.deadline||"",stage:STAGES.includes(h.stage)?h.stage:"Found",date:h.next_touch||"",next:"",sourceName:"",url:"",notes:h.notes||"",source:"Back office",foundAt:new Date().toISOString(),updated:new Date().toISOString(),
+        appraised:Number(h.appraised)>0?Number(h.appraised):null,fmv:Number(h.appraised)>0?DealAdvisor.fmv(h.appraised):null}},
+  });
+  $("hubBtn").onclick=()=>hub.sync();
+  col.onSnapshot(s=>{rows=s.docs.map(d=>({id:d.id,...d.data()}));ready=true;hub.soon();$("status").textContent=`${rows.length} parcel${rows.length===1?"":"s"} · filter by result, stage, kind or state`;render()},
+    ()=>{$("status").textContent="The dashboard lost its connection. Reload to reconnect."});
+})();
+</script>

@@ -1,0 +1,113 @@
+<title>OTC Tax Parcel Finder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/*CSS*/
+/* OTC Tax Parcel Finder additions */
+[hidden]{display:none!important}
+.tests{display:flex;flex-wrap:wrap;gap:6px}
+.t{font-size:.78rem;border-radius:999px;padding:3px 9px;border:1px solid currentColor;display:inline-flex;gap:5px;align-items:center}
+.t.pass{color:var(--ok)}.t.fail{color:var(--bad)}.t.unk{color:var(--muted);border-style:dashed}
+.verdict{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:999px}
+.verdict.q{background:var(--ok);color:var(--surface)}.verdict.f{background:var(--bad);color:var(--surface)}.verdict.n{border:1px dashed var(--muted);color:var(--muted)}
+.math{font-family:var(--f-mono);font-size:.8rem;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;overflow-wrap:anywhere}
+.math b{font-weight:600}
+.bb{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.bbgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.inline{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;text-transform:none!important;letter-spacing:0!important;font-size:.9rem!important;color:var(--ink)!important}
+.inline input{width:auto}
+.comps{font-size:.82rem;display:grid;gap:2px}
+.comps div{display:flex;gap:10px;flex-wrap:wrap;font-family:var(--f-mono)}
+.warnbox{border-left:3px solid var(--warn);padding:6px 10px;font-size:.85rem;background:var(--bg);border-radius:0 8px 8px 0}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters select{width:auto}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>OTC Tax Parcel Finder</h1>
+      <p class="sub">Over-the-counter tax deeds and liens, plus Texas struck-off resale, scored against your buy box</p>
+    </div>
+    <div class="acts"><button id="bbBtn" type="button" aria-expanded="false" aria-controls="bbBox">Buy box</button><button id="findBtn" type="button" aria-expanded="false" aria-controls="finder">Find parcels</button><button id="hubBtn" type="button" title="Two-way sync with the OTC tax parcels track in the back office (houselotandland.org/office)">Sync back office</button><button class="primary" id="addBtn" type="button">+ Add parcel</button></div>
+  </header>
+  <p class="note" id="hubStatus" aria-live="polite"></p>
+
+  <section class="bb" id="bbBox" hidden aria-labelledby="h-bb">
+    <div class="row1"><h2 id="h-bb" style="font-family:var(--f-display);margin:0;font-size:1.15rem">Buy box</h2><span class="note" id="bbSaved"></span></div>
+    <p class="note" style="margin:0">Every parcel is scored live against these numbers, and the weekly scan uses them too. Change them any time; scores update right away.</p>
+    <div class="bbgrid">
+      <label>Max OTC purchase price ($)<input id="bb-maxPrice" type="number" min="0" step="50" inputmode="numeric"></label>
+      <label>Max other liens, total ($)<input id="bb-maxLiens" type="number" min="0" step="500" inputmode="numeric"></label>
+      <label>Comps value ≥ this × total cost<input id="bb-multiple" type="number" min="1" step="0.5" inputmode="decimal"></label>
+      <label>Min. number of comps<input id="bb-minComps" type="number" min="1" step="1" inputmode="numeric"></label>
+      <label>Comps sold within (months)<input id="bb-compMonths" type="number" min="1" max="60" step="1" inputmode="numeric"></label>
+      <label>Comps within (miles)<input id="bb-compMiles" type="number" min="0.1" max="25" step="0.25" inputmode="decimal"></label>
+      <label>Quiet title estimate ($, shown, not in the 5x test)<input id="bb-quietTitle" type="number" min="0" step="250" inputmode="numeric"></label>
+    </div>
+    <label class="inline"><input id="bb-noFlood" type="checkbox"> No FEMA flood zone (special flood hazard area)</label>
+    <div><div class="flabel">Parcel kinds</div><div class="chips" id="bb-kinds"></div></div>
+    <label>Only these states (2-letter, comma-separated; blank = any state that lets non-residents buy)<input id="bb-states" placeholder="FL, AZ, CO, AL, IA, TX"></label>
+    <div class="acts"><button class="primary" id="bbSave" type="button">Save buy box</button><button id="bbReset" type="button">Reset to defaults</button></div>
+  </section>
+
+  <section class="finder" id="finder" hidden aria-labelledby="h-find">
+    <div class="row1"><h2 id="h-find" style="font-family:var(--f-display);margin:0;font-size:1.15rem">Find parcels</h2><span class="note">Runs every Thursday at 6:17 AM, or tap Scan now. Takes 15 to 30 minutes.</span></div>
+    <div class="fbox">
+      <p class="note" style="margin:0">The scan reads county over-the-counter lists (Florida "Lands Available for Taxes", OTC tax lien states that allow non-residents) and Texas struck-off resale lists, keeps parcels under your max price, checks FEMA flood maps for free, and adds new ones here. BatchData lien and comps checks only run if you turn them on in the back office (Settings, Automatic searches), up to the limit set there; otherwise tap <b>Check parcel</b> on the ones you like.</p>
+      <button class="primary" id="searchBtn" type="button">Scan now</button>
+      <div class="note" id="runState" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="pipe" id="pipe" aria-label="Stages"></section>
+  <div class="filters">
+    <div class="chips" id="vchips" aria-label="Filter by buy-box result"></div>
+    <select id="kindF" aria-label="Kind"><option value="">All kinds</option></select>
+    <select id="stateF" aria-label="State"><option value="">All states</option></select>
+    <input id="listSearch" type="search" placeholder="Search parcel, county, address, notes…" aria-label="Search" autocomplete="off" style="max-width:300px;flex:1 1 200px">
+  </div>
+  <p class="note" id="status">Loading parcels…</p>
+  <section class="list" id="list"></section>
+  <div id="listPager" hidden></div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <form id="form">
+    <h2 id="formTitle">Edit parcel</h2>
+    <div class="grid2">
+      <label>Kind<select id="f-kind"></select></label>
+      <label>Parcel ID / APN<input id="f-apn" autocomplete="off"></label>
+    </div>
+    <label>Street address (needed for Check parcel)<input id="f-address" autocomplete="off" placeholder="1234 Main St"></label>
+    <div class="grid2">
+      <label>City<input id="f-city"></label>
+      <label>ZIP<input id="f-zip" inputmode="numeric" maxlength="10"></label>
+      <label>County<input id="f-county"></label>
+      <label>State<select id="f-state"></select></label>
+      <label>OTC price / min. bid ($)<input id="f-price" type="number" min="0" step="1" inputmode="decimal"></label>
+      <label>Fees to buy and record ($)<input id="f-fees" type="number" min="0" step="1" inputmode="decimal"></label>
+      <label>Other liens, total ($; blank = unknown)<input id="f-liens" type="number" min="0" step="1" inputmode="decimal"></label>
+      <label>Flood zone<select id="f-flood"><option value="">Unknown</option><option value="no">Not in a flood zone</option><option value="yes">In a flood zone</option></select></label>
+      <label>Property type<input id="f-landUse" placeholder="Vacant land, single-family…"></label>
+      <label>Acres<input id="f-acres" inputmode="decimal"></label>
+      <label>County appraised value ($)<input id="f-appraised" type="number" min="0" step="1" inputmode="numeric"></label>
+      <label>Deadline (bid / purchase by)<input id="f-deadline" type="date"></label>
+      <label>Stage<select id="f-stage"></select></label>
+      <label>Next step date<input id="f-date" type="date"></label>
+    </div>
+    <label>Next step<input id="f-next"></label>
+    <label>List / source name<input id="f-sourceName" placeholder="Polk County Lands Available for Taxes"></label>
+    <label>List or parcel link<input id="f-url" type="url"></label>
+    <label>Notes<textarea id="f-notes"></textarea></label>
+    <div class="formacts">
+      <button type="button" class="danger" id="delBtn">Delete</button>
+      <div class="acts"><button type="button" id="cancelBtn">Cancel</button><button class="primary" type="submit">Save</button></div>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* Deal Advisor: a chat (placeholder: replaced by inject.py with src/dashboards/advisor.js) */
+</script>

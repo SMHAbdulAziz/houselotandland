@@ -1,0 +1,23 @@
+<script>
+// Rows-per-page control (25 / 50 / 100 / All), remembered per browser. pager.slice(list) returns the rows to draw and redraws the control.
+function makePager(boxId, storeKey, onChange, btnClass){
+  const P = {size:25, page:0};
+  try{ const v = localStorage.getItem(storeKey); if(v !== null && [0,10,25,50,100].includes(+v)) P.size = +v; }catch(_){}
+  const box = document.getElementById(boxId);
+  box.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;font-size:13px";
+  box.addEventListener("change", e => { if(e.target.matches("select[data-pg]")){ P.size = +e.target.value; P.page = 0; try{ localStorage.setItem(storeKey, String(P.size)); }catch(_){} onChange(); } });
+  box.addEventListener("click", e => { const b = e.target.closest("[data-pgmove]"); if(!b) return; P.page += +b.dataset.pgmove; onChange(); });
+  P.reset = () => { P.page = 0; };
+  P.slice = list => {
+    const n = list.length, size = P.size || n || 1, pages = Math.max(1, Math.ceil(n / size));
+    P.page = Math.min(Math.max(0, P.page), pages - 1);
+    const start = P.size ? P.page * size : 0, shown = P.size ? list.slice(start, start + size) : list;
+    box.hidden = !n;
+    box.innerHTML = `<label style="display:flex;gap:6px;align-items:center;white-space:nowrap">Rows per page <select data-pg aria-label="Rows per page" style="width:auto">${[10,25,50,100,0].map(v => `<option value="${v}" ${P.size===v?"selected":""}>${v||"All"}</option>`).join("")}</select></label>
+      <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span>Showing ${n ? start + 1 : 0}–${start + shown.length} of ${n}</span>${pages > 1 ? `<button type="button" class="${btnClass}" data-pgmove="-1" ${P.page ? "" : "disabled"}>‹ Prev</button><span>Page ${P.page + 1} of ${pages}</span><button type="button" class="${btnClass}" data-pgmove="1" ${P.page < pages - 1 ? "" : "disabled"}>Next ›</button>` : ""}</span>`;
+    return shown;
+  };
+  return P;
+}
+
+</script>

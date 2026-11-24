@@ -16,8 +16,15 @@ export const SEARCHES = {
       batchdata_enrich: { label: "BatchData skip traces on the strongest owners", cost: "batchdata" },
     },
     limits: { max_records: { label: "BatchData search results per run", def: 30, max: 200 }, max_enrich: { label: "Skip traces per run", def: 10, max: 100 } } },
-  struckoff: { name: "Struck-off tax property scan", when: "Tuesdays, 6:31 AM", dashboard: "Deal Desk",
+  struckoff: { name: "Struck-off tax property scan", when: "Tuesdays, 6:31 AM", dashboard: "Deal Desk (parcels under the OTC buy-box price go to the OTC Tax Parcel Finder)",
     pulls: { web: { label: "County struck-off and tax resale lists", cost: "free" } }, limits: {} },
+  otc: { name: "OTC tax parcel scan", when: "Thursdays, 6:17 AM", dashboard: "OTC Tax Parcel Finder",
+    pulls: {
+      web: { label: "County over-the-counter tax deed, tax lien and Texas struck-off lists", cost: "free" },
+      flood: { label: "FEMA flood-zone check on each new parcel", cost: "free" },
+      batchdata_enrich: { label: "BatchData lien and comps check on the best new parcels (about 2 pulls each)", cost: "batchdata", def: false },
+    },
+    limits: { max_enrich: { label: "Parcels checked with BatchData per run", def: 5, max: 50 } } },
   bids: { name: "Texas power-washing bid scan", when: "Daily except Saturday, 5:31 AM", dashboard: "Power-Washing Bid Leads",
     pulls: { web: { label: "Government bid sites and award notices", cost: "free" } }, limits: {} },
 };
@@ -25,7 +32,7 @@ export const SEARCHES = {
 export function defaults() {
   const s = {};
   for (const [k, d] of Object.entries(SEARCHES))
-    s[k] = { on: true, pulls: Object.fromEntries(Object.keys(d.pulls).map((p) => [p, true])), limits: Object.fromEntries(Object.entries(d.limits).map(([l, v]) => [l, v.def])) };
+    s[k] = { on: d.defOn !== false, pulls: Object.fromEntries(Object.entries(d.pulls).map(([p, pd]) => [p, pd.def !== false])), limits: Object.fromEntries(Object.entries(d.limits).map(([l, v]) => [l, v.def])) };
   return { batchdata_allowed: true, searches: s };
 }
 

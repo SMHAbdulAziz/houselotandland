@@ -1,0 +1,203 @@
+<script>
+// ---- Back office master list (D1 "hub") sync: one track of houselotandland.org/office <-> this dashboard ----
+// Pull: every deal on the track appears here; back office stage / next touch / price changes flow in.
+// Push: records made here are added to the master list; stage, next touch, price, state and property details flow out
+// (each stage change is logged in the property's back office history). Deleting a record here deletes it there, and the reverse.
+// Link bookkeeping lives in the "hubmap" collection (one doc per record id), so records themselves stay untouched.
+const HUB_STATES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"District of Columbia",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming",PR:"Puerto Rico"};
+const hubNormState = v => { const t = String(v||"").trim(); if(!t) return ""; const u = t.toUpperCase(); if(HUB_STATES[u]) return u; const h = Object.entries(HUB_STATES).find(([,n]) => n.toLowerCase() === t.toLowerCase()); return h ? h[0] : ""; };
+const HUB_ZIP3 = [[5,5,"NY"],[6,9,"PR"],[10,27,"MA"],[28,29,"RI"],[30,38,"NH"],[39,49,"ME"],[55,55,"MA"],[50,59,"VT"],[60,69,"CT"],[70,89,"NJ"],[100,149,"NY"],[150,196,"PA"],[197,199,"DE"],[200,200,"DC"],[201,201,"VA"],[202,205,"DC"],[206,219,"MD"],[220,246,"VA"],[247,268,"WV"],[270,289,"NC"],[290,299,"SC"],[300,319,"GA"],[398,399,"GA"],[320,349,"FL"],[350,369,"AL"],[370,385,"TN"],[386,397,"MS"],[400,427,"KY"],[430,459,"OH"],[460,479,"IN"],[480,499,"MI"],[500,528,"IA"],[530,549,"WI"],[550,567,"MN"],[570,577,"SD"],[580,588,"ND"],[590,599,"MT"],[600,629,"IL"],[630,658,"MO"],[660,679,"KS"],[680,693,"NE"],[700,714,"LA"],[716,729,"AR"],[733,733,"TX"],[730,749,"OK"],[750,799,"TX"],[885,885,"TX"],[800,816,"CO"],[820,831,"WY"],[832,838,"ID"],[840,847,"UT"],[850,865,"AZ"],[870,884,"NM"],[889,898,"NV"],[900,961,"CA"],[967,968,"HI"],[970,979,"OR"],[980,994,"WA"],[995,999,"AK"]];
+const hubZip5 = z => (String(z||"").match(/\b(\d{5})(?:-\d{4})?\b/)||[])[1] || "";
+const hubZipState = z => { const m = hubZip5(z); if(!m) return ""; const n = +m.slice(0,3); const h = HUB_ZIP3.find(([a,b]) => n>=a && n<=b); return h ? h[2] : ""; };
+const hubStateOf = r => hubNormState(r && r.state) || hubZipState(r && r.zip) || "TX";
+const HUB_SUF = {street:"st",st:"st",drive:"dr",dr:"dr",road:"rd",rd:"rd",avenue:"ave",ave:"ave",av:"ave",lane:"ln",ln:"ln",boulevard:"blvd",blvd:"blvd",court:"ct",ct:"ct",place:"pl",pl:"pl",
+  highway:"hwy",hwy:"hwy",parkway:"pkwy",pkwy:"pkwy",trail:"trl",trl:"trl",circle:"cir",cir:"cir",terrace:"ter",ter:"ter",way:"way",freeway:"fwy",fwy:"fwy",expressway:"expy",expy:"expy",
+  "farm-to-market":"fm","farm to market":"fm",fm:"fm",business:"bus",bus:"bus",bnd:"bnd",bend:"bnd",north:"n",south:"s",east:"e",west:"w",n:"n",s:"s",e:"e",w:"w",northeast:"ne",northwest:"nw",southeast:"se",southwest:"sw"};
+function hubNormStreet(s){ let t = String(s||"").toLowerCase().replace(/farm[\s-]+to[\s-]+market(\s+road)?/g,"fm").replace(/[.,#]/g," "); t = t.replace(/\b(apt|unit|suite|ste|lot|space|spc)\b.*$/,""); return t.split(/\s+/).filter(Boolean).map(w => HUB_SUF[w]||w).join(" ").trim(); }
+// Must match propertyKey() in the site's js/hub-keys.js.
+function hubPropertyKey({address, city, zip, name, state} = {}){
+  const st = hubNormStreet(address), c = String(city||"").toLowerCase().replace(/[^a-z ]/g,"").trim();
+  const s2 = hubNormState(state) || hubZipState(zip), sfx = s2 && s2 !== "TX" ? "|" + s2.toLowerCase() : "";
+  if(/^\d/.test(st)) return hubZip5(zip) ? `${st}|${hubZip5(zip)}` : `${st}|${c}${sfx}`;
+  const n = String(name || address || "").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+  return n ? `name:${n}|${c}${sfx}` : "";
+}
+// Remove one deal from the master list (same rules as the back office's Delete): tombstone it so every dashboard drops its copy,
+// delete the deal, and if the property has no other track left, delete the property, its links and history, and contacts tied to
+// nothing else (never opted-out or TCPA-litigator contacts, which stay on the do-not-contact list).
+async function hubRemoveDeal(q, rowsOf, hid, by){
+  const id = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+  const d = rowsOf(await q("SELECT d.id, d.property_id, d.track, d.source_app, d.source_id, COALESCE(p.address, p.name, '') AS label FROM deals d LEFT JOIN properties p ON p.id = d.property_id WHERE d.id = ?", [hid]))[0];
+  if(!d) return false;
+  const now = new Date().toISOString();
+  await q("INSERT OR REPLACE INTO deleted_deals (deal_id, property_id, track, source_app, source_id, label, at, by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [d.id, d.property_id||"", d.track, d.source_app||"", d.source_id||"", d.label, now, by]);
+  await q("DELETE FROM deals WHERE id = ?", [d.id]);
+  const left = rowsOf(await q("SELECT COUNT(*) AS n FROM deals WHERE property_id = ?", [d.property_id]))[0];
+  if(left && Number(left.n) > 0){
+    await q("INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'update', ?, ?, 'dashboard')", ["a_"+id(), now, d.property_id, d.id, "Deleted in the " + by, by]);
+    return true;
+  }
+  const cs = rowsOf(await q("SELECT contact_id FROM property_contacts WHERE property_id = ?", [d.property_id])).map(r => r.contact_id);
+  await q("DELETE FROM property_contacts WHERE property_id = ?", [d.property_id]);
+  await q("DELETE FROM activities WHERE property_id = ?", [d.property_id]);
+  await q("DELETE FROM properties WHERE id = ?", [d.property_id]);
+  for(const c of cs) await q("DELETE FROM contacts WHERE id = ? AND COALESCE(opt_out, 0) = 0 AND COALESCE(litigator, 0) = 0 AND NOT EXISTS (SELECT 1 FROM property_contacts WHERE contact_id = ?) AND NOT EXISTS (SELECT 1 FROM deals WHERE contact_id = ?)", [c, c, c]);
+  return true;
+}
+function hubSyncStart(cfg){
+  const CF = "Cloudflare Developer Platform", DB_ID = "41cd2c24-fb52-41ae-95b9-748ee75b2d31";
+  const S = {busy:false, map:{}, mapReady:false, mcp:null, timer:null};
+  const status = t => { try{ cfg.onStatus && cfg.onStatus(t); }catch(_){} };
+  const nid = p => p + "_" + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+  const s = v => v==null || (typeof v==="number" && !isFinite(v)) ? "" : String(v);
+  const n = v => { const x = parseFloat(String(v ?? "").replace(/[$,\s]/g,"")); return isFinite(x) ? x : null; };
+  const rowsOf = r => { let p = r && r.payload; if(typeof p==="string"){ try{ p = JSON.parse(p); }catch(_){ return []; } }
+    const a = Array.isArray(p) ? p : (p && (p.result || p.results)) || []; if(Array.isArray(a) && a[0] && Array.isArray(a[0].results)) return a[0].results;
+    return Array.isArray(a) ? a.filter(x => x && typeof x==="object" && !("success" in x && "meta" in x)) : []; };
+  const d1Raw = (sql, params) => S.mcp.callTool(CF, "d1_database_query", {database_id:DB_ID, sql, params:(params||[]).map(s)});
+  const d1 = async (sql, params) => rowsOf(await d1Raw(sql, params));
+  const sigOf = h => JSON.stringify([h.stage, h.next_touch||"", n(h.asking), hubStateOf(h), h.county||"", h.address||"", hubZip5(h.zip), h.prop_type||"", n(h.units), n(h.beds), n(h.baths), n(h.sqft), h.cname||"", h.phone||"", String(h.email||"").toLowerCase()]);
+  const setMap = (id, m) => { S.map[id] = m; return cfg.db.collection("hubmap").doc(id).set(m).catch(()=>{}); };
+  const errText = e => { const c = e && e.code;
+    return c==="server_not_connected" || c==="selection_required" ? "connect Cloudflare Developer Platform in Settings → Connectors."
+      : c==="not_in_manifest" || c==="approval_required" || c==="not_granted" ? "allow the Cloudflare connection when the page asks, then tap Sync."
+      : c==="needs_reauth" ? "sign in to Cloudflare again in Settings → Connectors." : "tap Sync to try again."; };
+  async function contactFor(h, pid, now){
+    const pk = String(h.phone||"").replace(/\D/g,"").slice(-10), em = String(h.email||"").trim().toLowerCase(), okEm = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em);
+    let cid = null;
+    if(pk.length===10) cid = ((await d1("SELECT id FROM contacts WHERE phone_key = ? LIMIT 1", [pk]))[0]||{}).id || null;
+    if(!cid && okEm) cid = ((await d1("SELECT id FROM contacts WHERE email = ? LIMIT 1", [em]))[0]||{}).id || null;
+    if(!cid && (pk.length===10 || okEm || h.cname)){
+      cid = nid("c");
+      await d1(`INSERT INTO contacts (id, name, phone_key, phone, email, mailing, created_at, updated_at) VALUES (?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [cid, h.cname||"", pk.length===10?pk:"", h.phone||"", okEm?em:"", h.mailing||"", now, now]);
+    }
+    if(cid) await d1("INSERT OR IGNORE INTO property_contacts (property_id, contact_id, role, created_at) VALUES (?, ?, 'owner', ?)", [pid, cid, now]);
+    return cid;
+  }
+  async function pushCreate(rec){
+    const h = cfg.toHub(rec), key = hubPropertyKey(h); if(!key) return false;
+    const now = new Date().toISOString();
+    let p = (await d1("SELECT id FROM properties WHERE addr_key = ?", [key]))[0];
+    if(!p){
+      await d1(`INSERT OR IGNORE INTO properties (id, addr_key, name, address, city, state, zip, county, prop_type, units, beds, baths, sqft, created_at, updated_at)
+        VALUES (?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [nid("p"), key, h.name||"", h.address||"", h.city||"", hubStateOf(h), hubZip5(h.zip), h.county||"", h.prop_type||"", s(n(h.units)), s(n(h.beds)), s(n(h.baths)), s(n(h.sqft)), now, now]);
+      p = (await d1("SELECT id FROM properties WHERE addr_key = ?", [key]))[0];
+    }
+    if(!p) return false;
+    const cid = await contactFor(h, p.id, now);
+    let deal = (await d1("SELECT id FROM deals WHERE property_id = ? AND track = ?", [p.id, cfg.track]))[0];
+    if(!deal){
+      deal = {id: nid("d")};
+      await d1(`INSERT INTO deals (id, property_id, contact_id, track, stage, next_touch, source, source_app, source_id, asking, notes, data, created_at, updated_at)
+        VALUES (?, ?, NULLIF(?, ''), ?, ?, NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
+        [deal.id, p.id, cid||"", cfg.track, h.stage, h.next_touch||"", h.source || cfg.label, cfg.app, rec.id, s(n(h.asking)), String(h.notes||"").slice(0,4000), h.data ? JSON.stringify(h.data) : "", h.created_at || now, now]);
+      await d1(`INSERT INTO activities (id, at, property_id, deal_id, contact_id, kind, summary, by, source) VALUES (?, ?, ?, ?, NULLIF(?, ''), 'created', ?, ?, ?)`,
+        [nid("a"), now, p.id, deal.id, cid||"", "Added from the " + cfg.label, cfg.label, cfg.app]);
+    }
+    await setMap(rec.id, {hubId:deal.id, hubPid:p.id, cid:cid||"", hubAt:now, sig:null});
+    await pushUpdate(rec);
+    return true;
+  }
+  async function pushUpdate(rec){
+    const m = S.map[rec.id]; if(!m) return;
+    const h = cfg.toHub(rec), sig = sigOf(h); if(sig === m.sig) return;
+    const prev = m.sig ? JSON.parse(m.sig)[0] : null, now = new Date().toISOString();
+    await d1(`UPDATE deals SET stage = ?, next_touch = NULLIF(?, ''), asking = NULLIF(?, ''), updated_at = ? WHERE id = ?`, [h.stage, h.next_touch||"", s(n(h.asking)), now, m.hubId]);
+    await d1(`UPDATE properties SET address = COALESCE(NULLIF(address, ''), NULLIF(?, '')), zip = COALESCE(NULLIF(zip, ''), NULLIF(?, '')), updated_at = updated_at WHERE id = ?`, [h.address||"", hubZip5(h.zip), m.hubPid]);
+    await d1(`UPDATE properties SET state = ?, county = COALESCE(NULLIF(?, ''), county), prop_type = COALESCE(NULLIF(?, ''), prop_type), units = COALESCE(NULLIF(?, ''), units),
+      beds = COALESCE(NULLIF(?, ''), beds), baths = COALESCE(NULLIF(?, ''), baths), sqft = COALESCE(NULLIF(?, ''), sqft), updated_at = ? WHERE id = ?`,
+      [hubStateOf(h), h.county||"", h.prop_type||"", s(n(h.units)), s(n(h.beds)), s(n(h.baths)), s(n(h.sqft)), now, m.hubPid]);
+    let cid = m.cid || "";
+    if(!cid && (h.cname || h.phone || h.email)){
+      cid = (await contactFor(h, m.hubPid, now)) || "";
+      if(cid) await d1("UPDATE deals SET contact_id = COALESCE(contact_id, ?) WHERE id = ?", [cid, m.hubId]);
+    }
+    if(prev && prev !== h.stage) await d1(`INSERT INTO activities (id, at, property_id, deal_id, kind, summary, by, source) VALUES (?, ?, ?, ?, 'update', ?, ?, ?)`,
+      [nid("a"), now, m.hubPid, m.hubId, `${cfg.trackLabel} stage: ${prev} → ${h.stage}`, cfg.label, cfg.app]);
+    await setMap(rec.id, {...m, cid, sig, hubAt:now});
+  }
+  async function sync(){
+    if(S.busy || !S.mcp || !S.mapReady || !cfg.ready()) return;
+    S.busy = true; status("Syncing with the back office…");
+    try{
+      const rows = await d1(`SELECT d.id AS hid, d.stage, d.next_touch, d.asking, d.value, d.notes, d.source, d.source_app, d.source_id, d.data, d.created_at, d.updated_at,
+        p.id AS pid, p.name, p.address, p.city, p.state, p.zip, p.county, p.prop_type, p.units, p.beds, p.baths, p.sqft, p.acres, json_extract(p.data, '$.appraisedValue') AS appraised,
+        c.id AS cid, c.name AS cname, c.phone, c.email, c.mailing, c.opt_out
+        FROM deals d JOIN properties p ON p.id = d.property_id
+        LEFT JOIN contacts c ON c.id = COALESCE(d.contact_id, (SELECT pc.contact_id FROM property_contacts pc WHERE pc.property_id = p.id LIMIT 1))
+        WHERE d.track = ? ORDER BY d.created_at`, [cfg.track]);
+      const recs = cfg.getRecords(), byId = new Map(recs.map(r => [r.id, r]));
+      // Deals deleted in the back office (or another dashboard): drop our copy.
+      const tomb = await d1("SELECT deal_id, source_app, source_id FROM deleted_deals WHERE track = ?", [cfg.track]);
+      const tombIds = new Set(tomb.map(t => t.deal_id)), tombSrc = new Set(tomb.filter(t => t.source_app === cfg.app).map(t => t.source_id));
+      let removed = 0;
+      for(const [id, m] of Object.entries(S.map)){
+        if(!tombIds.has(m.hubId)) continue;
+        if(byId.has(id)){ await cfg.db.collection(cfg.collection).doc(id).delete().catch(()=>{}); byId.delete(id); removed++; }
+        delete S.map[id]; await cfg.db.collection("hubmap").doc(id).delete().catch(()=>{});
+      }
+      for(const r of recs){ if(!S.map[r.id] && tombSrc.has(r.id) && byId.has(r.id)){ await cfg.db.collection(cfg.collection).doc(r.id).delete().catch(()=>{}); byId.delete(r.id); removed++; } }
+      const byHub = new Map(Object.entries(S.map).map(([id, m]) => [m.hubId, id]));
+      const byKey = new Map(); recs.forEach(r => { if(!S.map[r.id] && !r.example){ const k = hubPropertyKey(cfg.toHub(r)); if(k && !byKey.has(k)) byKey.set(k, r); } });
+      const seen = new Set(); let made = 0, linked = 0, updated = 0, sent = 0, dead = 0;
+      for(const row of rows){
+        seen.add(row.hid);
+        let id = byHub.get(row.hid);
+        if(id && !byId.has(id)) continue; // deleted here: handled below
+        if(!id && row.source_app === cfg.app && byId.has(row.source_id) && !S.map[row.source_id]) id = row.source_id;
+        if(!id){ const r = byKey.get(hubPropertyKey({address:row.address, city:row.city, zip:row.zip, state:row.state, name:row.name})); if(r && !S.map[r.id]) id = r.id; }
+        if(id){
+          let m = S.map[id];
+          if(!m){ m = {hubId:row.hid, hubPid:row.pid, cid:row.cid||"", hubAt:"", sig:null}; byHub.set(row.hid, id); linked++; }
+          if(String(row.updated_at||"") > String(m.hubAt||"")){
+            const rec = byId.get(id), patch = cfg.patchFromHub(rec, row) || {};
+            if(Object.keys(patch).length){ await cfg.db.collection(cfg.collection).doc(id).update(patch); updated++; }
+            m = {...m, hubAt: row.updated_at, sig: sigOf(cfg.toHub({...rec, ...patch}))};
+          }
+          if(JSON.stringify(m) !== JSON.stringify(S.map[id] || null)) await setMap(id, m);
+          continue;
+        }
+        if(row.source_app === cfg.app && row.stage === cfg.deadStage) continue; // deleted here earlier
+        const nid2 = row.source_app === cfg.app && row.source_id ? row.source_id : "hub_" + row.hid;
+        if(byId.has(nid2)) continue;
+        const rec = cfg.fromHub(row);
+        Object.keys(rec).forEach(k => { if(rec[k] === undefined) rec[k] = null; });
+        status(`Bringing in from the back office: ${made + 1}…`);
+        await cfg.db.collection(cfg.collection).doc(nid2).set(rec);
+        await setMap(nid2, {hubId:row.hid, hubPid:row.pid, cid:row.cid||"", hubAt:row.updated_at, sig:sigOf(cfg.toHub({...rec, id:nid2}))});
+        byId.set(nid2, {...rec, id:nid2}); made++;
+      }
+      // Records deleted here since the last sync: delete them from the back office too (skipped if most links look missing, e.g. a partial load).
+      const gone = Object.entries(S.map).filter(([id]) => !byId.has(id));
+      if(gone.length && gone.length <= Math.max(5, Object.keys(S.map).length / 4)){
+        for(const [id, m] of gone){
+          await hubRemoveDeal(d1Raw, rowsOf, m.hubId, cfg.label);
+          delete S.map[id]; await cfg.db.collection("hubmap").doc(id).delete().catch(()=>{}); dead++;
+        }
+      }
+      // Push: new records here, then changed ones.
+      for(const r of recs){
+        if(r.example || !byId.has(r.id)) continue;
+        if(!S.map[r.id]){ if(sent < 25 && await pushCreate(r)) sent++; continue; }
+        if(sigOf(cfg.toHub(r)) !== S.map[r.id].sig){ await pushUpdate(r); sent++; }
+      }
+      const t = new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+      status(`Back office synced ${t} · ${rows.length} on this track${made?` · ${made} brought in`:""}${linked?` · ${linked} linked`:""}${updated?` · ${updated} updated`:""}${sent?` · ${sent} sent`:""}${dead?` · ${dead} deleted from the back office`:""}${removed?` · ${removed} removed (deleted in the back office)`:""}`);
+    }catch(e){ console.warn("hub sync", e); status("Back office sync didn't finish: " + errText(e)); }
+    S.busy = false;
+  }
+  (async () => {
+    try{ S.mcp = await window.claude.use("mcp"); }catch(_){ S.mcp = null; }
+    if(!S.mcp){ status("Back office sync isn't available in this view."); return; }
+    cfg.db.collection("hubmap").onSnapshot(snap => {
+      const m = {}; snap.docs.forEach(d => { m[d.id] = d.data(); }); S.map = m;
+      if(!S.mapReady){ S.mapReady = true; setTimeout(sync, 1500); setInterval(sync, 5*60*1000); }
+    }, () => status("Back office sync lost its connection. Reload the page."));
+  })();
+  let soon = null;
+  return { sync, soon: () => { clearTimeout(soon); soon = setTimeout(sync, 4000); } };
+}
+
+</script>

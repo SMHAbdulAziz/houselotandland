@@ -96,8 +96,10 @@ export const TRACKS = {
   creative: { label: "Creative finance", stages: ["New lead", "Contacted", "Terms requested", "Underwriting", "Offer out", "Under contract", "Closed", "Dead"] },
   funding: { label: "Funding", stages: ["New", "Reviewing", "Docs requested", "With lender", "Approved", "Funded", "Declined", "Withdrawn"] },
   services: { label: "Services", stages: ["Requested", "Scheduled", "In progress", "Completed", "Cancelled"] },
+  // Over-the-counter tax deeds and liens, plus Texas struck-off resale (OTC Tax Parcel Finder dashboard; Nov 24, 2026)
+  taxotc: { label: "OTC tax parcels", stages: ["Found", "Screened", "Checked", "Qualifies", "Buying", "Bought", "Redemption / title", "Sold", "Pass"] },
 };
 /** Harvey's market value: county appraisal-district value ÷ 0.8 ("FMV"). An extra figure next to BatchData's Est. value, never a replacement. */
 export const FMV_RATIO = 0.8;
 export const fmvFromAppraised = (v) => { const n = Number(v); return n > 0 ? Math.round(n / FMV_RATIO) : null; };
-export const CLOSED_STAGES = new Set(["Closed", "Dead", "Assigned", "Funded", "Declined", "Withdrawn", "Completed", "Cancelled"]);
+export const CLOSED_STAGES = new Set(["Closed", "Dead", "Assigned", "Funded", "Declined", "Withdrawn", "Completed", "Cancelled", "Sold", "Pass"]);
